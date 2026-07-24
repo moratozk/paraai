@@ -1,0 +1,10 @@
+# Cache global de bibliotecas Arduino (não é dependência do projeto - é a
+# pasta de bibliotecas da IDE no PC local, ~200MB de libs de outros projetos
+# também). As bibliotecas que este firmware realmente usa estão listadas em
+# Main/README.md para instalação via Library Manager.
+libraries/
+
+# SO / editor
+.DS_Store
+Thumbs.db
+Desktop.ini

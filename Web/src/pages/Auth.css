@@ -1,0 +1,89 @@
+.auth-page {
+  min-height: calc(100vh - 73px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  /* faixas tracejadas sutis ao fundo, como pátio visto de cima */
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 180px,
+      var(--accent-soft) 180px 184px
+    );
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+  padding: 32px 28px;
+}
+
+.auth-logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.auth-title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  text-transform: uppercase;
+  font-size: 1.6rem;
+  letter-spacing: 0.02em;
+  margin-bottom: 6px;
+}
+
+.auth-card .subtitle {
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  margin-bottom: 28px;
+}
+
+.auth-card form {
+  text-align: left;
+}
+
+/* Seletor de papel (motorista / operador) */
+.role-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+
+.role-option {
+  padding: 11px 8px;
+  border-radius: 8px;
+  border: 2px dashed var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 800;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all 0.15s ease;
+}
+
+.role-option.active {
+  border: 2px solid var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.role-option:not(.active):hover {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+
+.auth-footer {
+  margin-top: 20px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.auth-footer a {
+  font-weight: 800;
+}

@@ -1,0 +1,54 @@
+// =========================================================================
+// Regras de segurança do Firestore — ParaAí (TCC)
+//
+// Como publicar: Firebase Console > Firestore Database > aba "Regras" >
+// cole este conteúdo > Publicar.
+//
+// LIMITAÇÃO CONHECIDA (documentada também no README): o totem ESP32 usa a
+// lib Firebase-ESP-Client em "test_mode", ou seja, acessa o Firestore SEM
+// autenticação. Por isso as coleções que ele lê/escreve precisam ficar
+// abertas. Numa versão de produção, cada totem se autenticaria (service
+// account / token por dispositivo) e estas regras seriam restritivas.
+// =========================================================================
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Dados da conta: só o próprio usuário logado lê/escreve o seu documento
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Estacionamentos da rede: criados pelo painel (operador), atualizados
+    // pelo totem (heartbeat, sem auth) e lidos pelo painel.
+    match /estacionamentos/{estId} {
+      allow read: if true;
+      allow write: if true; // totem sem auth - ver nota acima
+
+      // Ocupação vaga a vaga, escrita pelo totem
+      match /vagas/{vaga} {
+        allow read: if true;
+        allow write: if true;
+      }
+    }
+
+    // Carteira única do motorista (global na rede). O painel cadastra a
+    // placa e recarrega saldo; o totem lê o cadastro e debita na saída.
+    match /veiculos/{placa} {
+      allow read, write: if true;
+    }
+
+    // Movimentações, escritas pelo totem na saída (campo estacionamentoId)
+    match /historico/{registro} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Qualquer outra coleção: negado
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,376 @@
+/* =========================================================================
+   PARA AÍ — identidade visual
+   Conceito: sinalização viária brasileira. Amarelo de tinta de demarcação
+   sobre asfalto, tipografia condensada de placa (Anton), faixas tracejadas
+   de pista como elemento gráfico. O totem ESP32 usa a mesma linguagem.
+   ========================================================================= */
+
+:root {
+  --font-main: "Archivo", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Anton", "Archivo Black", sans-serif;
+
+  /* Tema escuro (padrão): asfalto à noite */
+  --bg-primary: #101216;
+  --bg-secondary: #15181d;
+  --bg-elevated: #1b1f26;
+  --bg-input: #12151a;
+  --bg-asphalt: #0c0e11;
+
+  --text-primary: #f2f0ea;   /* branco de tinta de demarcação */
+  --text-secondary: #a8adb8;
+  --text-muted: #6b7280;
+
+  --accent: #ffc400;         /* amarelo viário */
+  --accent-strong: #e6af00;
+  --accent-soft: rgba(255, 196, 0, 0.1);
+  --accent-contrast: #15171c; /* texto sobre amarelo */
+  --accent-text: #ffc400;     /* amarelo usado COMO texto */
+
+  --border: #2a2f38;
+  --border-strong: #3a414d;
+
+  --success: #35d07f;
+  --danger: #ff5d5d;
+
+  --radius: 10px;
+
+  /* faixa tracejada de pista */
+  --dash-paint: rgba(242, 240, 234, 0.35);
+}
+
+[data-theme="light"] {
+  /* Tema claro: concreto de dia */
+  --bg-primary: #efede7;
+  --bg-secondary: #f7f5f0;
+  --bg-elevated: #ffffff;
+  --bg-input: #edeae2;
+  --bg-asphalt: #1b1f26;   /* os "pátios" continuam asfalto mesmo de dia */
+
+  --text-primary: #15171c;
+  --text-secondary: #4a4f58;
+  --text-muted: #8a8f98;
+
+  --accent: #ffc400;
+  --accent-strong: #e6af00;
+  --accent-soft: rgba(230, 175, 0, 0.14);
+  --accent-contrast: #15171c;
+  --accent-text: #8a6d00;  /* âmbar escuro p/ texto legível no claro */
+
+  --border: #dcd8cc;
+  --border-strong: #c4bfae;
+
+  --success: #14a35d;
+  --danger: #d93838;
+
+  --dash-paint: rgba(21, 23, 28, 0.3);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font-main);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+a {
+  color: var(--accent-text);
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input, select {
+  font-family: inherit;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.container {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 24px;
+  width: 100%;
+}
+
+/* ---------- Tipografia display (placa de trânsito) ---------- */
+.display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+
+/* ---------- Logo / wordmark ---------- */
+.logo-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-word {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  letter-spacing: 0.04em;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.logo-word-accent {
+  color: var(--accent-text);
+}
+
+/* ---------- Faixa tracejada (divisor de pista) ---------- */
+.dash-divider {
+  height: 3px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--dash-paint) 0 26px,
+    transparent 26px 46px
+  );
+  border: none;
+}
+
+/* ---------- Faixa zebrada (canteiro de obra) ---------- */
+.hazard-stripe {
+  height: 10px;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--accent) 0 14px,
+    var(--accent-contrast) 14px 28px
+  );
+}
+
+/* ---------- Botões ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px 26px;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: 2px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+}
+
+.btn-primary:hover {
+  background: var(--accent-strong);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+}
+
+.btn-primary:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+}
+
+/* contorno tracejado = "vaga livre" */
+.btn-outline {
+  background: transparent;
+  border: 2px dashed var(--border-strong);
+  color: var(--text-primary);
+}
+
+.btn-outline:hover {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.btn-block {
+  width: 100%;
+}
+
+/* ---------- Inputs ---------- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 18px;
+  text-align: left;
+}
+
+.field label {
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-secondary);
+}
+
+.field input, .field select {
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 2px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.field input:focus, .field select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* ---------- Cards (placas de sinalização, minimal) ---------- */
+.card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 26px;
+}
+
+/* ---------- Animações da identidade (banners vivos) ---------- */
+
+/* Faixa de pista em movimento */
+.lane-anim {
+  height: 4px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--accent) 0 26px,
+    transparent 26px 46px
+  );
+  animation: lane-scroll 0.9s linear infinite;
+}
+
+@keyframes lane-scroll {
+  to { background-position: -46px 0; }
+}
+
+/* Letreiro infinito (marquee) */
+.marquee {
+  overflow: hidden;
+  white-space: nowrap;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+
+.marquee-track {
+  display: inline-flex;
+  align-items: center;
+  gap: 56px;
+  padding: 16px 28px;
+  animation: marquee-scroll 26s linear infinite;
+  will-change: transform;
+}
+
+@keyframes marquee-scroll {
+  to { transform: translateX(-50%); }
+}
+
+.marquee-item {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 56px;
+}
+
+.marquee-item::after {
+  content: "";
+  width: 26px;
+  height: 3px;
+  background: var(--accent);
+  display: inline-block;
+}
+
+/* Acessibilidade: quem prefere menos movimento, recebe tudo parado */
+@media (prefers-reduced-motion: reduce) {
+  .lane-anim,
+  .marquee-track,
+  .drive-car {
+    animation: none !important;
+  }
+}
+
+/* ---------- Placa veicular (estilo Mercosul) ---------- */
+.placa-tag {
+  display: inline-flex;
+  align-items: center;
+  background: #fff;
+  color: #15171c;
+  border: 2px solid #15171c;
+  border-radius: 5px;
+  padding: 3px 10px 3px 8px;
+  font-weight: 800;
+  font-size: 0.85rem;
+  letter-spacing: 0.14em;
+  line-height: 1.2;
+  position: relative;
+  overflow: hidden;
+}
+
+.placa-tag::before {
+  content: "";
+  display: block;
+  width: 5px;
+  align-self: stretch;
+  margin: -3px 8px -3px -8px;
+  background: #003399; /* faixa azul da placa */
+}
+
+/* ---------- Scrollbar ---------- */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+/* ---------- Error / status text ---------- */
+.error-text {
+  color: var(--danger);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.success-text {
+  color: var(--success);
+  font-size: 0.85rem;
+  font-weight: 600;
+}

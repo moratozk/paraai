@@ -1,0 +1,13 @@
+Credenciais.h
+
+# Artefatos de build (Arduino CLI / PlatformIO)
+build/
+.pio/
+*.bin
+*.elf
+*.map
+
+# SO / editor
+.DS_Store
+Thumbs.db
+.claude/
