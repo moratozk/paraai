@@ -1,15 +1,18 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import { useVeiculo, useEstacionamento } from "../hooks/useParkingData";
-import { registrarVeiculo, adicionarSaldo } from "../services/veiculos";
+import { Link } from "react-router-dom";
+import { registrarVeiculo } from "../services/veiculos";
 import { criarEstacionamento } from "../services/estacionamentos";
+import { buscarCep, cepCompleto, formatarCep } from "../services/cep";
+import ModalRecarga from "../components/ModalRecarga";
 import { normalizarPlaca, placaValida, formatarMoeda } from "../utils/format";
 import "./Pages.css";
 
-const VALORES_RECARGA = [10, 25, 50];
-
 export default function Perfil() {
   const { user, userData } = useAuth();
+  const toast = useToast();
   const role = userData?.role || "motorista";
 
   const name = userData?.name || user?.displayName || "Usuário";
@@ -31,19 +34,48 @@ export default function Perfil() {
   const [mensagem, setMensagem] = useState(null); // { tipo: "erro"|"ok", texto }
   const [processando, setProcessando] = useState(false);
 
+  // Modal de recarga (fluxo PIX/cartão simulado)
+  const [recargaAberta, setRecargaAberta] = useState(false);
+
   // Promoção motorista -> operador (também é o caminho de recuperação para
   // cadastros de operador que falharam no meio)
   const [estNome, setEstNome] = useState("");
-  const [estCidade, setEstCidade] = useState("");
   const [estVagas, setEstVagas] = useState(4);
-  const [estTarifa, setEstTarifa] = useState(5);
   const [msgEst, setMsgEst] = useState(null);
+  const [estCep, setEstCep] = useState("");
+  const [estEndereco, setEstEndereco] = useState(null);
+  const [estNumero, setEstNumero] = useState("");
+  const [buscandoCep, setBuscandoCep] = useState(false);
+  const [erroCep, setErroCep] = useState("");
+
+  async function handleCepChange(valor) {
+    setEstCep(formatarCep(valor));
+    setErroCep("");
+    if (!cepCompleto(valor)) {
+      setEstEndereco(null);
+      return;
+    }
+    setBuscandoCep(true);
+    try {
+      const dados = await buscarCep(valor);
+      setEstEndereco(dados);
+    } catch (err) {
+      setEstEndereco(null);
+      setErroCep(err.message);
+    } finally {
+      setBuscandoCep(false);
+    }
+  }
 
   async function handleCriarEstacionamento(e) {
     e.preventDefault();
     setMsgEst(null);
-    if (!estNome.trim() || !estCidade.trim()) {
-      setMsgEst({ tipo: "erro", texto: "Informe o nome e a cidade." });
+    if (!estNome.trim()) {
+      setMsgEst({ tipo: "erro", texto: "Informe o nome do estacionamento." });
+      return;
+    }
+    if (!estEndereco || !estNumero.trim()) {
+      setMsgEst({ tipo: "erro", texto: "Informe o CEP e o número do endereço." });
       return;
     }
     setProcessando(true);
@@ -51,11 +83,16 @@ export default function Perfil() {
       await criarEstacionamento({
         uid: user.uid,
         nome: estNome.trim(),
-        cidade: estCidade.trim(),
         numVagas: estVagas,
-        tarifaHora: estTarifa,
+        cep: estCep,
+        logradouro: estEndereco.logradouro,
+        numero: estNumero.trim(),
+        bairro: estEndereco.bairro,
+        cidade: estEndereco.cidade,
+        uf: estEndereco.uf,
       });
       // o papel troca sozinho via onSnapshot do AuthContext
+      toast.sucesso("Estacionamento cadastrado! Seu painel foi atualizado.");
     } catch (err) {
       const texto = `${err?.code || ""} ${err?.message || ""}`.toLowerCase();
       setMsgEst({
@@ -88,6 +125,7 @@ export default function Perfil() {
       await registrarVeiculo({ uid: user.uid, nome: name, placa: placaNova });
       setPlacaInput("");
       setMensagem({ tipo: "ok", texto: "Veículo cadastrado com sucesso!" });
+      toast.sucesso(`Placa ${placaNova} cadastrada!`);
     } catch (err) {
       setMensagem({
         tipo: "erro",
@@ -98,24 +136,6 @@ export default function Perfil() {
     }
   }
 
-  async function handleRecarga(valor) {
-    setMensagem(null);
-    setProcessando(true);
-    try {
-      await adicionarSaldo(placa, valor);
-      setMensagem({
-        tipo: "ok",
-        texto: `Recarga de ${formatarMoeda(valor)} adicionada ao saldo.`,
-      });
-    } catch (err) {
-      setMensagem({
-        tipo: "erro",
-        texto: err.message || "Erro ao adicionar saldo. Tente novamente.",
-      });
-    } finally {
-      setProcessando(false);
-    }
-  }
 
   return (
     <div className="page container">
@@ -141,7 +161,14 @@ export default function Perfil() {
         </div>
 
         <div className="card">
-          <h2>Dados da conta</h2>
+          <div className="card-head-row">
+            <h2 style={{ marginBottom: 0, background: "none", paddingBottom: 0 }}>
+              Dados da conta
+            </h2>
+            <Link to="/configuracoes" className="btn btn-outline btn-sm">
+              Editar
+            </Link>
+          </div>
 
           <div className="field">
             <label>Nome completo</label>
@@ -176,10 +203,29 @@ export default function Perfil() {
                 <span className="label">Nome</span>
                 <strong>{estacionamento.nome}</strong>
               </div>
+              {estacionamento.logradouro && (
+                <div className="info-row">
+                  <span className="label">Endereço</span>
+                  <span style={{ textAlign: "right" }}>
+                    {estacionamento.logradouro}
+                    {estacionamento.numero ? `, ${estacionamento.numero}` : ""}
+                    {estacionamento.bairro ? ` — ${estacionamento.bairro}` : ""}
+                  </span>
+                </div>
+              )}
               <div className="info-row">
                 <span className="label">Cidade</span>
-                <span>{estacionamento.cidade}</span>
+                <span>
+                  {estacionamento.cidade}
+                  {estacionamento.uf ? ` - ${estacionamento.uf}` : ""}
+                </span>
               </div>
+              {estacionamento.cep && (
+                <div className="info-row">
+                  <span className="label">CEP</span>
+                  <span>{estacionamento.cep}</span>
+                </div>
+              )}
               <div className="info-row">
                 <span className="label">Vagas</span>
                 <span>{estacionamento.numVagas}</span>
@@ -270,18 +316,13 @@ export default function Perfil() {
                 <strong className="money">{formatarMoeda(veiculo?.saldo)}</strong>
               </div>
 
-              <div className="saldo-actions">
-                {VALORES_RECARGA.map((valor) => (
-                  <button
-                    key={valor}
-                    className="btn-chip"
-                    onClick={() => handleRecarga(valor)}
-                    disabled={processando}
-                  >
-                    + {formatarMoeda(valor)}
-                  </button>
-                ))}
-              </div>
+              <button
+                className="btn btn-primary btn-block"
+                style={{ marginTop: 18 }}
+                onClick={() => setRecargaAberta(true)}
+              >
+                Adicionar saldo
+              </button>
               <p className="muted-note">
                 Recarga simulada, sem pagamento real — recurso de demonstração
                 do projeto acadêmico.
@@ -295,7 +336,7 @@ export default function Perfil() {
         <div className="card vehicle-card">
           <h2>Tenho um estacionamento</h2>
           <p className="muted-note" style={{ marginTop: 0 }}>
-            Cadastre seu estacionamento para receber o kit ParaAí e acompanhar
+            Cadastre seu estacionamento para automatizar o pátio e acompanhar
             faturamento, acessos e ocupação. Sua conta passará a ser de
             operador.
           </p>
@@ -307,57 +348,83 @@ export default function Perfil() {
           )}
 
           <form onSubmit={handleCriarEstacionamento}>
-            <div className="field-row">
+            <div className="field">
+              <label htmlFor="estNome">Nome do estacionamento</label>
+              <input
+                id="estNome"
+                type="text"
+                value={estNome}
+                onChange={(e) => setEstNome(e.target.value)}
+                placeholder="Ex.: Estacionamento Central"
+              />
+            </div>
+
+            <div className="field-row cep-row">
               <div className="field">
-                <label htmlFor="estNome">Nome do estacionamento</label>
-                <input
-                  id="estNome"
-                  type="text"
-                  value={estNome}
-                  onChange={(e) => setEstNome(e.target.value)}
-                  placeholder="Ex.: Estacionamento Central"
-                />
+                <label htmlFor="estCep">CEP</label>
+                <div className="input-com-acao">
+                  <input
+                    id="estCep"
+                    type="text"
+                    inputMode="numeric"
+                    value={estCep}
+                    onChange={(e) => handleCepChange(e.target.value)}
+                    placeholder="00000-000"
+                    maxLength={9}
+                  />
+                  {buscandoCep && <span className="input-spinner" />}
+                </div>
+                {erroCep ? (
+                  <span className="field-hint erro">{erroCep}</span>
+                ) : estEndereco ? (
+                  <span className="field-hint ok">
+                    ✓ {estEndereco.logradouro}, {estEndereco.cidade}-{estEndereco.uf}
+                  </span>
+                ) : (
+                  <span className="field-hint">Preenche o endereço sozinho</span>
+                )}
               </div>
               <div className="field">
-                <label htmlFor="estCidade">Cidade</label>
+                <label htmlFor="estNumero">Número</label>
                 <input
-                  id="estCidade"
+                  id="estNumero"
                   type="text"
-                  value={estCidade}
-                  onChange={(e) => setEstCidade(e.target.value)}
-                  placeholder="Ex.: Curitiba - PR"
+                  value={estNumero}
+                  onChange={(e) => setEstNumero(e.target.value)}
+                  placeholder="123"
+                  disabled={!estEndereco}
                 />
               </div>
             </div>
-            <div className="field-row">
-              <div className="field">
-                <label htmlFor="estVagas">Nº de vagas</label>
-                <input
-                  id="estVagas"
-                  type="number"
-                  min={1}
-                  max={200}
-                  value={estVagas}
-                  onChange={(e) => setEstVagas(e.target.value)}
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="estTarifa">Tarifa (R$/hora)</label>
-                <input
-                  id="estTarifa"
-                  type="number"
-                  min={0}
-                  step="0.50"
-                  value={estTarifa}
-                  onChange={(e) => setEstTarifa(e.target.value)}
-                />
-              </div>
+
+            <div className="field">
+              <label htmlFor="estVagas">Nº de vagas</label>
+              <input
+                id="estVagas"
+                type="number"
+                min={1}
+                max={200}
+                value={estVagas}
+                onChange={(e) => setEstVagas(e.target.value)}
+              />
+              <span className="field-hint">
+                A tarifa por hora você define depois, no painel.
+              </span>
             </div>
             <button type="submit" className="btn btn-outline" disabled={processando}>
               {processando ? "Cadastrando..." : "Cadastrar estacionamento"}
             </button>
           </form>
         </div>
+      )}
+
+      {recargaAberta && placa && (
+        <ModalRecarga
+          placa={placa}
+          saldoAtual={veiculo?.saldo}
+          aoFechar={() => setRecargaAberta(false)}
+          aoConcluir={(v) => toast.sucesso(`+${formatarMoeda(v)} na sua carteira!`)}
+        />
       )}
     </div>
   );

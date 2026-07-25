@@ -48,6 +48,10 @@ export default function PainelMotorista() {
     0
   );
 
+  const saldo = Number(veiculo?.saldo) || 0;
+  // Alerta se o saldo não cobre nem 1 hora na tarifa vigente
+  const saldoBaixo = Boolean(placa) && saldo < tarifaAtual;
+
   return (
     <div className="page container">
       <div className="page-header">
@@ -55,11 +59,24 @@ export default function PainelMotorista() {
         <p>Seu carro na rede ParaAí, em tempo real.</p>
       </div>
 
+      {saldoBaixo && (
+        <div className="card destaque-aviso alerta-saldo">
+          <div>
+            <strong>Saldo baixo.</strong> Você tem{" "}
+            {formatarMoeda(saldo)} — menos que uma hora de estacionamento.
+            Recarregue para não ficar preso na saída.
+          </div>
+          <Link to="/perfil" className="btn btn-primary btn-sm">
+            Recarregar
+          </Link>
+        </div>
+      )}
+
       <div className="stats-grid">
         <div className="card stat-card">
           <span className="stat-label">Saldo na carteira</span>
-          <span className="stat-value accent">
-            {placa ? formatarMoeda(veiculo?.saldo) : "—"}
+          <span className={`stat-value ${saldoBaixo ? "perigo" : "accent"}`}>
+            {placa ? formatarMoeda(saldo) : "—"}
           </span>
         </div>
         <div className="card stat-card">

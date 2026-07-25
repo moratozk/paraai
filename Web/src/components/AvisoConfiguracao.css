@@ -1,0 +1,59 @@
+.aviso-config {
+  background: color-mix(in srgb, var(--danger) 14%, var(--bg-secondary));
+  border-bottom: 2px solid var(--danger);
+}
+
+.aviso-config-inner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.aviso-config-icone {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 0.85rem;
+}
+
+.aviso-config-texto {
+  flex: 1;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.aviso-config-texto strong {
+  color: var(--text-primary);
+}
+
+.aviso-config-texto code {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 0.84em;
+}
+
+.aviso-config-fechar {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.4rem;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.aviso-config-fechar:hover {
+  color: var(--text-primary);
+}

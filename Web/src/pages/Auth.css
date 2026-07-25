@@ -3,22 +3,234 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
-  /* faixas tracejadas sutis ao fundo, como pátio visto de cima */
-  background:
-    repeating-linear-gradient(
-      90deg,
-      transparent 0 180px,
-      var(--accent-soft) 180px 184px
-    );
+  padding: 48px 20px;
+  position: relative;
+}
+
+.auth-page::before {
+  content: "";
+  position: absolute;
+  top: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 620px;
+  height: 420px;
+  background: radial-gradient(circle, rgba(255, 196, 0, 0.16), transparent 65%);
+  filter: blur(30px);
+  pointer-events: none;
 }
 
 .auth-card {
+  position: relative;
   width: 100%;
-  max-width: 420px;
+  max-width: 430px;
   text-align: center;
-  padding: 32px 28px;
+  padding: 36px 30px;
 }
+
+.auth-card-larga { max-width: 560px; }
+
+.auth-check {
+  width: 66px;
+  height: 66px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  background: var(--success);
+  color: #04120b;
+  font-size: 2rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 10px var(--success-soft);
+}
+
+/* seções dentro do formulário longo */
+.secao-form {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 26px 0 18px;
+}
+
+.secao-form::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.secao-form-titulo {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* CEP: campo do número é menor */
+.cep-row { grid-template-columns: 1.6fr 1fr; }
+
+.endereco-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 15px 17px;
+  border-radius: var(--radius-sm);
+  background: var(--success-soft);
+  border: 1px solid rgba(46, 232, 143, 0.28);
+  margin-bottom: 18px;
+  text-align: left;
+  animation: surgir 0.3s ease;
+}
+
+@keyframes surgir {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.endereco-linha {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  font-size: 0.86rem;
+}
+
+.endereco-label {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+/* trilha de etapas do cadastro */
+.etapas-trilha {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 26px;
+}
+
+.etapa-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  position: relative;
+}
+
+/* linha ligando as bolinhas */
+.etapa-item:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 14px;
+  left: calc(50% + 20px);
+  right: calc(-50% + 20px);
+  height: 2px;
+  background: var(--border-strong);
+}
+
+.etapa-item.feita:not(:last-child)::after { background: var(--success); }
+
+.etapa-bola {
+  width: 29px;
+  height: 29px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 800;
+  border: 2px solid var(--border-strong);
+  background: var(--bg-input);
+  color: var(--text-muted);
+  transition: all 0.25s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.etapa-item.ativa .etapa-bola {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  box-shadow: var(--glow-accent);
+}
+
+.etapa-item.feita .etapa-bola {
+  border-color: var(--success);
+  background: var(--success);
+  color: #04120b;
+}
+
+.etapa-rotulo {
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.etapa-item.ativa .etapa-rotulo { color: var(--accent-text); }
+.etapa-item.feita .etapa-rotulo { color: var(--success); }
+
+.acoes-etapa {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.resumo-cadastro {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 17px 19px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  border: 1px solid var(--border-strong);
+  margin-bottom: 18px;
+  text-align: left;
+}
+
+.resumo-titulo {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  color: var(--accent-text);
+  margin-bottom: 2px;
+}
+
+/* força da senha */
+.forca-senha {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.forca-barra {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.forca-barra span {
+  height: 4px;
+  flex: 1;
+  border-radius: 2px;
+  background: var(--border-strong);
+  transition: background 0.25s ease;
+}
+
+.forca-barra.n1 span:nth-child(1) { background: var(--danger); }
+.forca-barra.n2 span:nth-child(-n+2) { background: #ff9f43; }
+.forca-barra.n3 span:nth-child(-n+3) { background: var(--accent); }
+.forca-barra.n4 span { background: var(--success); }
 
 .auth-logo {
   display: flex;
@@ -49,32 +261,51 @@
 .role-switch {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 22px;
+  gap: 10px;
+  margin-bottom: 24px;
 }
 
 .role-option {
-  padding: 11px 8px;
-  border-radius: 8px;
-  border: 2px dashed var(--border-strong);
-  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 16px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-input);
   color: var(--text-secondary);
+  transition: all 0.18s ease;
+}
+
+.role-icone { font-size: 1.5rem; line-height: 1; }
+
+.role-titulo {
   font-weight: 800;
   font-size: 0.78rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  transition: all 0.15s ease;
+  letter-spacing: 0.04em;
+  color: var(--text-primary);
+  text-align: center;
+  line-height: 1.25;
+}
+
+.role-desc {
+  font-size: 0.7rem;
+  color: var(--text-muted);
 }
 
 .role-option.active {
-  border: 2px solid var(--accent);
-  background: var(--accent);
-  color: var(--accent-contrast);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: var(--glow-accent);
 }
+
+.role-option.active .role-titulo { color: var(--accent-text); }
 
 .role-option:not(.active):hover {
   border-color: var(--accent);
-  color: var(--accent-text);
+  transform: translateY(-2px);
 }
 
 

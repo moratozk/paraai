@@ -18,6 +18,29 @@ export function placaValida(placa) {
   return PLACA_ANTIGA.test(placa) || PLACA_MERCOSUL.test(placa);
 }
 
+// ---------- Telefone celular (BR) ----------
+
+export function normalizarTelefone(valor) {
+  return (valor || "").replace(/\D/g, "").slice(0, 11);
+}
+
+// (41) 99999-8888 enquanto digita
+export function formatarTelefone(valor) {
+  const d = normalizarTelefone(valor);
+  if (d.length <= 2) return d.length ? `(${d}` : "";
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+
+// Celular brasileiro: DDD válido (11-99) + 9 dígitos começando em 9
+export function telefoneValido(valor) {
+  const d = normalizarTelefone(valor);
+  if (d.length !== 11) return false;
+  const ddd = Number(d.slice(0, 2));
+  return ddd >= 11 && ddd <= 99 && d[2] === "9";
+}
+
 export function formatarMoeda(valor) {
   return (Number(valor) || 0).toLocaleString("pt-BR", {
     style: "currency",

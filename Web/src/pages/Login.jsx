@@ -1,16 +1,19 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import { LogoMark } from "../components/Logo";
 import "./Auth.css";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [verSenha, setVerSenha] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const { login } = useAuth();
+  const toast = useToast();
   const navigate = useNavigate();
 
   async function handleSubmit(e) {
@@ -20,10 +23,10 @@ export default function Login() {
 
     try {
       await login(email, password);
+      toast.sucesso("Bem-vindo de volta!");
       navigate("/dashboard");
     } catch (err) {
       setError(mapAuthError(err.code));
-    } finally {
       setLoading(false);
     }
   }
@@ -46,6 +49,7 @@ export default function Login() {
               id="email"
               type="email"
               required
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="voce@email.com"
@@ -53,18 +57,38 @@ export default function Login() {
           </div>
 
           <div className="field">
-            <label htmlFor="password">Senha</label>
-            <input
-              id="password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-            />
+            <div className="field-label-row">
+              <label htmlFor="password">Senha</label>
+              <Link to="/recuperar-senha" className="field-link">
+                Esqueci a senha
+              </Link>
+            </div>
+            <div className="input-com-acao">
+              <input
+                id="password"
+                type={verSenha ? "text" : "password"}
+                required
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                className="input-acao"
+                onClick={() => setVerSenha((v) => !v)}
+                aria-label={verSenha ? "Ocultar senha" : "Mostrar senha"}
+              >
+                {verSenha ? "Ocultar" : "Mostrar"}
+              </button>
+            </div>
           </div>
 
-          <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
+          <button
+            type="submit"
+            className="btn btn-primary btn-block"
+            disabled={loading}
+          >
             {loading ? "Entrando..." : "Entrar"}
           </button>
         </form>
@@ -87,6 +111,8 @@ function mapAuthError(code) {
       return "E-mail inválido.";
     case "auth/too-many-requests":
       return "Muitas tentativas. Tente novamente mais tarde.";
+    case "auth/network-request-failed":
+      return "Sem conexão. Verifique sua internet.";
     default:
       return "Erro ao entrar. Tente novamente.";
   }

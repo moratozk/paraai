@@ -5,6 +5,13 @@ import {
   signOut,
   onAuthStateChanged,
   updateProfile,
+  sendPasswordResetEmail,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  updatePassword,
+  verifyBeforeUpdateEmail,
+  verifyPasswordResetCode,
+  confirmPasswordReset,
 } from "firebase/auth";
 import { doc, setDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
@@ -22,31 +29,42 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Sinaliza que o Firestore recusou acesso (regras não publicadas). Sem
+  // isso o problema fica só no console e parece "bug do site".
+  const [erroPermissao, setErroPermissao] = useState(false);
   // Evita tentar o auto-reparo do documento do usuário mais de 1x por uid
   const reparoTentado = useRef(new Set());
+  // Suprime o auto-reparo enquanto um cadastro está em andamento: durante o
+  // cadastro o documento AINDA não existe, e o reparo competiria com as
+  // escritas do próprio cadastro (ver comentário no auto-reparo abaixo).
+  const cadastroEmAndamento = useRef(false);
 
   // role: "motorista" (padrão) ou "operador" (dono de estacionamento)
-  async function register(name, email, password, role = "motorista") {
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
-
+  async function register(name, email, password, role = "motorista", telefone = "") {
+    cadastroEmAndamento.current = true;
     try {
-      await updateProfile(cred.user, { displayName: name });
-    } catch (err) {
-      console.error("Aviso: falha ao atualizar perfil:", err);
-    }
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
 
-    try {
+      try {
+        await updateProfile(cred.user, { displayName: name });
+      } catch (err) {
+        console.error("Aviso: falha ao atualizar perfil:", err);
+      }
+
+      // Esta escrita é ESSENCIAL (define o papel da conta). Se falhar, o
+      // chamador precisa saber - não engolir o erro como "aviso".
       await setDoc(doc(db, "users", cred.user.uid), {
         name,
         email,
+        telefone,
         role,
         createdAt: serverTimestamp(),
       });
-    } catch (err) {
-      console.error("Aviso: falha ao criar documento do usuário:", err);
-    }
 
-    return cred;
+      return cred;
+    } finally {
+      cadastroEmAndamento.current = false;
+    }
   }
 
   function login(email, password) {
@@ -55,6 +73,70 @@ export function AuthProvider({ children }) {
 
   function logout() {
     return signOut(auth);
+  }
+
+  // Envia o e-mail de recuperação. O link aponta de volta para o NOSSO site
+  // (/redefinir-senha), então o usuário digita a nova senha aqui dentro em
+  // vez de ser jogado numa página genérica do Firebase.
+  function recuperarSenha(email) {
+    return sendPasswordResetEmail(auth, email, {
+      url: `${window.location.origin}/login`,
+      handleCodeInApp: false,
+    });
+  }
+
+  // Confere se o código de recuperação é válido; devolve o e-mail dono dele
+  function validarCodigoSenha(codigo) {
+    return verifyPasswordResetCode(auth, codigo);
+  }
+
+  // Efetiva a troca de senha usando o código do e-mail
+  function redefinirSenhaComCodigo(codigo, novaSenha) {
+    return confirmPasswordReset(auth, codigo, novaSenha);
+  }
+
+  // ---- Gestão da conta (todas exigem senha atual por segurança) ----
+
+  // O Firebase exige "login recente" para operações sensíveis. Em vez de
+  // deslogar o usuário, pedimos a senha atual e reautenticamos na hora.
+  async function reautenticar(senhaAtual) {
+    const u = auth.currentUser;
+    if (!u?.email) throw new Error("Sessão inválida. Entre novamente.");
+    const cred = EmailAuthProvider.credential(u.email, senhaAtual);
+    await reauthenticateWithCredential(u, cred);
+  }
+
+  async function alterarPerfil({ nome, telefone }) {
+    const u = auth.currentUser;
+    if (!u) throw new Error("Sessão inválida. Entre novamente.");
+
+    const dados = {};
+    if (nome !== undefined) dados.name = nome;
+    if (telefone !== undefined) dados.telefone = telefone;
+
+    if (nome !== undefined && nome !== u.displayName) {
+      await updateProfile(u, { displayName: nome });
+    }
+    await setDoc(doc(db, "users", u.uid), dados, { merge: true });
+
+    // força o contexto a refletir já, sem esperar um novo snapshot
+    setUser({ ...u });
+    setUserData((atual) =>
+      atual ? { ...atual, ...(nome !== undefined && { name: nome }), ...(telefone !== undefined && { telefone }) } : atual
+    );
+  }
+
+  async function alterarSenha(senhaAtual, novaSenha) {
+    await reautenticar(senhaAtual);
+    await updatePassword(auth.currentUser, novaSenha);
+  }
+
+  // Envia confirmação para o NOVO endereço; a troca só se efetiva quando o
+  // usuário clica no link. Isso evita alguém trocar para um e-mail inválido
+  // (ou de terceiros) e perder o acesso à conta.
+  async function alterarEmail(senhaAtual, novoEmail) {
+    await reautenticar(senhaAtual);
+    await verifyBeforeUpdateEmail(auth.currentUser, novoEmail);
   }
 
   useEffect(() => {
@@ -82,23 +164,36 @@ export function AuthProvider({ children }) {
           const data = snap.exists() ? snap.data() : {};
 
           // AUTO-REPARO: contas criadas enquanto as regras do Firestore
-          // bloqueavam escrita ficaram sem documento (e sem papel). Se o
-          // documento não existe, recria a partir do Auth — assim a conta
-          // volta a funcionar sozinha no próximo acesso.
-          if (!snap.exists() && !reparoTentado.current.has(currentUser.uid)) {
+          // bloqueavam escrita ficaram sem documento. Se o documento não
+          // existe, recria o básico a partir do Auth.
+          //
+          // NUNCA grava "role" aqui. Este callback dispara assim que a conta
+          // é criada - antes de o cadastro terminar de gravar o documento -
+          // então gravar role:"motorista" aqui competia com a escrita do
+          // cadastro e podia sobrescrever um cadastro de OPERADOR (o papel
+          // vencedor dependia de qual escrita chegasse por último). O papel
+          // já tem fallback "motorista" na derivação abaixo, então o reparo
+          // não precisa - e não pode - opinar sobre ele.
+          if (
+            !snap.exists() &&
+            !cadastroEmAndamento.current &&
+            !reparoTentado.current.has(currentUser.uid)
+          ) {
             reparoTentado.current.add(currentUser.uid);
             setDoc(
               doc(db, "users", currentUser.uid),
               {
                 name: currentUser.displayName || null,
                 email: currentUser.email || null,
-                role: "motorista",
                 createdAt: serverTimestamp(),
               },
               { merge: true }
-            ).catch((err) =>
-              console.error("Auto-reparo do perfil falhou:", err)
-            );
+            ).catch((err) => {
+              console.error("Auto-reparo do perfil falhou:", err);
+              if (`${err?.code || ""}`.includes("permission")) {
+                setErroPermissao(true);
+              }
+            });
           }
 
           setUserData({
@@ -114,6 +209,9 @@ export function AuthProvider({ children }) {
         },
         (err) => {
           console.error("Erro ao observar dados do usuário:", err);
+          if (`${err?.code || ""}`.includes("permission")) {
+            setErroPermissao(true);
+          }
           setUserData(null);
           setLoading(false);
         }
@@ -132,6 +230,13 @@ export function AuthProvider({ children }) {
     register,
     login,
     logout,
+    recuperarSenha,
+    validarCodigoSenha,
+    redefinirSenhaComCodigo,
+    alterarPerfil,
+    alterarSenha,
+    alterarEmail,
+    erroPermissao,
   };
 
   return (
