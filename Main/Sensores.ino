@@ -16,7 +16,28 @@
 
 #include <Arduino.h>
 
-#define NUM_VAGAS 4
+// MAX_VAGAS = sensores fisicamente instalados na placa. É o tamanho dos
+// arrays, então precisa ser constante de compilação.
+#define MAX_VAGAS 4
+#define NUM_VAGAS MAX_VAGAS   // mantido para os arrays já existentes
+
+// Quantas vagas estão REALMENTE em operação. O operador define isso no painel
+// web (campo "Número de vagas") e o totem passa a considerar só as primeiras
+// N — assim o número mostrado no site e no totem é sempre o mesmo, sem
+// precisar regravar o firmware. Vale 1..MAX_VAGAS.
+int vagasAtivas = MAX_VAGAS;
+
+// Ajusta a quantidade em operação, ignorando valores fora do que o hardware
+// suporta. Devolve true se o valor mudou (para o totem redesenhar a tela).
+bool definirVagasAtivas(int quantidade) {
+  if (quantidade < 1) quantidade = 1;
+  if (quantidade > MAX_VAGAS) quantidade = MAX_VAGAS;
+  if (quantidade == vagasAtivas) return false;
+  vagasAtivas = quantidade;
+  Serial.print("[SENSORES] Vagas em operacao agora: ");
+  Serial.println(vagasAtivas);
+  return true;
+}
 
 // Pinos de cada sensor. Ajustados para não conflitar com T_CLK(25),
 // T_DIN(32) e T_DO(36) do touch (ver DisplayUI.ino). ECHO 1 e 2 usam

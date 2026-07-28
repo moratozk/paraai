@@ -73,13 +73,25 @@ const double VALOR_POR_HORA = 5.00; // R$ por hora, cobrado proporcional aos min
 // ==========================================
 // MÁQUINA DE ESTADOS DA TELA
 // ==========================================
-enum EstadoTela { TELA_INICIAL, TELA_TECLADO, TELA_PROCESSANDO, TELA_RESULTADO };
+enum EstadoTela {
+  TELA_INICIAL,
+  TELA_TECLADO,
+  TELA_PROCESSANDO,
+  TELA_CONFIRMAR_CADASTRO,  // placa desconhecida: oferece cadastro no totem
+  TELA_RESULTADO
+};
 EstadoTela estadoAtual = TELA_INICIAL;
+
+// Placa aguardando confirmação de cadastro (usada na TELA_CONFIRMAR_CADASTRO)
+String placaPendente = "";
 
 String placaDigitada = "";
 unsigned long resultadoDesde = 0;
 const unsigned long TEMPO_TELA_RESULTADO_MS = 4000;
-int vagasLivresExibidas = -1;
+// O motorista declara na tela inicial se veio entrar ou sair. Antes o totem
+// adivinhava pelo estado do veiculo; agora a intenção é explícita, o que evita
+// abrir a catraca por engano quando alguém digita a placa errada.
+Operacao operacaoEscolhida = OP_NENHUMA;
 
 bool estadoAnteriorVaga[NUM_VAGAS] = {false, false, false, false};
 
@@ -94,6 +106,9 @@ void processarPlacaDigitada(String placa);
 bool atualizarOcupacaoFirestore(int indiceVaga, bool ocupada);
 void atualizarPlacaNaVagaFirestore(int indiceVaga, String placa);
 void enviarHeartbeat();
+void sincronizarConfiguracao();
+bool cadastrarVeiculoNoTotem(String placa);
+void registrarEntrada(String placa, String caminho);
 void imprimirStatus();
 
 void setup() {
@@ -126,8 +141,12 @@ void setup() {
   }
 
   initUI();
-  vagasLivresExibidas = contarVagasLivres();
-  desenharTelaInicial(vagasLivresExibidas);
+
+  // Busca a configuração do painel antes do primeiro desenho, para o totem
+  // já subir com o número de vagas que o operador definiu no site.
+  sincronizarConfiguracao();
+
+  desenharTelaInicial();
 
   Serial.println("TUDO PRONTO! A entrar no Loop Principal...");
 }
@@ -142,7 +161,7 @@ void loop() {
   // ----- Sensores das 4 vagas - só envia ao Firebase quando MUDA -----
   // Só marca como "sincronizado" se a escrita no Firestore realmente deu
   // certo; se falhar, tenta de novo na proxima volta do loop sozinho.
-  for (int i = 0; i < NUM_VAGAS; i++) {
+  for (int i = 0; i < vagasAtivas; i++) {
     bool ocupadaAgora = verificarVagaOcupada(i);
     if (ocupadaAgora != estadoAnteriorVaga[i]) {
       if (atualizarOcupacaoFirestore(i, ocupadaAgora)) {
@@ -152,10 +171,13 @@ void loop() {
   }
 
   // ----- Heartbeat pro painel web saber que o totem esta online -----
+  // Na mesma passada lemos a configuração do painel (número de vagas), para
+  // o totem acompanhar o que o operador ajustou no site.
   if (!heartbeatJaEnviado || (millis() - ultimoHeartbeat >= HEARTBEAT_INTERVALO_MS)) {
     if (firebaseConfigurado && Firebase.ready()) {
       ultimoHeartbeat = millis();
       heartbeatJaEnviado = true;
+      sincronizarConfiguracao();
       enviarHeartbeat();
     }
   }
@@ -173,12 +195,9 @@ void loop() {
   // ----- Máquina de estados da tela -----
   switch (estadoAtual) {
     case TELA_INICIAL: {
-      int livres = contarVagasLivres();
-      if (livres != vagasLivresExibidas) {
-        vagasLivresExibidas = livres;
-        atualizarVagasInicial(livres);
-      }
-      if (verificarToqueTelaInicial()) {
+      Operacao escolha = verificarToqueTelaInicial();
+      if (escolha != OP_NENHUMA) {
+        operacaoEscolhida = escolha;
         placaDigitada = "";
         estadoAtual = TELA_TECLADO;
         desenharTelaTeclado(placaDigitada);
@@ -190,8 +209,7 @@ void loop() {
       char tecla = verificarToqueTeclado();
       if (tecla == 27) { // CANCELAR
         estadoAtual = TELA_INICIAL;
-        vagasLivresExibidas = contarVagasLivres();
-        desenharTelaInicial(vagasLivresExibidas);
+        desenharTelaInicial();
       } else if (tecla == '\b') { // APAGAR
         if (placaDigitada.length() > 0) {
           placaDigitada.remove(placaDigitada.length() - 1);
@@ -200,7 +218,7 @@ void loop() {
       } else if (tecla == '\n') { // OK
         if (placaDigitada.length() >= 4) {
           estadoAtual = TELA_PROCESSANDO;
-          desenharTelaProcessando();
+          desenharTelaProcessando("Consultando placa...");
           processarPlacaDigitada(placaDigitada);
         }
       } else if (tecla != 0) {
@@ -217,11 +235,31 @@ void loop() {
       // estado sozinha ao terminar - nada a fazer aqui
       break;
 
+    case TELA_CONFIRMAR_CADASTRO: {
+      int resposta = verificarToqueConfirmacao();
+      if (resposta == 1) {
+        // Cadastra a placa aqui mesmo e segue direto para a entrada
+        desenharTelaProcessando("Cadastrando placa...");
+        if (cadastrarVeiculoNoTotem(placaPendente)) {
+          String caminho = "veiculos/" + placaPendente;
+          registrarEntrada(placaPendente, caminho);
+        } else {
+          desenharTelaResultado(RESULTADO_ERRO, "NAO FOI POSSIVEL",
+                                "Tente novamente", "Procure o balcao");
+          resultadoDesde = millis();
+          estadoAtual = TELA_RESULTADO;
+        }
+      } else if (resposta == 0) {
+        estadoAtual = TELA_INICIAL;
+        desenharTelaInicial();
+      }
+      break;
+    }
+
     case TELA_RESULTADO:
       if (millis() - resultadoDesde >= TEMPO_TELA_RESULTADO_MS) {
         estadoAtual = TELA_INICIAL;
-        vagasLivresExibidas = contarVagasLivres();
-        desenharTelaInicial(vagasLivresExibidas);
+        desenharTelaInicial();
       }
       break;
   }
@@ -368,9 +406,128 @@ void enviarHeartbeat() {
   FirebaseJson conteudo;
   conteudo.set("fields/ultimaAtualizacao/integerValue", String(obterTimestampAtual()));
   conteudo.set("fields/vagasLivres/integerValue", String(contarVagasLivres()));
-  if (!Firebase.Firestore.patchDocument(&fbdo, PROJECT_ID, "", CAMINHO_ESTACIONAMENTO, conteudo.raw(), "ultimaAtualizacao,vagasLivres")) {
+  // Quantos sensores existem de fato na placa. O painel usa isso para avisar
+  // o operador caso ele configure mais vagas do que o totem consegue ler.
+  conteudo.set("fields/vagasSuportadasTotem/integerValue", String(MAX_VAGAS));
+  conteudo.set("fields/vagasEmOperacao/integerValue", String(vagasAtivas));
+
+  if (!Firebase.Firestore.patchDocument(
+          &fbdo, PROJECT_ID, "", CAMINHO_ESTACIONAMENTO, conteudo.raw(),
+          "ultimaAtualizacao,vagasLivres,vagasSuportadasTotem,vagasEmOperacao")) {
     Serial.println("[FIRESTORE] Aviso: falha ao enviar heartbeat.");
   }
+}
+
+// ==========================================
+// CONFIGURAÇÃO VINDA DO PAINEL
+// ==========================================
+// Lê numVagas do documento do estacionamento. É assim que o número mostrado
+// no site e no totem ficam iguais: o operador edita no painel e o totem se
+// ajusta sozinho na próxima leitura, sem regravar firmware.
+void sincronizarConfiguracao() {
+  if (!firebaseConfigurado || !Firebase.ready()) return;
+
+  if (!Firebase.Firestore.getDocument(&fbdo, PROJECT_ID, "",
+                                      CAMINHO_ESTACIONAMENTO, "numVagas")) {
+    return;   // sem rede ou documento ainda não existe: mantém o valor atual
+  }
+
+  FirebaseJson resposta;
+  FirebaseJsonData campo;
+  resposta.setJsonData(fbdo.payload().c_str());
+
+  if (resposta.get(campo, "fields/numVagas/integerValue") && campo.success) {
+    int desejadas = campo.to<String>().toInt();
+    if (desejadas > 0 && definirVagasAtivas(desejadas)) {
+      // mudou: redesenha a tela inicial para refletir na hora
+      if (estadoAtual == TELA_INICIAL) {
+        desenharTelaInicial();
+      }
+    }
+    if (desejadas > MAX_VAGAS) {
+      Serial.print("[CONFIG] Painel pediu ");
+      Serial.print(desejadas);
+      Serial.print(" vagas, mas o hardware so tem ");
+      Serial.print(MAX_VAGAS);
+      Serial.println(" sensores. Operando com o maximo possivel.");
+    }
+  }
+}
+
+// ==========================================
+// CADASTRO DE VEÍCULO PELO PRÓPRIO TOTEM
+// ==========================================
+// Cria veiculos/{placa} com o mesmo formato que o painel web usa. O campo
+// ownerUid fica de fora de propósito: assim o motorista consegue reivindicar
+// essa placa depois, ao cadastrá-la na conta dele no app.
+bool cadastrarVeiculoNoTotem(String placa) {
+  if (!firebaseConfigurado || !Firebase.ready()) return false;
+
+  String caminho = "veiculos/" + placa;
+  FirebaseJson conteudo;
+  conteudo.set("fields/ativo/booleanValue", true);
+  conteudo.set("fields/vagaAtual/integerValue", String(0));
+  conteudo.set("fields/horaEntrada/integerValue", String(0));
+  conteudo.set("fields/saldo/doubleValue", 0.0);
+  conteudo.set("fields/estacionamentoId/stringValue", "");
+  conteudo.set("fields/cadastradoNoTotem/booleanValue", true);
+
+  bool ok = Firebase.Firestore.createDocument(&fbdo, PROJECT_ID, "", caminho.c_str(), conteudo.raw());
+  if (ok) {
+    Serial.print("[FIRESTORE] Veiculo cadastrado pelo totem: ");
+    Serial.println(placa);
+  } else {
+    Serial.print("[FIRESTORE] Falha ao cadastrar veiculo (codigo ");
+    Serial.print(fbdo.httpCode());
+    Serial.println(").");
+  }
+  return ok;
+}
+
+// ==========================================
+// ENTRADA (usada tanto pelo fluxo normal quanto após o auto-cadastro)
+// ==========================================
+void registrarEntrada(String placa, String caminho) {
+  int indiceVagaLivre = encontrarVagaLivre();
+  if (indiceVagaLivre == -1) {
+    desenharTelaResultado(RESULTADO_ALERTA, "LOTADO", "Nenhuma vaga livre", "Volte mais tarde");
+    resultadoDesde = millis();
+    estadoAtual = TELA_RESULTADO;
+    return;
+  }
+
+  // Reserva a vaga JA, antes de escrever no Firestore: fecha a corrida
+  // onde duas placas digitadas em sequencia rapida poderiam receber o
+  // mesmo indice de vaga (o sensor ainda nao teria detectado o primeiro
+  // carro fisicamente estacionado).
+  reservarVaga(indiceVagaLivre);
+
+  long agora = obterTimestampAtual();
+  int numeroVaga = indiceVagaLivre + 1;
+
+  FirebaseJson conteudo;
+  conteudo.set("fields/vagaAtual/integerValue", String(numeroVaga));
+  conteudo.set("fields/horaEntrada/integerValue", String(agora));
+  conteudo.set("fields/estacionamentoId/stringValue", ESTACIONAMENTO_ID);
+  bool ok = Firebase.Firestore.patchDocument(&fbdo, PROJECT_ID, "", caminho.c_str(), conteudo.raw(), "vagaAtual,horaEntrada,estacionamentoId");
+
+  if (!ok) {
+    // A escrita que abre a "conta" do veiculo falhou: libera a reserva e
+    // NAO abre a catraca, senao o carro entra sem nada registrado.
+    liberarReservaVaga(indiceVagaLivre);
+    Serial.println("[FIRESTORE] Falha ao registrar entrada - catraca nao sera aberta.");
+    desenharTelaResultado(RESULTADO_ERRO, "ERRO NO SERVIDOR", "Nao foi possivel registrar", "Tente novamente");
+    resultadoDesde = millis();
+    estadoAtual = TELA_RESULTADO;
+    return;
+  }
+
+  atualizarPlacaNaVagaFirestore(indiceVagaLivre, placa);
+
+  abrirCatraca();
+  desenharTelaResultado(RESULTADO_SUCESSO, "BEM-VINDO!", "VAGA " + String(numeroVaga), placa);
+  resultadoDesde = millis();
+  estadoAtual = TELA_RESULTADO;
 }
 
 // ==========================================
@@ -389,9 +546,25 @@ void processarPlacaDigitada(String placa) {
 
   if (!encontrado) {
     if (fbdo.httpCode() == 404) {
-      Serial.print("[FIRESTORE] Veiculo nao encontrado: ");
+      // Numa SAÍDA a placa desconhecida é quase sempre erro de digitação:
+      // cadastrar aqui só criaria um veículo fantasma sem entrada aberta.
+      if (operacaoEscolhida == OP_SAIDA) {
+        desenharTelaResultado(RESULTADO_ALERTA, "PLACA NAO ENCONTRADA",
+                              placa, "Confira os caracteres");
+        resultadoDesde = millis();
+        estadoAtual = TELA_RESULTADO;
+        return;
+      }
+
+      // Na entrada, em vez de barrar o motorista, o totem oferece o cadastro
+      // na hora (ele vincula essa placa à conta dele no app depois, e o saldo
+      // é adicionado por lá).
+      Serial.print("[FIRESTORE] Veiculo nao cadastrado, oferecendo cadastro: ");
       Serial.println(placa);
-      desenharTelaResultado(RESULTADO_ERRO, "NAO CADASTRADO", "Placa: " + placa, "Procure o balcao");
+      placaPendente = placa;
+      desenharTelaConfirmarCadastro(placa);
+      estadoAtual = TELA_CONFIRMAR_CADASTRO;
+      return;
     } else {
       Serial.print("[FIRESTORE] Erro de comunicacao (codigo ");
       Serial.print(fbdo.httpCode());
@@ -428,48 +601,28 @@ void processarPlacaDigitada(String placa) {
     return;
   }
 
-  if (vagaAtual == 0) {
-    // ----- ENTRADA -----
-    int indiceVagaLivre = encontrarVagaLivre();
-    if (indiceVagaLivre == -1) {
-      desenharTelaResultado(RESULTADO_ALERTA, "LOTADO", "Nenhuma vaga livre", "Tente novamente mais tarde");
-      resultadoDesde = millis();
-      estadoAtual = TELA_RESULTADO;
-      return;
-    }
-
-    // Reserva a vaga JA, antes de escrever no Firestore: fecha a corrida
-    // onde duas placas digitadas em sequencia rapida poderiam receber o
-    // mesmo indice de vaga (o sensor ainda nao teria detectado o primeiro
-    // carro fisicamente estacionado).
-    reservarVaga(indiceVagaLivre);
-
-    long agora = obterTimestampAtual();
-    int numeroVaga = indiceVagaLivre + 1;
-
-    FirebaseJson conteudo;
-    conteudo.set("fields/vagaAtual/integerValue", String(numeroVaga));
-    conteudo.set("fields/horaEntrada/integerValue", String(agora));
-    conteudo.set("fields/estacionamentoId/stringValue", ESTACIONAMENTO_ID);
-    bool ok = Firebase.Firestore.patchDocument(&fbdo, PROJECT_ID, "", caminho.c_str(), conteudo.raw(), "vagaAtual,horaEntrada,estacionamentoId");
-
-    if (!ok) {
-      // A escrita que abre a "conta" do veiculo falhou: libera a reserva e
-      // NAO abre a catraca, senao o carro entra sem nada registrado.
-      liberarReservaVaga(indiceVagaLivre);
-      Serial.println("[FIRESTORE] Falha ao registrar entrada - catraca nao sera aberta.");
-      desenharTelaResultado(RESULTADO_ERRO, "ERRO NO SERVIDOR", "Nao foi possivel registrar", "Tente novamente");
-      resultadoDesde = millis();
-      estadoAtual = TELA_RESULTADO;
-      return;
-    }
-
-    atualizarPlacaNaVagaFirestore(indiceVagaLivre, placa);
-
-    abrirCatraca();
-    desenharTelaResultado(RESULTADO_SUCESSO, "BEM-VINDO!", "Vaga " + String(numeroVaga), placa);
+  // O motorista já disse o que veio fazer. Se o que ele pediu não bate com a
+  // situação do veículo, explicamos em vez de fazer a operação oposta em
+  // silêncio — abrir a catraca por engano é pior do que recusar.
+  if (operacaoEscolhida == OP_ENTRADA && vagaAtual != 0) {
+    desenharTelaResultado(RESULTADO_ALERTA, "ENTRADA JA REGISTRADA",
+                          "Placa " + placa, "Use SAIDA para ir embora");
     resultadoDesde = millis();
     estadoAtual = TELA_RESULTADO;
+    return;
+  }
+
+  if (operacaoEscolhida == OP_SAIDA && vagaAtual == 0) {
+    desenharTelaResultado(RESULTADO_ALERTA, "SEM ENTRADA ABERTA",
+                          "Placa " + placa, "Use ENTRADA ao chegar");
+    resultadoDesde = millis();
+    estadoAtual = TELA_RESULTADO;
+    return;
+  }
+
+  if (vagaAtual == 0) {
+    // ----- ENTRADA -----
+    registrarEntrada(placa, caminho);
 
   } else {
     // ----- SAÍDA -----
@@ -521,7 +674,7 @@ void processarPlacaDigitada(String placa) {
     char bufValor[16];
     snprintf(bufValor, sizeof(bufValor), "R$ %.2f", valorCobrado);
     int minutos = duracaoSegundos / 60;
-    desenharTelaResultado(RESULTADO_SUCESSO, "ATE LOGO!", String(minutos) + " min - " + String(bufValor), placa);
+    desenharTelaResultado(RESULTADO_SUCESSO, "ATE LOGO!", String(bufValor), String(minutos) + " min  ·  " + placa);
     resultadoDesde = millis();
     estadoAtual = TELA_RESULTADO;
   }
@@ -540,7 +693,7 @@ void imprimirStatus() {
   Serial.println(firebaseConfigurado ? "sim" : "nao");
   Serial.print("Vagas livres (disponiveis para nova entrada): ");
   Serial.println(contarVagasLivres());
-  for (int i = 0; i < NUM_VAGAS; i++) {
+  for (int i = 0; i < vagasAtivas; i++) {
     Serial.print("  Vaga ");
     Serial.print(i + 1);
     Serial.print(": ");
