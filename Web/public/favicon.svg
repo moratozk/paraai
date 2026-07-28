@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-  <!-- ParaAí — P com haste tracejada (faixa de pista), centrado no badge.
-       bbox do glifo: x 11→37 (centro 24), y 9→40. Traços iguais (h=8, vão 3.5). -->
-  <rect width="48" height="48" rx="12" fill="#FFC400"/>
-  <rect x="11" y="9"    width="7" height="8" rx="1.5" fill="#15171C"/>
-  <rect x="11" y="20.5" width="7" height="8" rx="1.5" fill="#15171C"/>
-  <rect x="11" y="32"   width="7" height="8" rx="1.5" fill="#15171C"/>
-  <path d="M18 12.5 h7.5 a8 8 0 0 1 0 16 H18" fill="none" stroke="#15171C" stroke-width="7"/>
-</svg>
