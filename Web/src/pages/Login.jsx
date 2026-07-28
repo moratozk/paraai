@@ -57,12 +57,7 @@ export default function Login() {
           </div>
 
           <div className="field">
-            <div className="field-label-row">
-              <label htmlFor="password">Senha</label>
-              <Link to="/recuperar-senha" className="field-link">
-                Esqueci a senha
-              </Link>
-            </div>
+            <label htmlFor="password">Senha</label>
             <div className="input-com-acao">
               <input
                 id="password"
@@ -82,6 +77,9 @@ export default function Login() {
                 {verSenha ? "Ocultar" : "Mostrar"}
               </button>
             </div>
+            <Link to="/recuperar-senha" className="field-link esqueci-senha">
+              Esqueci a senha
+            </Link>
           </div>
 
           <button

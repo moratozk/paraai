@@ -6,6 +6,27 @@ import { useToast } from "../context/ToastContext";
 import Logo from "./Logo";
 import "./Navbar.css";
 
+/* Ícones do seletor de tema. Em SVG porque emoji varia de desenho e de
+   métrica entre sistemas, e sai desalinhado dentro do botão. */
+function IconeSol() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+         strokeLinecap="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="4.2" />
+      <path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4" />
+    </svg>
+  );
+}
+
+function IconeLua() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+         strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20 13.2A8.2 8.2 0 1 1 10.8 4a6.4 6.4 0 0 0 9.2 9.2z" />
+    </svg>
+  );
+}
+
 export default function Navbar() {
   const { user, userData, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -22,6 +43,19 @@ export default function Navbar() {
   // menu do avatar (dropdown)
   const [contaAberta, setContaAberta] = useState(false);
   const contaRef = useRef(null);
+
+  // A barra só fica transparente no topo da home, onde há a foto do hero atrás.
+  // Em qualquer outra página ela é sólida desde o início — senão o topo vira
+  // uma faixa de cor diferente colada no conteúdo.
+  const naHome = location.pathname === "/";
+  const [rolou, setRolou] = useState(false);
+  useEffect(() => {
+    const aoRolar = () => setRolou(window.scrollY > 24);
+    aoRolar();
+    window.addEventListener("scroll", aoRolar, { passive: true });
+    return () => window.removeEventListener("scroll", aoRolar);
+  }, []);
+  const barraSolida = !naHome || rolou;
 
   // fecha ao clicar fora ou apertar ESC
   useEffect(() => {
@@ -72,7 +106,7 @@ export default function Navbar() {
     : [];
 
   return (
-    <header className="navbar">
+    <header className={`navbar ${barraSolida ? "navbar-rolou" : ""}`}>
       <div className="container navbar-inner">
         <Link to="/" className="navbar-logo" aria-label="ParaAí — início">
           <Logo size={34} />
@@ -90,18 +124,27 @@ export default function Navbar() {
               </Link>
             ))
           ) : (
-            <>
-              <a href="/#como-funciona">Como funciona</a>
-              <a href="/#para-quem">Para quem</a>
-              <a href="/#duvidas">Dúvidas</a>
-            </>
+            <a href="/#como">Como funciona</a>
           )}
         </nav>
 
         <div className="navbar-actions">
+          {/* O tema fica sempre à vista, fora do menu da conta e do hamburger:
+              é um ajuste que a pessoa procura na hora, não algo escondido. */}
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={toggleTheme}
+            title={theme === "light" ? "Mudar para tema escuro" : "Mudar para tema claro"}
+            aria-label={theme === "light" ? "Mudar para tema escuro" : "Mudar para tema claro"}
+          >
+            {theme === "light" ? <IconeLua /> : <IconeSol />}
+          </button>
+
           {user ? (
             <div className="conta-wrap" ref={contaRef}>
               <button
+                type="button"
                 className={`conta-botao ${contaAberta ? "aberto" : ""}`}
                 onClick={() => setContaAberta((v) => !v)}
                 aria-haspopup="menu"
@@ -145,15 +188,6 @@ export default function Navbar() {
                     <button role="menuitem" onClick={() => irPara("/configuracoes")}>
                       <span aria-hidden="true">⚙️</span> Configurações
                     </button>
-                    <button
-                      role="menuitem"
-                      onClick={() => {
-                        toggleTheme();
-                      }}
-                    >
-                      <span aria-hidden="true">{theme === "light" ? "🌙" : "☀️"}</span>
-                      {theme === "light" ? "Tema escuro" : "Tema claro"}
-                    </button>
                   </div>
 
                   <div className="conta-menu-rodape">
@@ -166,14 +200,6 @@ export default function Navbar() {
             </div>
           ) : (
             <>
-              <button
-                className="theme-toggle"
-                onClick={toggleTheme}
-                title="Alternar tema"
-                aria-label="Alternar tema claro/escuro"
-              >
-                {theme === "light" ? "🌙" : "☀️"}
-              </button>
               <Link to="/login" className="btn btn-outline btn-sm">
                 Entrar
               </Link>
@@ -185,6 +211,7 @@ export default function Navbar() {
         </div>
 
         <button
+          type="button"
           className={`menu-hamburguer ${menuAberto ? "aberto" : ""}`}
           onClick={() => setMenuAberto(!menuAberto)}
           aria-label="Abrir menu"
@@ -217,23 +244,14 @@ export default function Navbar() {
               ))}
               <Link to="/perfil">Meu perfil</Link>
               <Link to="/configuracoes">Configurações</Link>
-              <button className="btn btn-outline btn-block" onClick={toggleTheme}>
-                {theme === "light" ? "Tema escuro" : "Tema claro"}
-              </button>
               <button className="btn btn-outline btn-block" onClick={handleLogout}>
                 Sair
               </button>
             </>
           ) : (
             <>
-              <a href="/#como-funciona" onClick={() => setMenuAberto(false)}>
+              <a href="/#como" onClick={() => setMenuAberto(false)}>
                 Como funciona
-              </a>
-              <a href="/#para-quem" onClick={() => setMenuAberto(false)}>
-                Para quem
-              </a>
-              <a href="/#duvidas" onClick={() => setMenuAberto(false)}>
-                Dúvidas
               </a>
               <Link to="/login" className="btn btn-outline btn-block">
                 Entrar

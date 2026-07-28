@@ -1,263 +1,234 @@
+/* ==========================================================================
+   NAVBAR
+   No topo da home fica transparente sobre a foto; ao rolar ganha fundo.
+   ========================================================================== */
 .navbar {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: var(--bg-secondary);
+  background: transparent;
+  border-bottom: 1px solid transparent;
+  transition: background 0.3s, border-color 0.3s, backdrop-filter 0.3s;
 }
 
-/* faixa tracejada amarela: assinatura da identidade */
-.navbar::after {
-  content: "";
-  display: block;
-  height: 3px;
-  background: repeating-linear-gradient(
-    90deg,
-    var(--accent) 0 26px,
-    transparent 26px 46px
-  );
+.navbar-rolou {
+  background: color-mix(in srgb, var(--bg-primary) 88%, transparent);
+  backdrop-filter: blur(14px) saturate(140%);
+  border-bottom-color: var(--border);
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .navbar-rolou { background: var(--bg-primary); }
 }
 
+/* Marca e navegação andam JUNTAS à esquerda; só as ações vão para a direita.
+   Centralizar os links deixava dois vazios enormes em telas largas. */
 .navbar-inner {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  height: 70px;
-  gap: 24px;
+  gap: 1.5rem;
+  height: 64px;
 }
 
-.navbar-logo {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
+.navbar-logo { display: flex; align-items: center; flex: none; }
+
+.logo-lockup { display: inline-flex; align-items: center; gap: 0.55rem; }
+
+/* A marca é uma imagem, não um SVG desenhado em código: os cantos
+   arredondados já vêm no próprio arquivo. */
+.logo-marca {
+  display: block;
+  flex: none;
+  object-fit: contain;
 }
 
+.logo-word {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  line-height: 1;
+}
+/* texto âmbar usa --accent-text: no tema claro o --accent é claro
+   demais para leitura */
+.logo-word-accent { color: var(--accent-text); }
+
+/* ---- links: colados na marca, com um filete separando ---- */
 .navbar-links {
   display: flex;
   align-items: center;
-  gap: 26px;
-  flex: 1;
-  justify-content: center;
+  gap: 0.2rem;
+  margin-right: auto;          /* empurra só as ações para a direita */
+  padding-left: 1.5rem;
+  position: relative;
+}
+
+.navbar-links::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  translate: 0 -50%;
+  width: 1px;
+  height: 20px;
+  background: var(--border);
 }
 
 .navbar-links a {
+  position: relative;
+  padding: 0.45rem 0.8rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
   color: var(--text-secondary);
-  font-weight: 800;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  padding: 6px 0;
-  border-bottom: 2px dashed transparent;
-  transition: color 0.15s ease, border-color 0.15s ease;
+  transition: color 0.18s, background 0.18s;
   white-space: nowrap;
 }
+.navbar-links a:hover { color: var(--text-primary); background: var(--bg-elevated); }
 
-.navbar-links a:hover {
-  color: var(--accent-text);
-  border-bottom-color: var(--accent);
-}
-
-.navbar-links a.ativo {
-  color: var(--accent-text);
-  border-bottom: 2px solid var(--accent);
+/* rota ativa: traço âmbar embaixo, como faixa pintada no solo */
+.navbar-links a.ativo { color: var(--text-primary); }
+.navbar-links a.ativo::after {
+  content: "";
+  position: absolute;
+  left: 0.8rem;
+  right: 0.8rem;
+  bottom: -0.15rem;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
 }
 
 .navbar-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
+  gap: 0.5rem;
+  flex: none;
 }
 
-.btn-sm {
-  padding: 9px 16px;
-  font-size: 0.74rem;
+/* Ícone em SVG, não emoji: emoji muda de forma e de tamanho conforme o
+   sistema e desalinha dentro do botão. */
+.theme-toggle {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  transition: border-color 0.18s, color 0.18s, background 0.18s;
+}
+.theme-toggle svg { width: 17px; height: 17px; }
+.theme-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent-text);
+  background: var(--accent-soft);
 }
 
-/* ---------- Menu da conta (avatar) ---------- */
-.conta-wrap {
-  position: relative;
-}
+/* ==========================================================================
+   MENU DA CONTA
+   ========================================================================== */
+.conta-wrap { position: relative; }
 
 .conta-botao {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 5px 12px 5px 6px;
-  border-radius: 999px;
-  border: 1px solid transparent;
+  gap: 0.6rem;
+  padding: 0.35rem 0.7rem 0.35rem 0.35rem;
+  border-radius: 100px;
+  border: 1.5px solid var(--border);
   background: var(--bg-elevated);
-  backdrop-filter: blur(10px);
-  transition: all 0.18s ease;
+  transition: border-color 0.2s, background 0.2s;
+}
+.conta-botao:hover, .conta-botao.aberto { border-color: var(--accent); }
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: none;
 }
 
-.conta-botao:hover,
-.conta-botao.aberto {
-  border-color: var(--border-strong);
-  transform: translateY(-1px);
+.avatar-placeholder {
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-family: var(--font-display);
+  font-size: 1rem;
 }
 
-.conta-botao.aberto {
-  border-color: var(--accent);
-}
-
-.conta-seta {
-  font-size: 0.7rem;
+.user-bloco { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2; }
+.user-name { font-size: 0.85rem; font-weight: 700; }
+.user-papel {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   color: var(--text-muted);
-  transition: transform 0.2s ease;
 }
 
-.conta-seta.girada {
-  transform: rotate(180deg);
-}
+.conta-seta { font-size: 0.7rem; color: var(--text-muted); transition: transform 0.25s; }
+.conta-seta.girada { transform: rotate(180deg); }
 
 .conta-menu {
   position: absolute;
-  top: calc(100% + 10px);
+  top: calc(100% + 0.6rem);
   right: 0;
-  width: 262px;
+  width: 260px;
   background: var(--bg-solid);
-  border: 1px solid var(--border-strong);
-  border-radius: 14px;
-  box-shadow: 0 24px 60px -18px rgba(0, 0, 0, 0.75);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-deep);
   overflow: hidden;
-  z-index: 200;
-  animation: menu-surge 0.18s cubic-bezier(0.2, 0.9, 0.3, 1.2);
-}
-
-@keyframes menu-surge {
-  from { opacity: 0; transform: translateY(-8px) scale(0.97); }
-  to { opacity: 1; transform: none; }
+  animation: surgir 0.2s var(--mola) forwards;
+  z-index: 120;
 }
 
 .conta-menu-topo {
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 15px 16px;
+  gap: 0.7rem;
+  padding: 1rem;
   border-bottom: 1px solid var(--border);
-  background: var(--accent-soft);
+  background: var(--bg-elevated);
 }
-
-.conta-menu-info {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  line-height: 1.35;
-}
-
-.conta-menu-info strong {
-  font-size: 0.9rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
+.conta-menu-info { display: flex; flex-direction: column; min-width: 0; }
+.conta-menu-info strong { font-size: 0.9rem; }
 .conta-menu-info span {
-  font-size: 0.75rem;
+  font-size: 0.76rem;
   color: var(--text-muted);
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.conta-menu-lista {
-  padding: 7px;
-}
-
+.conta-menu-lista { padding: 0.4rem; }
 .conta-menu-lista button,
 .conta-menu-rodape button {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 11px 12px;
-  border: none;
-  background: none;
-  border-radius: 9px;
-  color: var(--text-primary);
-  font-size: 0.88rem;
+  gap: 0.7rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.87rem;
   font-weight: 600;
+  color: var(--text-secondary);
   text-align: left;
-  transition: background 0.14s ease, color 0.14s ease;
+  transition: background 0.18s, color 0.18s;
 }
+.conta-menu-lista button:hover { background: var(--bg-elevated); color: var(--text-primary); }
 
-.conta-menu-lista button:hover {
-  background: var(--bg-input);
-  color: var(--accent-text);
-}
+.conta-menu-rodape { padding: 0.4rem; border-top: 1px solid var(--border); }
+.conta-menu-rodape .sair { color: var(--danger); }
+.conta-menu-rodape .sair:hover { background: var(--danger-soft); }
 
-.conta-menu-rodape {
-  padding: 7px;
-  border-top: 1px solid var(--border);
-}
-
-.conta-menu-rodape .sair:hover {
-  background: var(--danger-soft);
-  color: var(--danger);
-}
-
-.user-bloco {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.25;
-}
-
-.avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid var(--border-strong);
-}
-
-.avatar-placeholder {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--accent);
-  color: var(--accent-contrast);
-  font-weight: 800;
-  flex-shrink: 0;
-}
-
-.user-name {
-  font-weight: 700;
-  color: var(--text-primary);
-  font-size: 0.88rem;
-}
-
-.user-papel {
-  font-size: 0.66rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--accent-text);
-}
-
-.theme-toggle {
-  width: 40px;
-  height: 40px;
-  border-radius: 11px;
-  border: 1px solid var(--border-strong);
-  background: var(--bg-elevated);
-  backdrop-filter: blur(10px);
-  font-size: 1.05rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.18s ease;
-  flex-shrink: 0;
-}
-
-.theme-toggle:hover {
-  border-color: var(--accent);
-  transform: translateY(-1px);
-}
-
-/* ---------- Menu mobile ---------- */
+/* ==========================================================================
+   MENU MOBILE
+   ========================================================================== */
 .menu-hamburguer {
   display: none;
   flex-direction: column;
@@ -266,9 +237,9 @@
   width: 42px;
   height: 42px;
   padding: 0 9px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
   background: var(--bg-elevated);
-  border: 1px solid var(--border-strong);
-  border-radius: 11px;
 }
 
 .menu-hamburguer span {
@@ -276,81 +247,65 @@
   height: 2px;
   width: 100%;
   background: var(--text-primary);
-  transition: transform 0.25s ease, opacity 0.2s ease;
+  transition: transform 0.28s var(--mola), opacity 0.2s;
 }
-
-.menu-hamburguer.aberto span:nth-child(1) {
-  transform: translateY(7px) rotate(45deg);
-}
-.menu-hamburguer.aberto span:nth-child(2) {
-  opacity: 0;
-}
-.menu-hamburguer.aberto span:nth-child(3) {
-  transform: translateY(-7px) rotate(-45deg);
-}
+.menu-hamburguer.aberto span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.menu-hamburguer.aberto span:nth-child(2) { opacity: 0; }
+.menu-hamburguer.aberto span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
 .menu-mobile {
   display: none;
   overflow: hidden;
   max-height: 0;
-  background: var(--bg-secondary);
-  border-top: 1px solid var(--border);
-  transition: max-height 0.3s ease;
+  background: var(--bg-solid);
+  border-bottom: 1px solid transparent;
+  transition: max-height 0.35s var(--mola), border-color 0.3s;
 }
-
-.menu-mobile.aberto {
-  max-height: 460px;
-}
+.menu-mobile.aberto { max-height: 90vh; border-bottom-color: var(--border); }
 
 .menu-mobile-inner {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding-top: 18px;
-  padding-bottom: 22px;
+  gap: 0.5rem;
+  padding-block: 1.2rem 1.6rem;
 }
 
-.menu-mobile-inner a:not(.btn) {
-  color: var(--text-primary);
-  font-weight: 800;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  padding: 8px 0;
+.menu-mobile-inner a {
+  padding: 0.8rem 0.2rem;
+  font-weight: 600;
   border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
 }
+.menu-mobile-inner a:hover { color: var(--accent-text); }
+.menu-mobile-inner .btn { margin-top: 0.4rem; }
 
 .menu-mobile-user {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding-bottom: 14px;
+  gap: 0.8rem;
+  padding-bottom: 1rem;
+  margin-bottom: 0.4rem;
   border-bottom: 1px solid var(--border);
 }
+.menu-mobile-user div { display: flex; flex-direction: column; line-height: 1.3; }
 
-.menu-mobile-user > div {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.3;
-}
-
+/* ==========================================================================
+   RESPONSIVO
+   ========================================================================== */
 @media (max-width: 900px) {
-  .navbar-links,
-  .navbar-actions {
-    display: none;
-  }
-  .menu-hamburguer,
-  .menu-mobile {
-    display: flex;
-  }
-  .menu-mobile {
-    flex-direction: column;
-  }
+  .navbar-links { display: none; }
+  .user-bloco, .conta-seta { display: none; }
+  .conta-botao { padding: 0.3rem; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .menu-mobile,
-  .menu-hamburguer span {
-    transition: none;
-  }
+@media (max-width: 760px) {
+  .menu-hamburguer { display: flex; }
+  .menu-mobile { display: block; }
+  .navbar-actions .btn { display: none; }
+  .navbar-inner { height: 64px; }
+  .logo-word { font-size: 1.2rem; }
+
+  /* O botão de tema continua visível no celular — é justamente onde as
+     pessoas mais trocam, e enterrá-lo no hamburger esconde o controle. */
+  .theme-toggle { width: 36px; height: 36px; }
 }

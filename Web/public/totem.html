@@ -1,0 +1,200 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>ParaAí — Simulador do Totem</title>
+<style>
+  body{background:#0a0c14;color:#f2f4fb;font-family:system-ui,sans-serif;margin:0;padding:24px}
+  h1{font-size:16px;letter-spacing:.1em;text-transform:uppercase;color:#8a93ad;margin:0 0 4px}
+  p.sub{font-size:12px;color:#5d6782;margin:0 0 20px;max-width:640px;line-height:1.6}
+  .telas{display:flex;flex-wrap:wrap;gap:26px}
+  .tela{background:#12151f;border:1px solid #2a2f38;border-radius:12px;padding:14px}
+  .tela h2{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#ffc400;margin:0 0 10px}
+  canvas{display:block;border-radius:4px;box-shadow:0 8px 30px rgba(0,0,0,.6)}
+</style>
+<h1>Simulador da tela do totem</h1>
+<p class="sub">Replica as primitivas do Adafruit_GFX (320×240, ILI9341) usando as mesmas coordenadas do firmware, para conferir o layout sem depender do hardware.</p>
+<div class="telas" id="telas"></div>
+
+<script>
+function cor565(r,g,b){ return `rgb(${r},${g},${b})`; }
+
+class GFX {
+  constructor(ctx){ this.c=ctx; this.font=null; this.size=1; this.color="#fff"; this.cx=0; this.cy=0; }
+  fillScreen(c){ this.c.fillStyle=c; this.c.fillRect(0,0,320,240); }
+  fillRect(x,y,w,h,c){ this.c.fillStyle=c; this.c.fillRect(x,y,w,h); }
+  drawRect(x,y,w,h,c){ this.c.strokeStyle=c; this.c.lineWidth=1; this.c.strokeRect(x+.5,y+.5,w-1,h-1); }
+  _rp(x,y,w,h,r){ const c=this.c; c.beginPath();
+    c.moveTo(x+r,y); c.lineTo(x+w-r,y); c.quadraticCurveTo(x+w,y,x+w,y+r);
+    c.lineTo(x+w,y+h-r); c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    c.lineTo(x+r,y+h); c.quadraticCurveTo(x,y+h,x,y+h-r);
+    c.lineTo(x,y+r); c.quadraticCurveTo(x,y,x+r,y); c.closePath(); }
+  fillRoundRect(x,y,w,h,r,c){ this._rp(x,y,w,h,r); this.c.fillStyle=c; this.c.fill(); }
+  drawRoundRect(x,y,w,h,r,c){ this._rp(x+.5,y+.5,w-1,h-1,r); this.c.strokeStyle=c; this.c.lineWidth=1; this.c.stroke(); }
+  fillCircle(x,y,r,c){ this.c.beginPath(); this.c.arc(x,y,r,0,7); this.c.fillStyle=c; this.c.fill(); }
+  drawCircle(x,y,r,c){ this.c.beginPath(); this.c.arc(x,y,r,0,7); this.c.strokeStyle=c; this.c.lineWidth=1; this.c.stroke(); }
+  drawLine(x0,y0,x1,y1,c){ const g=this.c; g.beginPath(); g.moveTo(x0+.5,y0+.5); g.lineTo(x1+.5,y1+.5); g.strokeStyle=c; g.lineWidth=1; g.stroke(); }
+  setFont(f){ this.font=f; } setTextSize(s){ this.size=s; }
+  setTextColor(c){ this.color=c; } setCursor(x,y){ this.cx=x; this.cy=y; }
+  // O Adafruit_GFX escala TAMBÉM as fontes custom com setTextSize.
+  // As fontes FreeSans* têm altura de maiúscula conhecida (cap-height):
+  //   18pt -> 25px | 12pt -> 17px | 9pt -> 13px
+  // Arial tem cap-height ~0.716em, então font-size = cap / 0.716.
+  // Sem essa conversão o simulador desenhava textos MENORES que o hardware
+  // e escondia sobreposições reais.
+  _f(){ const c=this.c, s=this.size;
+    if(!this.font) c.font=`${7*s}px "Courier New",monospace`;
+    else if(this.font==="GG") c.font=`${Math.round(32/0.72)*s}px Bahnschrift,"DIN Condensed","Arial Narrow",sans-serif`;
+    else if(this.font==="G")  c.font=`${Math.round(21/0.72)*s}px Bahnschrift,"DIN Condensed","Arial Narrow",sans-serif`;
+    else if(this.font==="M")  c.font=`${Math.round(15/0.72)*s}px Bahnschrift,"DIN Condensed","Arial Narrow",sans-serif`;
+    else if(this.font==="PL") c.font=`bold ${Math.round(17/0.716)*s}px "Courier New",monospace`;
+    else                      c.font=`${Math.round(15/0.72)*s}px Bahnschrift,"DIN Condensed","Arial Narrow",sans-serif`; }
+  getTextBounds(t){ this._f(); const m=this.c.measureText(t); const w=Math.ceil(m.width);
+    if(!this.font) return {x1:0,y1:0,w:t.length*6*this.size,h:7*this.size};
+    const a=Math.ceil(m.actualBoundingBoxAscent||10), d=Math.ceil(m.actualBoundingBoxDescent||3);
+    return {x1:0,y1:-a,w,h:a+d}; }
+  print(t){ this._f(); this.c.fillStyle=this.color;
+    this.c.textBaseline=this.font?"alphabetic":"top";
+    if(!this.font){ // fonte GFX 5x7: desenha monoespaçada como no hardware
+      const s=this.size, cw=6*s;
+      for(let i=0;i<t.length;i++){ this.c.font=`${7*s}px "Courier New",monospace`;
+        this.c.fillText(t[i], this.cx+i*cw, this.cy); }
+    } else this.c.fillText(t,this.cx,this.cy); }
+}
+
+// ---- paleta do firmware ----
+const P = {
+  fundo:cor565(12,14,18), painel:cor565(26,30,38), header:cor565(255,196,0),
+  destaque:cor565(255,196,0), sucesso:cor565(46,214,130), alerta:cor565(255,160,20),
+  erro:cor565(255,84,96), texto:cor565(244,246,251), textoFraco:cor565(150,158,175),
+  botao:cor565(32,37,47), botaoBorda:cor565(70,78,94),
+  headerTexto:cor565(12,14,18), headerFraco:cor565(190,145,0), faixa:cor565(64,70,84),
+};
+const NUM_VAGAS=4, TELA_W=320, TELA_H=240, HEADER_H=30, FAIXA_Y=30, CONTEUDO_Y=38;
+
+// Mesma regra do firmware: Y pela BASELINE usando cap-height fixa.
+const CAP={GG:32,G:21,M:15,P:15,PL:17,null:7};
+function capH(fonte,tam){ return (CAP[fonte]||7)*tam; }
+function cText(t,txt,yTopo,cor,fonte,tam=1){ t.setFont(fonte); t.setTextColor(cor); t.setTextSize(tam);
+  const b=t.getTextBounds(txt); const x=Math.round((TELA_W-b.w)/2);
+  t.setCursor(x, fonte? yTopo+capH(fonte,tam) : yTopo); t.print(txt); }
+function cIn(t,txt,x,y,w,h,cor,fonte,tam=1){ t.setFont(fonte); t.setTextColor(cor); t.setTextSize(tam);
+  const b=t.getTextBounds(txt); const hh=capH(fonte,tam);
+  const px=Math.round(x+(w-b.w)/2), py=Math.round(y+(h-hh)/2);
+  t.setCursor(px, fonte? py+hh : py); t.print(txt); }
+
+function wifi(t,x,y,barras=3){ for(let i=0;i<4;i++){ const h=4+i*3;
+  t.fillRect(x+i*5,y+(13-h),3,h, i<barras?P.headerTexto:P.headerFraco); } }
+function faixa(t,y){ for(let x=0;x<TELA_W;x+=24) t.fillRect(x,y,14,3,P.faixa); }
+function header(t,hora="21:47"){
+  t.fillRect(0,0,TELA_W,HEADER_H,P.header);
+  t.setFont("M"); t.setTextColor(P.headerTexto); t.setTextSize(1);
+  t.setCursor(10,21); t.print("PARAAI");
+  t.fillRect(218,0,102,HEADER_H,P.header); wifi(t,228,8);
+  t.setFont(null); t.setTextColor(P.headerTexto); t.setTextSize(2);
+  t.setCursor(256,8); t.print(hora);
+  faixa(t,FAIXA_Y);
+}
+function placaVeic(t,x,y,w,h,txt){
+  t.fillRoundRect(x,y,w,h,5,P.texto); t.drawRoundRect(x,y,w,h,5,P.destaque);
+  t.fillRect(x+2,y+2,10,h-4,cor565(0,51,153));
+  cIn(t,txt,x+12,y,w-12,h,P.fundo,"PL");
+}
+function telaInicial(t){
+  t.fillScreen(P.fundo); header(t);
+  const h=new Date().getHours();
+  const saud = h>=5&&h<12 ? "BOM DIA" : h>=12&&h<18 ? "BOA TARDE" : "BOA NOITE";
+  cText(t,saud,38,P.destaque,"G");
+  cText(t,"Seja bem-vindo",64,P.textoFraco,"M");
+  const W=264,H=62,X=28, YE=88, YS=160;
+  t.fillRoundRect(X,YE,W,H,10,P.sucesso);
+  cIn(t,"ENTRADA",X,YE+4,W,36,P.fundo,"GG");
+  cIn(t,"acabei de chegar",X,YE+H-24,W,18,P.fundo,"P");
+  t.fillRoundRect(X,YS,W,H,10,P.destaque);
+  cIn(t,"SAIDA",X,YS+4,W,36,P.fundo,"GG");
+  cIn(t,"vou embora e pagar",X,YS+H-24,W,18,P.fundo,"P");
+}
+
+const LINHAS=["QWERTYUIOP","ASDFGHJKL","ZXCVBNM","0123456789"], NCH=[10,9,7,10];
+const TW=28,TH=28,GAP=2,PITCH=30, ROWY=[74,106,138,170], BY=204, BH=32;
+function offX(i){ return (TELA_W-(NCH[i]*PITCH-GAP))/2; }
+function telaTeclado(t,placa="ABC1D"){
+  t.fillScreen(P.fundo); header(t);
+  let ex=placa; while(ex.length<7) ex+="_";
+  placaVeic(t,52,38,216,32,ex);
+  for(let l=0;l<4;l++){ const ox=offX(l);
+    for(let c=0;c<NCH[l];c++){ const x=ox+c*PITCH,y=ROWY[l];
+      t.fillRoundRect(x,y,TW,TH,5,P.botao); t.drawRoundRect(x,y,TW,TH,5,P.botaoBorda);
+      cIn(t,LINHAS[l][c],x,y,TW,TH,P.texto,"M"); } }
+  t.fillRoundRect(14,BY,84,BH,6,P.painel); t.drawRoundRect(14,BY,84,BH,6,P.erro);
+  cIn(t,"APAGAR",14,BY,84,BH,P.erro,"P");
+  t.fillRoundRect(110,BY,100,BH,6,P.destaque); cIn(t,"OK",110,BY,100,BH,P.headerTexto,"G");
+  t.fillRoundRect(222,BY,84,BH,6,P.painel); t.drawRoundRect(222,BY,84,BH,6,P.botaoBorda);
+  cIn(t,"CANCELAR",222,BY,84,BH,P.textoFraco,"P");
+}
+function telaProcessando(t,msg="Consultando placa..."){
+  t.fillScreen(P.fundo); header(t);
+  const cx=160,cy=92,r=26;
+  t.drawCircle(cx,cy,r,P.botaoBorda); t.drawCircle(cx,cy,r-1,P.botaoBorda);
+  for(let a=0;a<=110;a+=4){ const rad=a*Math.PI/180; t.fillCircle(cx+r*Math.sin(rad),cy-r*Math.cos(rad),3,P.destaque); }
+  cText(t,msg,136,P.texto,"G"); cText(t,"Aguarde um instante",172,P.textoFraco,"P");
+}
+function telaResultado(t,tipo,l1,l2,l3){
+  const cor= tipo==="ok"?P.sucesso : tipo==="alerta"?P.alerta : P.erro;
+  t.fillScreen(P.fundo); header(t);
+  const cx=160,cy=62,r=22;
+  t.fillCircle(cx,cy,r,cor); t.drawCircle(cx,cy,r+3,cor);
+  if(tipo==="ok"){ for(let e=0;e<3;e++){ t.drawLine(cx-11,cy+e,cx-3,cy+8+e,P.fundo); t.drawLine(cx-3,cy+8+e,cx+12,cy-8+e,P.fundo); } }
+  else if(tipo==="alerta"){ t.fillRect(cx-2,cy-12,5,15,P.fundo); t.fillCircle(cx,cy+10,3,P.fundo); }
+  else { for(let e=0;e<3;e++){ t.drawLine(cx-9,cy-9+e,cx+9,cy+9+e,P.fundo); t.drawLine(cx-9,cy+9-e,cx+9,cy-9-e,P.fundo); } }
+  cText(t,l1,104,cor,"G"); cText(t,l2,140,P.texto,"G");
+  if(l3) cText(t,l3,178,P.textoFraco,"M");
+}
+function telaConfirmar(t,placa="ABC1D23"){
+  t.fillScreen(P.fundo); header(t);
+  cText(t,"PLACA NAO CADASTRADA",42,P.alerta,"M");
+  placaVeic(t,60,64,200,34,placa);
+  cText(t,"Cadastrar e entrar?",112,P.texto,"G");
+  cText(t,"saldo voce adiciona no app",140,P.textoFraco,"P");
+  const BY2=176,BH2=46,BW=132;
+  t.fillRoundRect(20,BY2,BW,BH2,8,P.painel); t.drawRoundRect(20,BY2,BW,BH2,8,P.botaoBorda);
+  cIn(t,"NAO",20,BY2,BW,BH2,P.textoFraco,"M");
+  t.fillRoundRect(168,BY2,BW,BH2,8,P.sucesso);
+  cIn(t,"SIM",168,BY2,BW,BH2,P.fundo,"G");
+}
+function telaSplash(t){
+  t.fillScreen(P.fundo);
+  const lado=80,cx=160,cy=78,f=lado/48,x0=cx-lado/2,y0=cy-lado/2;
+  t.fillRoundRect(x0,y0,lado,lado,12*f,P.destaque);
+  const bx=x0+25.5*f,by=y0+20.5*f;
+  t.fillCircle(bx,by,11.5*f,P.headerTexto); t.fillCircle(bx,by,4.5*f,P.destaque);
+  t.fillRect(x0+18*f,y0+9*f,8*f,7*f,P.headerTexto);
+  t.fillRect(x0+18*f,y0+25*f,8*f,7*f,P.headerTexto);
+  t.fillRect(x0+13*f,y0+16*f,5*f,9*f,P.destaque);
+  const hx=x0+11*f,hw=7*f;
+  t.fillRoundRect(hx,y0+9*f,hw,8*f,2,P.headerTexto);
+  t.fillRoundRect(hx,y0+20.5*f,hw,8*f,2,P.headerTexto);
+  t.fillRoundRect(hx,y0+32*f,hw,8*f,2,P.headerTexto);
+  cText(t,"PARAAI",134,P.texto,"GG");
+  cText(t,"Estacionamento inteligente",176,P.destaque,"M");
+  faixa(t,212);
+}
+
+const TELAS=[
+  ["Splash (boot)", telaSplash],
+  ["Tela inicial", telaInicial],
+  ["Teclado", (t)=>telaTeclado(t,"ABC1D")],
+  ["Placa nao cadastrada", (t)=>telaConfirmar(t,"ABC1D23")],
+  ["Processando", (t)=>telaProcessando(t,"Consultando placa...")],
+  ["Cadastrando", (t)=>telaProcessando(t,"Cadastrando placa...")],
+  ["Entrada OK", (t)=>telaResultado(t,"ok","BEM-VINDO!","VAGA 2","ABC1D23")],
+  ["Saida", (t)=>telaResultado(t,"ok","ATE LOGO!","R$ 3,75","45 min  ·  ABC1D23")],
+  ["Lotado", (t)=>telaResultado(t,"alerta","LOTADO","Nenhuma vaga livre","Volte mais tarde")],
+];
+const cont=document.getElementById("telas");
+for(const [titulo,fn] of TELAS){
+  const div=document.createElement("div"); div.className="tela";
+  div.innerHTML=`<h2>${titulo}</h2>`;
+  const cv=document.createElement("canvas"); cv.width=320; cv.height=240; cv.style.width="320px";
+  div.appendChild(cv); cont.appendChild(div);
+  fn(new GFX(cv.getContext("2d")));
+}
+</script>

@@ -1,320 +1,370 @@
-.auth-page {
-  min-height: calc(100vh - 73px);
-  display: flex;
+/* ==========================================================================
+   AUTENTICAÇÃO — login, cadastro, recuperação de senha
+   Painel de vidro sobre foto de garagem, com marcação viária de apoio.
+   ========================================================================== */
+/* Fica alinhado à direita, logo abaixo do campo — é onde a pessoa olha
+   depois de errar a senha, não antes de digitar. */
+.esqueci-senha {
+  align-self: flex-end;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  padding: 48px 20px;
-  position: relative;
+  min-height: 36px;          /* área de toque confortável no celular */
+  padding-inline: 0.3rem;
+  margin-top: 0.1rem;
 }
 
+.auth-page {
+  position: relative;
+  min-height: calc(100vh - 72px);
+  display: grid;
+  place-items: center;
+  padding: clamp(1.5rem, 5vh, 4rem) 0;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+/* Foto de fundo, bem apagada: dá contexto sem competir com o formulário.
+   FIXED e não absolute de propósito: com absolute a imagem acompanhava a
+   altura da página, então o formulário de estacionamento (mais campos, mais
+   alto) esticava a foto e ela mudava de tamanho entre as duas abas. Presa à
+   viewport, o enquadramento é sempre o mesmo. */
 .auth-page::before {
   content: "";
-  position: absolute;
-  top: 10%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 620px;
-  height: 420px;
-  background: radial-gradient(circle, rgba(255, 196, 0, 0.16), transparent 65%);
-  filter: blur(30px);
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background-image: url("https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=1600&q=70&auto=format&fit=crop");
+  background-size: cover;
+  background-position: center;
+  filter: grayscale(0.8) brightness(0.28);
   pointer-events: none;
 }
+[data-theme="light"] .auth-page::before {
+  filter: grayscale(0.85) brightness(1.02) opacity(0.16);
+}
 
+/* Véu + brilho âmbar central */
+.auth-page::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(255, 195, 0, 0.1), transparent 55%),
+    linear-gradient(to bottom, var(--bg-primary) 0%, transparent 30%, transparent 70%, var(--bg-primary) 100%);
+}
+
+/* ---- cartão ---- */
 .auth-card {
   position: relative;
-  width: 100%;
-  max-width: 430px;
-  text-align: center;
-  padding: 36px 30px;
+  width: min(100% - 2.5rem, 440px);
+  padding: clamp(1.8rem, 4vw, 2.6rem);
+  background: color-mix(in srgb, var(--bg-solid) 92%, transparent);
+  backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-deep);
+  animation: surgir 0.6s var(--mola) forwards;
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .auth-card { background: var(--bg-solid); }
 }
 
-.auth-card-larga { max-width: 560px; }
+.auth-card-larga { width: min(100% - 2.5rem, 660px); }
 
-.auth-check {
-  width: 66px;
-  height: 66px;
-  margin: 0 auto 18px;
-  border-radius: 50%;
-  background: var(--success);
-  color: #04120b;
-  font-size: 2rem;
-  font-weight: 900;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 0 0 10px var(--success-soft);
-}
-
-/* seções dentro do formulário longo */
-.secao-form {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 26px 0 18px;
-}
-
-.secao-form::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: var(--border);
-}
-
-.secao-form-titulo {
-  font-size: 0.68rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
-/* CEP: campo do número é menor */
-.cep-row { grid-template-columns: 1.6fr 1fr; }
-
-.endereco-preview {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  padding: 15px 17px;
-  border-radius: var(--radius-sm);
-  background: var(--success-soft);
-  border: 1px solid rgba(46, 232, 143, 0.28);
-  margin-bottom: 18px;
-  text-align: left;
-  animation: surgir 0.3s ease;
-}
-
-@keyframes surgir {
-  from { opacity: 0; transform: translateY(-6px); }
-  to { opacity: 1; transform: none; }
-}
-
-.endereco-linha {
-  display: flex;
-  justify-content: space-between;
-  gap: 14px;
-  font-size: 0.86rem;
-}
-
-.endereco-label {
-  color: var(--text-muted);
-  font-size: 0.72rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-}
-
-/* trilha de etapas do cadastro */
-.etapas-trilha {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 8px;
-  margin-bottom: 26px;
-}
-
-.etapa-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  position: relative;
-}
-
-/* linha ligando as bolinhas */
-.etapa-item:not(:last-child)::after {
+/* Faixa zebrada no topo do cartão: assinatura da marca */
+.auth-card::before {
   content: "";
   position: absolute;
-  top: 14px;
-  left: calc(50% + 20px);
-  right: calc(-50% + 20px);
-  height: 2px;
-  background: var(--border-strong);
-}
-
-.etapa-item.feita:not(:last-child)::after { background: var(--success); }
-
-.etapa-bola {
-  width: 29px;
-  height: 29px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.8rem;
-  font-weight: 800;
-  border: 2px solid var(--border-strong);
-  background: var(--bg-input);
-  color: var(--text-muted);
-  transition: all 0.25s ease;
-  position: relative;
-  z-index: 1;
-}
-
-.etapa-item.ativa .etapa-bola {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--accent-contrast);
-  box-shadow: var(--glow-accent);
-}
-
-.etapa-item.feita .etapa-bola {
-  border-color: var(--success);
-  background: var(--success);
-  color: #04120b;
-}
-
-.etapa-rotulo {
-  font-size: 0.66rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
-  text-align: center;
-}
-
-.etapa-item.ativa .etapa-rotulo { color: var(--accent-text); }
-.etapa-item.feita .etapa-rotulo { color: var(--success); }
-
-.acoes-etapa {
-  display: flex;
-  gap: 10px;
-  align-items: stretch;
-}
-
-.resumo-cadastro {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 17px 19px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-input);
-  border: 1px solid var(--border-strong);
-  margin-bottom: 18px;
-  text-align: left;
-}
-
-.resumo-titulo {
-  font-size: 0.68rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.11em;
-  color: var(--accent-text);
-  margin-bottom: 2px;
-}
-
-/* força da senha */
-.forca-senha {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 8px;
-}
-
-.forca-barra {
-  display: flex;
-  gap: 4px;
-  flex: 1;
-}
-
-.forca-barra span {
+  top: 0;
+  left: 0;
+  right: 0;
   height: 4px;
-  flex: 1;
-  border-radius: 2px;
-  background: var(--border-strong);
-  transition: background 0.25s ease;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--accent) 0 10px,
+    transparent 10px 20px
+  );
 }
-
-.forca-barra.n1 span:nth-child(1) { background: var(--danger); }
-.forca-barra.n2 span:nth-child(-n+2) { background: #ff9f43; }
-.forca-barra.n3 span:nth-child(-n+3) { background: var(--accent); }
-.forca-barra.n4 span { background: var(--success); }
 
 .auth-logo {
   display: flex;
   justify-content: center;
-  margin-bottom: 16px;
+  margin-bottom: 1.6rem;
 }
 
 .auth-title {
-  font-family: var(--font-display);
-  font-weight: 400;
-  text-transform: uppercase;
-  font-size: 1.6rem;
-  letter-spacing: 0.02em;
-  margin-bottom: 6px;
+  font-size: clamp(1.7rem, 4vw, 2.2rem);
+  text-align: center;
+  margin-bottom: 0.4rem;
 }
 
-.auth-card .subtitle {
+.auth-page .subtitle {
+  text-align: center;
   color: var(--text-secondary);
   font-size: 0.92rem;
-  margin-bottom: 28px;
+  margin-bottom: 1.8rem;
 }
 
-.auth-card form {
-  text-align: left;
+.auth-footer {
+  margin-top: 1.5rem;
+  padding-top: 1.3rem;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+.auth-footer a { color: var(--accent-text); font-weight: 700; }
+.auth-footer a:hover { text-decoration: underline; }
+
+/* ---- campo com botão dentro (mostrar/ocultar senha) ---- */
+.input-com-acao { position: relative; display: flex; }
+.input-com-acao input { padding-right: 5.5rem; }
+
+.input-acao {
+  position: absolute;
+  right: 0.4rem;
+  top: 50%;
+  translate: 0 -50%;
+  padding: 0.4rem 0.7rem;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  transition: color 0.2s, background 0.2s;
+}
+.input-acao:hover { color: var(--accent-text); background: var(--accent-soft); }
+
+/* ---- erro / sucesso ---- */
+.auth-page .error-text {
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.1rem;
+  border-radius: var(--radius-sm);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger);
+  border-left-width: 3px;
 }
 
-/* Seletor de papel (motorista / operador) */
-.role-switch {
+.aviso-sucesso, .check-sucesso {
+  padding: 0.85rem 1rem;
+  margin-bottom: 1.1rem;
+  border-radius: var(--radius-sm);
+  background: var(--success-soft);
+  border: 1px solid var(--success);
+  border-left-width: 3px;
+  color: var(--success);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+/* ---- escolha de papel (motorista / estacionamento) ---- */
+.role-switch, .auth-check {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 24px;
+  gap: 0.7rem;
+  margin-bottom: 1.4rem;
 }
 
-.role-option {
+.role-option, .auth-check label {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  padding: 16px 10px;
+  align-items: flex-start;
+  gap: 0.3rem;
+  padding: 1rem;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border-strong);
+  border: 1.5px solid var(--border);
   background: var(--bg-input);
-  color: var(--text-secondary);
-  transition: all 0.18s ease;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.2s, background 0.2s, transform 0.2s var(--mola);
 }
-
-.role-icone { font-size: 1.5rem; line-height: 1; }
-
-.role-titulo {
-  font-weight: 800;
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-primary);
-  text-align: center;
-  line-height: 1.25;
+.role-option:hover, .auth-check label:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
 }
-
-.role-desc {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-}
-
 .role-option.active {
   border-color: var(--accent);
   background: var(--accent-soft);
-  box-shadow: var(--glow-accent);
 }
-
+/* o rótulo também muda de peso: o estado não é só a cor */
 .role-option.active .role-titulo { color: var(--accent-text); }
 
-.role-option:not(.active):hover {
+.auth-check input { position: absolute; opacity: 0; pointer-events: none; }
+.auth-check label:has(input:checked) {
   border-color: var(--accent);
-  transform: translateY(-2px);
+  background: var(--accent-soft);
 }
 
+.role-icone { font-size: 1.4rem; line-height: 1; }
+.role-titulo, .auth-check strong { font-size: 0.9rem; font-weight: 700; }
+.role-desc, .auth-check span { font-size: 0.76rem; color: var(--text-muted); line-height: 1.4; }
 
-.auth-footer {
-  margin-top: 20px;
-  font-size: 0.9rem;
-  color: var(--text-secondary);
+/* ---- resumo antes de confirmar ---- */
+.resumo-cadastro {
+  padding: 1.1rem 1.2rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  margin-bottom: 1.3rem;
 }
 
-.auth-footer a {
-  font-weight: 800;
+.resumo-titulo {
+  font-family: var(--font-mono);
+  font-size: var(--t-mini);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 0.7rem;
+}
+
+.resumo-cadastro dl, .resumo-cadastro ul { display: grid; gap: 0.45rem; margin: 0; padding: 0; list-style: none; }
+.resumo-cadastro li, .resumo-cadastro div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.86rem;
+}
+.resumo-cadastro dt, .resumo-cadastro li > span:first-child { color: var(--text-muted); }
+.resumo-cadastro dd, .resumo-cadastro li > span:last-child { font-weight: 600; margin: 0; }
+
+.etapa-item { display: flex; align-items: center; gap: 0.5rem; }
+
+/* ---- etapas do cadastro ---- */
+.etapas-trilha {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1.8rem;
+}
+
+.etapa-bola {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-strong);
+  background: var(--bg-input);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  transition: background 0.25s, border-color 0.25s, color 0.25s;
+}
+/* o estado vive no .etapa-item pai */
+.etapa-item.ativa .etapa-bola {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+.etapa-item.feita .etapa-bola {
+  background: var(--success-soft);
+  border-color: var(--success);
+  color: var(--success);
+}
+.etapa-item.ativa .etapa-rotulo { color: var(--accent-text); }
+
+.etapa-rotulo {
+  font-family: var(--font-mono);
+  font-size: var(--t-mini);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.acoes-etapa { display: flex; gap: 0.7rem; margin-top: 0.4rem; }
+.acoes-etapa .btn { flex: 1; }
+
+/* ---- força da senha ---- */
+.forca-senha {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.45rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.forca-barra {
+  flex: 1;
+  height: 4px;
+  border-radius: 100px;
+  background: var(--border);
+  overflow: hidden;
+  position: relative;
+}
+.forca-barra::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 100px;
+  transition: width 0.35s var(--mola), background 0.35s;
+}
+
+/* n1 fraca · n2 média · n3 forte — a cor nunca é o único sinal,
+   o rótulo textual ao lado diz o mesmo */
+.forca-barra.n1::after { width: 33%; background: var(--danger); }
+.forca-barra.n2::after { width: 66%; background: var(--accent); }
+.forca-barra.n3::after { width: 100%; background: var(--success); }
+.forca-barra.n0::after { width: 0; }
+
+/* ---- endereço via CEP ---- */
+.cep-row { display: grid; grid-template-columns: 1fr auto; gap: 0.6rem; align-items: end; }
+
+.endereco-preview {
+  padding: 0.9rem 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  margin-bottom: 1.1rem;
+}
+.endereco-label {
+  font-family: var(--font-mono);
+  font-size: var(--t-mini);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 0.2rem;
+}
+.endereco-linha { font-size: 0.9rem; }
+
+.input-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: girar 0.7s linear infinite;
+}
+
+.code-hint {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 0.8rem;
+}
+
+/* ==========================================================================
+   RESPONSIVO
+   ========================================================================== */
+@media (max-width: 560px) {
+  .auth-check { grid-template-columns: 1fr; }
+  .cep-row { grid-template-columns: 1fr; }
+  .acoes-etapa { flex-direction: column-reverse; }
 }

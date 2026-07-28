@@ -1,359 +1,323 @@
-import { useEffect, useState } from "react";
+import { useRef } from "react";
 import { Link } from "react-router-dom";
-import Logo from "../components/Logo";
-import { useRevealOnScroll } from "../hooks/useRevealOnScroll";
+import { LogoMark } from "../components/Logo";
+import Imagem from "../components/Imagem";
+import {
+  useProgressoScroll,
+  useRevelar,
+  entre,
+  faixa,
+} from "../hooks/useScrollFX";
 import "./Home.css";
 
-const MARQUEE_ITENS = [
-  "Monitoramento em tempo real",
-  "Cobrança automática",
-  "Totem de autoatendimento",
-  "Carteira única na rede",
-  "Sem cancela manual",
-  "Painel de faturamento",
-];
-
-const RECURSOS = [
+/* -------------------------------------------------------------------------
+   Conteúdo
+   ------------------------------------------------------------------------- */
+const CAPITULOS = [
   {
-    icone: "📡",
-    titulo: "Sensores em cada vaga",
+    n: "01",
+    foto: "photo-1449965408869-eaa3f722e40d",
+    alt: "Rampa de acesso de um estacionamento coberto",
+    titulo: "Chega e para",
     texto:
-      "Ultrassônicos ligados a um ESP32 detectam ocupação e sincronizam com a nuvem em segundos, vaga a vaga.",
-    cor: "amber",
+      "Você digita a placa na tela da entrada. A cancela abre em segundos e o sistema já sabe qual vaga é sua.",
+    marca: "entrada",
   },
   {
-    icone: "🎫",
-    titulo: "Acesso pela placa",
+    n: "02",
+    foto: "photo-1573348722427-f1d6819fdf98",
+    alt: "Vagas demarcadas em piso de concreto",
+    titulo: "A vaga já te espera",
     texto:
-      "O motorista digita a placa no totem. O sistema reconhece entrada ou saída, indica a vaga e libera o acesso.",
-    cor: "cyan",
+      "O sistema sabe quais vagas estão ocupadas e quais estão livres, o tempo todo. Você não precisa dar voltas procurando.",
+    marca: "ocupação",
   },
   {
-    icone: "💸",
-    titulo: "Cobrança automática",
+    n: "03",
+    foto: "photo-1506521781263-d8422e82f27a",
+    alt: "Vista aérea de um estacionamento com carros",
+    titulo: "Sai e pronto",
     texto:
-      "O tempo é cronometrado e o valor debitado da carteira na saída. Sem caixa, sem fila, sem papel.",
-    cor: "amber",
-  },
-  {
-    icone: "📊",
-    titulo: "Faturamento ao vivo",
-    texto:
-      "Receita por dia, ticket médio, permanência média e horário de pico — atualizados em tempo real.",
-    cor: "cyan",
-  },
-  {
-    icone: "🛰️",
-    titulo: "Gestão remota",
-    texto:
-      "Acompanhe o pátio de qualquer lugar. O painel mostra até se o totem está online naquele instante.",
-    cor: "amber",
-  },
-  {
-    icone: "🔐",
-    titulo: "Dados protegidos",
-    texto:
-      "Cada conta enxerga apenas o que é dela, com regras de segurança aplicadas no próprio banco de dados.",
-    cor: "cyan",
+      "Na saída, o valor do tempo que você ficou é descontado automaticamente. Nada de procurar moeda ou guardar papel.",
+    marca: "cobrança",
   },
 ];
 
-const FAQ = [
+const NUMEROS = [
+  { valor: "4s", rotulo: "da placa até a cancela abrir" },
+  { valor: "0", rotulo: "filas no caixa" },
+  { valor: "0", rotulo: "tickets para guardar" },
+  { valor: "24h", rotulo: "funcionando todo dia" },
+];
+
+const PARA_QUEM = [
   {
-    p: "Preciso comprar equipamento?",
-    r: "Não. O ParaAí é um serviço: a tecnologia fica instalada no seu pátio e você paga pelo uso da plataforma. Instalação, manutenção e atualizações são por nossa conta.",
+    titulo: "Para quem estaciona",
+    itens: [
+      "Uma carteira só para todos os estacionamentos",
+      "Entra digitando a placa",
+      "Recibos guardados no celular",
+      "Recarrega por PIX ou cartão",
+    ],
+    acao: { texto: "Criar conta grátis", href: "/cadastro" },
+    foto: "photo-1502877338535-766e1452684a",
+    alt: "Carro em movimento numa via urbana",
   },
   {
-    p: "Funciona com quantas vagas?",
-    r: "A plataforma é dimensionada para o seu pátio — você informa o número de vagas no cadastro e a operação se ajusta a ele.",
-  },
-  {
-    p: "E se a internet cair?",
-    r: "O totem continua operando e avisa claramente a situação em vez de travar. Assim que a conexão volta, ele se reconecta sozinho e sincroniza os dados.",
-  },
-  {
-    p: "Como o motorista paga?",
-    r: "Pela carteira ParaAí: ele mantém saldo na conta e o valor do tempo estacionado é debitado automaticamente na saída.",
-  },
-  {
-    p: "Consigo acompanhar de fora do estacionamento?",
-    r: "Sim. O painel é web: faturamento, ocupação vaga a vaga e histórico de acessos ficam disponíveis de qualquer lugar, em tempo real.",
+    titulo: "Para quem administra",
+    itens: [
+      "Quanto entrou hoje, na hora",
+      "Quais vagas estão ocupadas agora",
+      "Mude o preço quando quiser",
+      "Histórico de tudo que entrou e saiu",
+    ],
+    acao: { texto: "Cadastrar estacionamento", href: "/cadastro" },
+    foto: "photo-1486406146926-c627a92ad1ab",
+    alt: "Fachada de edifício com linhas geométricas",
   },
 ];
 
-function useCountUp(alvo, duracao = 1600) {
-  const [valor, setValor] = useState(() =>
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches ? alvo : 0
-  );
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return undefined;
-    let raf;
-    const inicio = performance.now();
-    const tick = (agora) => {
-      const p = Math.min(1, (agora - inicio) / duracao);
-      setValor(Math.round(alvo * (1 - Math.pow(1 - p, 3))));
-      if (p < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [alvo, duracao]);
-  return valor;
-}
+/* -------------------------------------------------------------------------
+   Capítulo: a foto acompanha a rolagem num ritmo próprio
+   ------------------------------------------------------------------------- */
+function Capitulo({ dados, indice }) {
+  const ref = useRef(null);
+  const p = useProgressoScroll(ref);
 
-export default function Home() {
-  useRevealOnScroll();
-  const vagasMonitoradas = useCountUp(100);
-  const [faqAberto, setFaqAberto] = useState(0);
+  // A foto se move mais devagar que o texto. Essa diferença de ritmo é o
+  // que dá a sensação de profundidade.
+  const deslocamento = entre(p, -14, 14);
+  const escala = faixa(p, [0, 0.5, 1], [1.18, 1.02, 1.18]);
+  const opacidade = faixa(p, [0, 0.22, 0.78, 1], [0, 1, 1, 0]);
+
+  const impar = indice % 2 === 1;
 
   return (
-    <div className="home">
-      {/* ================= HERO ================= */}
-      <section className="hero">
-        <div className="hero-brilho" aria-hidden="true" />
-        <div className="container hero-conteudo">
-          <span className="chip chip-accent hero-chip">
-            <span className="ponto-vivo" /> Plataforma para estacionamentos
-          </span>
-
-          <h1 className="hero-title">
-            Seu pátio no
-            <br />
-            <span className="hero-destaque">piloto automático</span>
-          </h1>
-
-          <p className="hero-sub">
-            Sensores em cada vaga, totem de autoatendimento e cobrança
-            automática — tudo conectado a um painel que mostra seu faturamento
-            em tempo real.
-          </p>
-
-          <div className="hero-actions">
-            <Link to="/cadastro?perfil=operador" className="btn btn-primary btn-lg">
-              Quero na minha operação
-            </Link>
-            <Link to="/cadastro" className="btn btn-outline btn-lg">
-              Sou motorista
-            </Link>
-          </div>
-
-          <div className="hero-selos">
-            <span>✓ Sem cancela manual</span>
-            <span>✓ Sem caixa</span>
-            <span>✓ Sem papel</span>
-          </div>
+    <section
+      ref={ref}
+      className={`capitulo ${impar ? "capitulo-invertido" : ""}`}
+      aria-labelledby={`cap-${dados.n}`}
+    >
+      <div className="capitulo-media">
+        <div
+          className="capitulo-foto-wrap"
+          style={{ transform: `translate3d(0, ${deslocamento}%, 0) scale(${escala})` }}
+        >
+          <Imagem src={dados.foto} alt={dados.alt} className="capitulo-foto" />
         </div>
-
-        <div className="road" aria-hidden="true">
-          <div className="lane-anim" />
-          <span className="drive-car">🚗</span>
-        </div>
-      </section>
-
-      {/* ================= MARQUEE ================= */}
-      <div className="marquee" aria-hidden="true">
-        <div className="marquee-track">
-          {[...MARQUEE_ITENS, ...MARQUEE_ITENS].map((item, i) => (
-            <span className="marquee-item" key={i}>{item}</span>
-          ))}
-        </div>
+        <span className="capitulo-numero" aria-hidden="true">
+          {dados.n}
+        </span>
       </div>
 
-      {/* ================= NÚMEROS ================= */}
-      <section className="metrics">
-        <div className="container metrics-grid">
-          <div className="metric" data-reveal>
-            <span className="metric-value">{vagasMonitoradas}%</span>
-            <span className="metric-label">das vagas monitoradas ao vivo</span>
-          </div>
-          <div className="metric" data-reveal style={{ transitionDelay: "90ms" }}>
-            <span className="metric-value">0</span>
-            <span className="metric-label">cancelas manuais na operação</span>
-          </div>
-          <div className="metric" data-reveal style={{ transitionDelay: "180ms" }}>
-            <span className="metric-value">24/7</span>
-            <span className="metric-label">acompanhamento remoto do pátio</span>
+      <div className="capitulo-texto" style={{ opacity: opacidade }}>
+        <span className="rotulo">{dados.marca}</span>
+        <h2 id={`cap-${dados.n}`}>{dados.titulo}</h2>
+        <p>{dados.texto}</p>
+      </div>
+    </section>
+  );
+}
+
+/* Bloco que surge ao entrar na tela */
+function Surge({ children, atraso = 0, className = "", as: Tag = "div" }) {
+  const [ref, visivel] = useRevelar();
+  return (
+    <Tag
+      ref={ref}
+      className={`surge ${visivel ? "surge-visivel" : ""} ${className}`}
+      style={{ transitionDelay: `${atraso}ms` }}
+    >
+      {children}
+    </Tag>
+  );
+}
+
+/* -------------------------------------------------------------------------
+   Página
+   ------------------------------------------------------------------------- */
+export default function Home() {
+  const heroRef = useRef(null);
+  const heroP = useProgressoScroll(heroRef);
+
+  // O hero começa no topo da tela, então só interessa a segunda metade da
+  // faixa de progresso — daí o remapeamento.
+  const saida = faixa(heroP, [0.5, 1], [0, 1]);
+
+  return (
+    <main className="home">
+
+      {/* ---------------------------- HERO ---------------------------- */}
+      <header ref={heroRef} className="hero">
+        <div
+          className="hero-foto-wrap"
+          style={{
+            transform: `translate3d(0, ${entre(saida, 0, 26)}%, 0) scale(${entre(saida, 1, 1.2)})`,
+          }}
+        >
+          <Imagem
+            src="photo-1590674899484-d5640e854abe"
+            alt="Interior de um estacionamento coberto com vagas demarcadas"
+            className="hero-foto"
+            eager
+            largura={2000}
+          />
+        </div>
+        <div className="hero-veu" aria-hidden="true" />
+
+        <div
+          className="hero-conteudo container"
+          style={{
+            transform: `translate3d(0, ${entre(saida, 0, -38)}%, 0)`,
+            opacity: faixa(saida, [0, 0.75], [1, 0]),
+          }}
+        >
+          <h1 className="hero-titulo revelar" style={{ animationDelay: "0.15s" }}>
+            Para<span className="hero-marca">Aí</span>
+          </h1>
+
+          <p className="hero-lema revelar" style={{ animationDelay: "0.3s" }}>
+            O seu estacionamento inteligente
+          </p>
+
+          <p className="hero-sub revelar" style={{ animationDelay: "0.44s" }}>
+            Digite a placa, estacione e vá embora. O pagamento sai da sua
+            carteira digital sozinho — sem ticket, sem fila, sem troco.
+          </p>
+
+          <div className="hero-acoes revelar" style={{ animationDelay: "0.58s" }}>
+            <Link to="/cadastro" className="btn btn-primary btn-lg">
+              Começar agora
+            </Link>
+            <a href="#como" className="btn btn-outline btn-lg">
+              Ver como funciona
+            </a>
           </div>
         </div>
+
+        
+      </header>
+
+      {/* -------------------------- CAPÍTULOS -------------------------- */}
+      <div id="como" className="capitulos">
+        <Surge className="container capitulos-intro">
+          <span className="rotulo">como funciona</span>
+          <h2 className="titulo-secao">
+            Três momentos.
+            <br />
+            <span className="accent">Nenhuma fricção.</span>
+          </h2>
+        </Surge>
+
+        {CAPITULOS.map((cap, i) => (
+          <Capitulo key={cap.n} dados={cap} indice={i} />
+        ))}
+      </div>
+
+      {/* --------------------------- NÚMEROS --------------------------- */}
+      <section className="numeros" aria-label="Números do sistema">
+        <div className="zebra" aria-hidden="true" />
+        <div className="container numeros-grade">
+          {NUMEROS.map((n, i) => (
+            <Surge key={n.rotulo} className="numero" atraso={i * 80}>
+              <span className="numero-valor">{n.valor}</span>
+              <span className="numero-rotulo">{n.rotulo}</span>
+            </Surge>
+          ))}
+        </div>
+        <div className="zebra" aria-hidden="true" />
       </section>
 
-      {/* ================= RECURSOS ================= */}
-      <section className="recursos" id="recursos">
+      {/* --------------------------- PÚBLICO --------------------------- */}
+      <section className="publico">
         <div className="container">
-          <div className="secao-cabecalho" data-reveal>
-            <span className="chip">O que você recebe</span>
-            <h2 className="section-title">Tecnologia ponta a ponta</h2>
-            <p className="section-sub">
-              Do sensor na vaga ao relatório de faturamento — um sistema só,
-              funcionando sozinho.
-            </p>
-          </div>
+          <Surge>
+            <span className="rotulo">dois lados</span>
+            <h2 className="titulo-secao">
+              Serve pra quem para
+              <br />
+              <span className="accent">e pra quem cobra</span>
+            </h2>
+          </Surge>
 
-          <div className="recursos-grid">
-            {RECURSOS.map((r, i) => (
-              <article
-                className={`card recurso ${r.cor}`}
-                key={r.titulo}
-                data-reveal
-                style={{ transitionDelay: `${i * 60}ms` }}
+          <div className="publico-grade">
+            {PARA_QUEM.map((bloco, i) => (
+              <Surge
+                key={bloco.titulo}
+                as="article"
+                className="publico-card"
+                atraso={i * 120}
               >
-                <span className="recurso-icone">{r.icone}</span>
-                <h3>{r.titulo}</h3>
-                <p>{r.texto}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ================= DOIS LADOS ================= */}
-      <section className="sides" id="para-quem">
-        <div className="container">
-          <div className="secao-cabecalho" data-reveal>
-            <span className="chip">Para quem é</span>
-            <h2 className="section-title">Um sistema, dois lados</h2>
-          </div>
-
-          <div className="sides-grid">
-            <div className="card side-card card-glow" data-reveal>
-              <span className="side-tag">Para o seu estacionamento</span>
-              <ul className="side-list">
-                <li>Faturamento em tempo real, dia a dia</li>
-                <li>Relatório de acessos e movimentações</li>
-                <li>Ocupação vaga a vaga, ao vivo</li>
-                <li>Exportação dos dados em CSV</li>
-              </ul>
-              <Link to="/cadastro?perfil=operador" className="btn btn-primary">
-                Cadastrar meu estacionamento
-              </Link>
-            </div>
-
-            <div className="card side-card" data-reveal style={{ transitionDelay: "110ms" }}>
-              <span className="side-tag cyan">Para quem estaciona</span>
-              <ul className="side-list cyan">
-                <li>Carteira única: um saldo para toda a rede</li>
-                <li>Entra e sai só digitando a placa</li>
-                <li>Recibo e histórico de cada uso</li>
-                <li>Recarga em segundos, sem filas</li>
-              </ul>
-              <Link to="/cadastro" className="btn btn-outline">
-                Criar conta de motorista
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ================= COMO FUNCIONA ================= */}
-      <section className="steps" id="como-funciona">
-        <div className="container">
-          <div className="secao-cabecalho" data-reveal>
-            <span className="chip">Passo a passo</span>
-            <h2 className="section-title">Como funciona</h2>
-          </div>
-
-          <div className="steps-grid">
-            {[
-              {
-                n: "01",
-                t: "Instalamos a tecnologia",
-                d: "Totem touch, sensores em cada vaga e controle de acesso automático, integrados à nuvem.",
-              },
-              {
-                n: "02",
-                t: "O motorista digita a placa",
-                d: "O totem valida o cadastro, indica a vaga livre e libera o acesso na hora.",
-              },
-              {
-                n: "03",
-                t: "Você acompanha tudo",
-                d: "Faturamento, acessos e ocupação em tempo real — de qualquer lugar.",
-              },
-            ].map((s, i) => (
-              <div className="step" key={s.n} data-reveal style={{ transitionDelay: `${i * 90}ms` }}>
-                <span className="step-num">{s.n}</span>
-                <h3>{s.t}</h3>
-                <p>{s.d}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ================= FAQ ================= */}
-      <section className="faq" id="duvidas">
-        <div className="container faq-inner">
-          <div className="secao-cabecalho" data-reveal>
-            <span className="chip">Dúvidas</span>
-            <h2 className="section-title">Perguntas frequentes</h2>
-          </div>
-
-          <div className="faq-lista" data-reveal>
-            {FAQ.map((item, i) => {
-              const aberto = faqAberto === i;
-              return (
-                <div className={`faq-item ${aberto ? "aberto" : ""}`} key={i}>
-                  <button
-                    className="faq-pergunta"
-                    onClick={() => setFaqAberto(aberto ? -1 : i)}
-                    aria-expanded={aberto}
-                  >
-                    <span>{item.p}</span>
-                    <span className="faq-sinal" aria-hidden="true">
-                      {aberto ? "−" : "+"}
-                    </span>
-                  </button>
-                  <div className="faq-resposta">
-                    <p>{item.r}</p>
-                  </div>
+                <div className="publico-foto">
+                  <Imagem src={bloco.foto} alt={bloco.alt} largura={900} />
                 </div>
-              );
-            })}
+                <div className="publico-corpo">
+                  <h3>{bloco.titulo}</h3>
+                  <ul>
+                    {bloco.itens.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                  <Link to={bloco.acao.href} className="btn btn-outline btn-block">
+                    {bloco.acao.texto}
+                  </Link>
+                </div>
+              </Surge>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* ================= CTA ================= */}
-      <section className="cta">
-        <div className="container">
-          <div className="cta-caixa" data-reveal>
-            <div className="cta-brilho" aria-hidden="true" />
-            <h2 className="cta-title">Bora automatizar seu pátio?</h2>
-            <p className="cta-sub">
-              Cadastre seu estacionamento e veja o painel funcionando em minutos.
-            </p>
-            <div className="cta-acoes">
-              <Link to="/cadastro?perfil=operador" className="btn btn-primary btn-lg">
-                Começar agora
-              </Link>
-              <Link to="/login" className="btn btn-ghost btn-lg">
-                Já tenho conta
-              </Link>
+      {/* ------------------------ CHAMADA FINAL ------------------------ */}
+      <section className="chamada">
+        <Imagem
+          src="photo-1517672651691-24622a91b550"
+          alt=""
+          className="chamada-foto"
+          largura={1800}
+        />
+        <div className="chamada-veu" aria-hidden="true" />
+        <Surge className="container chamada-conteudo">
+          <h2 className="chamada-titulo">
+            Seu estacionamento
+            <br />
+            sem ninguém na guarita
+          </h2>
+          <p>
+            Crie a conta, cadastre seu estacionamento e comece a usar hoje.
+          </p>
+          <div className="chamada-acoes">
+            <Link to="/cadastro" className="btn btn-primary btn-lg">
+              Criar conta
+            </Link>
+            <Link to="/login" className="btn btn-outline btn-lg">
+              Já tenho conta
+            </Link>
+          </div>
+        </Surge>
+      </section>
+
+      {/* ---------------------------- RODAPÉ ---------------------------- */}
+      <footer className="rodape">
+        <div className="container rodape-inner">
+          <div className="rodape-marca">
+            <LogoMark size={34} />
+            <div>
+              <strong>ParaAí</strong>
+              <span className="mono">estacionamento inteligente</span>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* ================= FOOTER ================= */}
-      <footer className="footer">
-        <div className="container footer-inner">
-          <div className="footer-brand">
-            <Logo size={32} />
-            <p>Tecnologia de estacionamento como serviço.</p>
-          </div>
-          <nav className="footer-links">
-            <a href="#recursos">Recursos</a>
-            <a href="#como-funciona">Como funciona</a>
-            <a href="#para-quem">Para quem</a>
-            <a href="#duvidas">Dúvidas</a>
+          <nav className="rodape-links" aria-label="Links do rodapé">
+            <a href="#como">Como funciona</a>
             <Link to="/login">Entrar</Link>
             <Link to="/cadastro">Criar conta</Link>
           </nav>
         </div>
-        <div className="container footer-base">
-          <span>ParaAí © 2026 — Projeto acadêmico (TCC)</span>
-          <span className="footer-tech">ESP32 · React · Firebase</span>
+        <div className="container rodape-base">
+          <span className="mono">estacionamento inteligente</span>
+          <span className="mono">projeto acadêmico · 2026</span>
         </div>
       </footer>
-    </div>
+    </main>
   );
 }
