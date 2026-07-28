@@ -7,6 +7,7 @@ import {
   useVagas,
   useHistoricoEstacionamento,
 } from "../hooks/useParkingData";
+import StatusTotem from "../components/StatusTotem";
 import {
   formatarMoeda,
   formatarDataHora,
@@ -125,6 +126,10 @@ export default function PainelOperador() {
   const estId = userData?.estacionamentoId || null;
 
   const { estacionamento, online } = useEstacionamento(estId);
+
+  // Quantos sensores o equipamento reportou ter. Só existe depois do primeiro
+  // heartbeat; até lá não dá para avisar sobre limite de hardware.
+  const sensoresDoTotem = Number(estacionamento?.vagasSuportadasTotem) || 0;
   const { vagas } = useVagas(estId, estacionamento?.numVagas);
   const { historico, loading } = useHistoricoEstacionamento(estId);
 
@@ -241,20 +246,22 @@ export default function PainelOperador() {
           </p>
         </div>
         <div className="header-acoes">
-          {online ? (
-            <span className="status-pill success">
-              <span className="status-dot online pulsa"></span>Totem online
-            </span>
-          ) : (
-            <span className="status-pill danger">
-              <span className="status-dot offline"></span>Totem offline
-            </span>
-          )}
           <button className="btn btn-outline btn-sm" onClick={abrirEdicao}>
-            Ajustar tarifa
+            Ajustar tarifa e vagas
           </button>
         </div>
       </div>
+
+      {/* Situação do equipamento: guia de instalação na primeira vez, alerta
+          quando cai, e uma linha discreta quando está tudo certo. */}
+      <StatusTotem
+        estacionamento={estacionamento ? { id: estId, ...estacionamento } : null}
+        online={online}
+        onCopiarId={() => {
+          navigator.clipboard?.writeText(estId);
+          toast.sucesso("Identificador copiado.");
+        }}
+      />
 
       {/* ---------- Edição de tarifa / vagas ---------- */}
       {editando && (
@@ -292,8 +299,17 @@ export default function PainelOperador() {
                   onChange={(e) => setNovasVagas(e.target.value)}
                 />
                 <span className="field-hint">
-                  Quantas vagas o painel deve monitorar.
+                  O totem se ajusta sozinho: em até um minuto a tela do
+                  equipamento passa a mostrar essa mesma quantidade.
                 </span>
+                {/* Avisa antes de salvar se o número passa do que o hardware lê */}
+                {sensoresDoTotem > 0 &&
+                  Number(novasVagas) > sensoresDoTotem && (
+                    <span className="error-text">
+                      O totem tem {sensoresDoTotem} sensores instalados. Acima
+                      disso ele monitora apenas os {sensoresDoTotem} primeiros.
+                    </span>
+                  )}
               </div>
             </div>
             <div className="acoes-etapa">
@@ -595,27 +611,6 @@ export default function PainelOperador() {
             )}
           </div>
 
-          {!online && (
-            <div className="card destaque-aviso">
-              <h2>Vincular o totem</h2>
-              <p className="muted-note" style={{ marginTop: 0 }}>
-                Seu totem ainda não enviou sinal. No firmware do equipamento
-                (arquivo <code>Credenciais.h</code>), configure:
-              </p>
-              <pre className="code-hint">
-                #define ESTACIONAMENTO_ID "{estId}"
-              </pre>
-              <button
-                className="btn btn-outline btn-block btn-sm"
-                onClick={() => {
-                  navigator.clipboard?.writeText(estId);
-                  toast.sucesso("ID copiado!");
-                }}
-              >
-                Copiar ID
-              </button>
-            </div>
-          )}
         </div>
       </div>
     </div>
