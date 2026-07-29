@@ -270,13 +270,16 @@
   padding-block: 1.2rem 1.6rem;
 }
 
-.menu-mobile-inner a {
+/* :not(.btn) é essencial aqui: sem ele esta regra vence a do .btn por
+   especificidade (classe+elemento contra classe só) e pinta o texto do botão
+   primário de cinza sobre o fundo âmbar — 1,4:1, ilegível. */
+.menu-mobile-inner a:not(.btn) {
   padding: 0.8rem 0.2rem;
   font-weight: 600;
   border-bottom: 1px solid var(--border);
   color: var(--text-secondary);
 }
-.menu-mobile-inner a:hover { color: var(--accent-text); }
+.menu-mobile-inner a:not(.btn):hover { color: var(--accent-text); }
 .menu-mobile-inner .btn { margin-top: 0.4rem; }
 
 .menu-mobile-user {
