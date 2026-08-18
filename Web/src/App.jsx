@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { lazy, Suspense } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { ToastProvider } from "./context/ToastContext";
@@ -6,15 +7,17 @@ import Navbar from "./components/Navbar";
 import PrivateRoute from "./components/PrivateRoute";
 import AvisoConfiguracao from "./components/AvisoConfiguracao";
 
-import Home from "./pages/Home";
-import Login from "./pages/Login";
-import Cadastro from "./pages/Cadastro";
-import RecuperarSenha from "./pages/RecuperarSenha";
-import RedefinirSenha from "./pages/RedefinirSenha";
-import Dashboard from "./pages/Dashboard";
-import Historico from "./pages/Historico";
-import Perfil from "./pages/Perfil";
-import Configuracoes from "./pages/Configuracoes";
+// Cada tela vira um pacote separado. Assim a home não baixa de uma vez os
+// painéis, gráficos, formulários e modal de recarga que talvez nem sejam usados.
+const Home = lazy(() => import("./pages/Home"));
+const Login = lazy(() => import("./pages/Login"));
+const Cadastro = lazy(() => import("./pages/Cadastro"));
+const RecuperarSenha = lazy(() => import("./pages/RecuperarSenha"));
+const RedefinirSenha = lazy(() => import("./pages/RedefinirSenha"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Historico = lazy(() => import("./pages/Historico"));
+const Perfil = lazy(() => import("./pages/Perfil"));
+const Configuracoes = lazy(() => import("./pages/Configuracoes"));
 
 export default function App() {
   return (
@@ -26,7 +29,15 @@ export default function App() {
               <AvisoConfiguracao />
               <Navbar />
 
-              <Routes>
+              <Suspense
+                fallback={
+                  <div className="estado-central" role="status" aria-live="polite">
+                    <span className="spinner" aria-hidden="true" />
+                    <span>Carregando…</span>
+                  </div>
+                }
+              >
+                <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/cadastro" element={<Cadastro />} />
@@ -65,7 +76,9 @@ export default function App() {
                     </PrivateRoute>
                   }
                 />
-              </Routes>
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </Suspense>
             </div>
           </BrowserRouter>
         </AuthProvider>

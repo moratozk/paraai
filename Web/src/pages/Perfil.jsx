@@ -1,10 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useVeiculo, useEstacionamento } from "../hooks/useParkingData";
 import { Link } from "react-router-dom";
 import { registrarVeiculo } from "../services/veiculos";
 import { criarEstacionamento } from "../services/estacionamentos";
+import {
+  criarCredencialTotem,
+  definirTotemAtivo,
+  observarTotems,
+} from "../services/totems";
 import { buscarCep, cepCompleto, formatarCep } from "../services/cep";
 import ModalRecarga from "../components/ModalRecarga";
 import { normalizarPlaca, placaValida, formatarMoeda } from "../utils/format";
@@ -21,7 +26,9 @@ export default function Perfil() {
   const estId = userData?.estacionamentoId || null;
 
   const { veiculo } = useVeiculo(role === "motorista" ? placa : null);
-  const { estacionamento } = useEstacionamento(role === "operador" ? estId : null);
+  const { estacionamento, loading: carregandoEstacionamento } = useEstacionamento(
+    role === "operador" ? estId : null
+  );
 
   const initials = name
     .split(" ")
@@ -47,6 +54,76 @@ export default function Perfil() {
   const [estNumero, setEstNumero] = useState("");
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [erroCep, setErroCep] = useState("");
+
+  // Equipamentos vinculados ao estacionamento. A senha de uma credencial
+  // nova fica apenas em memória e é mostrada uma única vez ao operador.
+  const [totemState, setTotemState] = useState({ estId: null, itens: [] });
+  const [gerandoTotem, setGerandoTotem] = useState(false);
+  const [credencialTotem, setCredencialTotem] = useState(null);
+  const [erroTotem, setErroTotem] = useState("");
+
+  useEffect(() => {
+    if (role !== "operador" || !estId) {
+      return undefined;
+    }
+
+    return observarTotems(
+      estId,
+      (itens) => {
+        setTotemState({ estId, itens });
+      },
+      (erro) => {
+        console.error("Falha ao carregar totens:", erro);
+        setErroTotem("Não foi possível consultar os equipamentos vinculados.");
+        setTotemState({ estId, itens: [] });
+      }
+    );
+  }, [role, estId]);
+
+  const totems = totemState.estId === estId ? totemState.itens : [];
+  const carregandoTotems = Boolean(estId) && totemState.estId !== estId;
+
+  async function handleGerarTotem() {
+    setErroTotem("");
+    setCredencialTotem(null);
+    setGerandoTotem(true);
+    try {
+      const credencial = await criarCredencialTotem({ estId });
+      setCredencialTotem(credencial);
+      toast.sucesso("Acesso seguro do totem criado.");
+    } catch (erro) {
+      console.error("Falha ao criar credencial do totem:", erro);
+      setErroTotem(
+        erro?.code === "auth/operation-not-allowed"
+          ? "Ative o provedor E-mail/senha no Firebase Authentication."
+          : "Não foi possível criar o acesso do totem. Tente novamente."
+      );
+    } finally {
+      setGerandoTotem(false);
+    }
+  }
+
+  async function handleAlternarTotem(totem) {
+    setErroTotem("");
+    try {
+      await definirTotemAtivo(totem.id, !totem.ativo);
+      toast.sucesso(totem.ativo ? "Totem bloqueado." : "Totem reativado.");
+    } catch (erro) {
+      console.error("Falha ao alterar o totem:", erro);
+      setErroTotem("Não foi possível alterar o equipamento.");
+    }
+  }
+
+  async function copiarCredencialTotem() {
+    if (!credencialTotem) return;
+    const texto = [
+      `#define TOTEM_EMAIL "${credencialTotem.email}"`,
+      `#define TOTEM_PASSWORD "${credencialTotem.senha}"`,
+      `#define ESTACIONAMENTO_ID "${estId}"`,
+    ].join("\n");
+    await navigator.clipboard.writeText(texto);
+    toast.sucesso("Credenciais copiadas.");
+  }
 
   async function handleCepChange(valor) {
     setEstCep(formatarCep(valor));
@@ -192,11 +269,18 @@ export default function Perfil() {
       </div>
 
       {role === "operador" ? (
+        estId ? (
+        <>
         <div className="card vehicle-card">
           <h2>Meu estacionamento</h2>
 
-          {!estacionamento ? (
+          {carregandoEstacionamento ? (
             <p className="empty-state">Carregando dados do estacionamento...</p>
+          ) : !estacionamento ? (
+            <p className="empty-state">
+              Não foi possível localizar este estacionamento. Confira sua
+              conexão e tente novamente.
+            </p>
           ) : (
             <>
               <div className="info-row">
@@ -241,15 +325,84 @@ export default function Perfil() {
                 <code className="est-id">{estId}</code>
               </div>
               <p className="muted-note">
-                Este ID vincula o totem físico ao seu painel: no firmware do
-                equipamento, configure{" "}
-                <code>#define ESTACIONAMENTO_ID "{estId}"</code> no arquivo{" "}
-                <code>Credenciais.h</code>. A tarifa cobrada pelo totem é a
-                configurada no firmware.
+                Este ID identifica o pátio. Gere abaixo um acesso seguro para
+                cada equipamento e copie e-mail, senha e ID para o arquivo{" "}
+                <code>Credenciais.h</code>. Tarifa e vagas são sincronizadas
+                automaticamente com o painel.
               </p>
             </>
           )}
         </div>
+        <div className="card totem-security-card">
+          <div className="card-head-row">
+            <div>
+              <h2>Segurança do totem</h2>
+              <p className="muted-note" style={{ margin: 0 }}>
+                Cada equipamento usa um acesso exclusivo e pode ser bloqueado
+                sem afetar sua conta de operador.
+              </p>
+            </div>
+            <span className={`status-pill ${totems.some((item) => item.ativo) ? "success" : "warning"}`}>
+              {totems.filter((item) => item.ativo).length} ativo(s)
+            </span>
+          </div>
+
+          {erroTotem && <p className="error-text">{erroTotem}</p>}
+
+          {credencialTotem && (
+            <div className="totem-credential" role="status">
+              <strong>Copie agora — a senha não será exibida novamente</strong>
+              <div className="totem-credential-row">
+                <span>E-mail do dispositivo</span>
+                <code>{credencialTotem.email}</code>
+              </div>
+              <div className="totem-credential-row">
+                <span>Senha do dispositivo</span>
+                <code>{credencialTotem.senha}</code>
+              </div>
+              <button type="button" className="btn btn-outline btn-sm" onClick={copiarCredencialTotem}>
+                Copiar configuração
+              </button>
+            </div>
+          )}
+
+          {carregandoTotems ? (
+            <p className="empty-state">Consultando equipamentos...</p>
+          ) : totems.length === 0 ? (
+            <p className="empty-state">
+              Nenhum equipamento seguro foi vinculado ainda.
+            </p>
+          ) : (
+            <div className="totem-list">
+              {totems.map((totem) => (
+                <div className="totem-list-item" key={totem.id}>
+                  <div>
+                    <strong>{totem.nome || "Totem"}</strong>
+                    <span>{totem.email}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${totem.ativo ? "btn-ghost" : "btn-outline"}`}
+                    onClick={() => handleAlternarTotem(totem)}
+                  >
+                    {totem.ativo ? "Bloquear" : "Reativar"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={handleGerarTotem}
+            disabled={gerandoTotem}
+          >
+            {gerandoTotem ? "Gerando acesso..." : "Gerar novo acesso de totem"}
+          </button>
+        </div>
+        </>
+        ) : null
       ) : (
         <div className="card vehicle-card">
           <h2>Meu veículo</h2>
@@ -332,13 +485,17 @@ export default function Perfil() {
         </div>
       )}
 
-      {role === "motorista" && (
+      {(role === "motorista" || (role === "operador" && !estId)) && (
         <div className="card vehicle-card">
-          <h2>Tenho um estacionamento</h2>
+          <h2>
+            {role === "operador"
+              ? "Concluir cadastro do estacionamento"
+              : "Tenho um estacionamento"}
+          </h2>
           <p className="muted-note" style={{ marginTop: 0 }}>
-            Cadastre seu estacionamento para automatizar o pátio e acompanhar
-            faturamento, acessos e ocupação. Sua conta passará a ser de
-            operador.
+            {role === "operador"
+              ? "Sua conta já é de operador. Falta apenas vincular o estacionamento para liberar o painel."
+              : "Cadastre seu estacionamento para automatizar o pátio e acompanhar faturamento, acessos e ocupação. Sua conta passará a ser de operador."}
           </p>
 
           {msgEst && (

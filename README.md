@@ -1,12 +1,10 @@
 # ParaAí
 
 **ParaAí** é um provedor de tecnologia para estacionamentos, desenvolvido como
-Trabalho de Conclusão de Curso (TCC): fornecemos o **kit completo — software +
-hardware** — para estacionamentos que queiram operar no automático. Cada
-cliente (dono de estacionamento) recebe um totem físico com ESP32, sensores de
-vaga e catraca automática, e acompanha faturamento, acessos e ocupação num
-painel web. Motoristas usam uma **carteira única**: um único saldo que vale em
-qualquer estacionamento da rede.
+Trabalho de Conclusão de Curso (TCC). A solução combina software e hardware
+para automatizar o acesso: cada estacionamento contratado recebe um totem com
+ESP32, sensores de vaga e catraca, além do painel de faturamento, acessos e
+ocupação. Motoristas usam uma **carteira única** em toda a rede.
 
 ```
 ┌─────────────────────┐         ┌──────────────────┐         ┌─────────────────────┐
@@ -27,11 +25,20 @@ qualquer estacionamento da rede.
 | [`libraries/`](libraries/) | Bibliotecas Arduino usadas pelo firmware | — |
 | [`firestore.rules`](firestore.rules) | Regras de segurança do Firestore com comentários | — |
 
+## Trabalho em equipe
+
+O projeto usa branches e pull requests para que os dois autores possam trabalhar
+em computadores e contas do Codex diferentes sem sobrescrever alterações. Leia
+[`COLABORACAO.md`](COLABORACAO.md) antes de configurar uma nova máquina e
+[`AGENTS.md`](AGENTS.md) para os acordos técnicos compartilhados pelos
+assistentes.
+
 ## Os dois papéis
 
-**Dono de estacionamento (operador)** — cadastra o estacionamento no painel
-(nome, cidade, nº de vagas, tarifa), recebe um `ESTACIONAMENTO_ID` e configura
-esse ID no totem. No painel acompanha: valores recebidos (hoje / 7 dias / 30
+**Dono de estacionamento (operador)** — cadastra os dados e o número de vagas,
+recebe um `ESTACIONAMENTO_ID` e configura esse ID no totem. Depois define e
+altera a tarifa diretamente no painel. Também acompanha valores recebidos
+(hoje / 7 dias / 30
 dias / total), quantidade de acessos, ocupação vaga a vaga ao vivo, status do
 totem e a tabela de movimentações.
 
@@ -45,26 +52,31 @@ carro está, o custo estimado ao vivo, os últimos acessos e todos os recibos.
 ```
 estacionamentos/{EST-XXXXXX}
   nome, cidade, numVagas, tarifaHora, ownerUid, criadoEm
-  ultimaAtualizacao, vagasLivres          -- heartbeat do totem (60s)
+  ultimaAtualizacao, vagasLivres, tarifaAplicadaTotem -- heartbeat (60s)
 
 estacionamentos/{id}/vagas/{1..N}
   ocupada, placa                          -- sensor em tempo real
 
 veiculos/{PLACA}                          -- GLOBAL: carteira única na rede
   ativo, vagaAtual (0=fora), horaEntrada (Unix s), saldo,
-  estacionamentoId (onde está agora, "" se fora),
+  estacionamentoId (onde está agora, "" se fora), tarifaHoraEntrada,
   ownerUid, ownerNome, atualizadoEm       -- gravados pelo painel
 
 historico/{PLACA_timestamp}
-  placa, vaga, entrada, saida, duracaoMinutos, valorCobrado, estacionamentoId
+  placa, vaga, entrada, saida, duracaoMinutos, valorCobrado, tarifaHora,
+  estacionamentoId
+
+totems/{FIREBASE_AUTH_UID}
+  estacionamentoId, nome, email, ativo       -- identidade do equipamento
 
 users/{uid}
   name, email, role ("motorista"|"operador"), placa?, estacionamentoId?
 ```
 
 Convenções: timestamps em **segundos Unix**; placas em **maiúsculas, sem
-hífen**; o nº de vagas e a tarifa cobrada pelo totem são os configurados no
-firmware (`NUM_VAGAS`, `VALOR_POR_HORA`).
+hífen**. O painel grava `numVagas` e `tarifaHora` no Firestore; o totem lê os
+dois campos automaticamente. A tarifa é congelada no momento da entrada para
+não mudar retroativamente durante uma estadia.
 
 ## Como subir o sistema do zero
 
@@ -74,16 +86,19 @@ firmware (`NUM_VAGAS`, `VALOR_POR_HORA`).
    `.env.example` → `.env`, preencha e `npm run dev`.
 3. **Cadastre o estacionamento** no painel ("Tenho um estacionamento") e copie
    o ID exibido em *Perfil > Meu estacionamento* (formato `EST-XXXXXX`).
-4. **Firmware** — siga [Main/README.md](Main/README.md): copie
-   `Credenciais.example.h` → `Credenciais.h`, preencha WiFi + chaves +
-   `ESTACIONAMENTO_ID` e grave no ESP32 pela Arduino IDE.
+4. Em **Perfil > Segurança do totem**, gere uma credencial exclusiva do
+   equipamento.
+5. **Firmware** — siga [Main/README.md](Main/README.md): copie
+   `Credenciais.example.h` → `Credenciais.h`, preencha WiFi, chaves,
+   `TOTEM_EMAIL`, `TOTEM_PASSWORD` e `ESTACIONAMENTO_ID`; selecione a partição
+   **Huge APP** e grave no ESP32.
 
 ## Limitações conhecidas (transparência acadêmica)
 
-- O totem acessa o Firestore **sem autenticação** (`test_mode` da lib
-  Firebase-ESP-Client); as regras precisam deixar as coleções do dispositivo
-  abertas. Produção real: autenticação por dispositivo e regras restritivas.
+- Cada totem possui uma conta própria no Firebase Authentication. As regras
+  restringem motoristas ao próprio veículo, operadores ao próprio pátio e
+  equipamentos autorizados às operações necessárias de entrada e saída.
 - A recarga de saldo é **simulada** (crédito direto no banco), sem gateway de
   pagamento.
-- A tarifa cobrada pelo totem é a do firmware (`VALOR_POR_HORA`); a tarifa
-  cadastrada no painel é usada para exibição e estimativas.
+- O hardware atual monitora até quatro sensores físicos. O painel aceita mais
+  vagas, mas avisa quando a configuração ultrapassa os sensores instalados.

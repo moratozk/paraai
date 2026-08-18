@@ -4,6 +4,9 @@
 # Main/README.md para instalação via Library Manager.
 libraries/
 
+# Cache local criado pelo Firebase CLI durante deploys
+.firebase/
+
 # SO / editor
 .DS_Store
 Thumbs.db

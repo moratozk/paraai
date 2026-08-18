@@ -5,9 +5,8 @@ import { useToast } from "../context/ToastContext";
 import { LogoMark } from "../components/Logo";
 import "./Auth.css";
 
-// Tela onde o usuário define a nova senha SEM sair do site.
-// O código chega pelo link do e-mail (parâmetro oobCode). Se a pessoa abriu
-// esta página direto, ela pode colar o código manualmente.
+// Tela usada como manipulador personalizado do e-mail do Firebase. O link
+// entrega o código no parâmetro oobCode; a colagem manual fica como fallback.
 export default function RedefinirSenha() {
   const [searchParams] = useSearchParams();
   const { validarCodigoSenha, redefinirSenhaComCodigo } = useAuth();
@@ -54,7 +53,7 @@ export default function RedefinirSenha() {
     e.preventDefault();
     setErro("");
     if (!codigo.trim()) {
-      setErro("Cole o código que veio no e-mail.");
+      setErro("Cole o código presente no link de recuperação.");
       return;
     }
     setValidando(true);
@@ -135,7 +134,7 @@ export default function RedefinirSenha() {
         <p className="subtitle">
           {codigoOk
             ? `Definindo a nova senha de ${emailDaConta}`
-            : "Cole abaixo o código que enviamos no seu e-mail"}
+            : "Abra o link recebido por e-mail ou use o código dele"}
         </p>
 
         {erro && <p className="error-text">{erro}</p>}
@@ -144,18 +143,18 @@ export default function RedefinirSenha() {
           /* ---------- código manual ---------- */
           <form onSubmit={conferirCodigoManual}>
             <div className="field">
-              <label htmlFor="codigo">Código de recuperação</label>
+              <label htmlFor="codigo">Código do link de recuperação</label>
               <input
                 id="codigo"
                 type="text"
                 autoFocus
                 value={codigo}
                 onChange={(e) => setCodigo(e.target.value)}
-                placeholder="Cole o código aqui"
+                placeholder="Cole o código do link"
               />
               <span className="field-hint">
-                Ele está no link do e-mail que você recebeu. O jeito mais fácil
-                é clicar direto no botão do e-mail.
+                Normalmente basta abrir o botão do e-mail. Use este campo apenas
+                se o link não abrir a página automaticamente.
               </span>
             </div>
 

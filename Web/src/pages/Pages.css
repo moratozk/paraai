@@ -107,6 +107,13 @@
 .mini { font-size: 0.78rem; color: var(--text-muted); }
 .muted-note { font-size: 0.8rem; color: var(--text-muted); }
 
+.setup-pendente {
+  display: grid;
+  justify-items: center;
+  gap: 0.9rem;
+}
+.setup-pendente p { max-width: 52ch; }
+
 /* ==========================================================================
    GRADES
    ========================================================================== */
@@ -483,6 +490,7 @@
   white-space: nowrap;
 }
 .status-pill.online { border-color: var(--success); color: var(--success); background: var(--success-soft); }
+.status-pill.success { border-color: var(--success); color: var(--success); background: var(--success-soft); }
 .status-pill.offline { border-color: var(--border-strong); color: var(--text-muted); }
 .status-pill.warning { border-color: var(--accent); color: var(--accent-text); background: var(--accent-soft); }
 
@@ -548,6 +556,52 @@
   border-left: 3px solid var(--accent);
   flex-wrap: wrap;
 }
+
+.totem-security-card {
+  display: grid;
+  gap: 1rem;
+  margin-top: var(--gap);
+}
+
+.totem-security-card .card-head-row { align-items: flex-start; }
+
+.totem-credential {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid color-mix(in srgb, var(--success) 55%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--success) 9%, var(--bg-secondary));
+}
+
+.totem-credential-row {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.totem-credential-row span,
+.totem-list-item span {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.totem-credential-row code {
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+}
+
+.totem-list { display: grid; gap: 0.65rem; }
+
+.totem-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.totem-list-item > div { display: grid; gap: 0.2rem; }
 
 .profile-summary { text-align: center; }
 

@@ -1,6 +1,6 @@
 // =========================================================================
 // Firmware TCC - Para Aí (Principal)
-// Controlo de acesso por placa cadastrada, 4 vagas, cobrança por tempo
+// Controle de acesso por placa, até 4 sensores e cobrança por tempo
 // =========================================================================
 
 #include <Arduino.h>
@@ -66,9 +66,12 @@ const long  GMT_OFFSET_SEC = -3 * 3600; // Brasil (UTC-3, sem horario de verao)
 const int   DAYLIGHT_OFFSET_SEC = 0;
 
 // ==========================================
-// TARIFA (ajuste aqui o preço)
+// TARIFA
 // ==========================================
-const double VALOR_POR_HORA = 5.00; // R$ por hora, cobrado proporcional aos minutos
+// É apenas o valor de segurança para uma inicialização sem rede. Assim que o
+// Firebase responde, tarifaPorHora recebe estacionamentos/{id}.tarifaHora.
+const double TARIFA_PADRAO = 5.00;
+double tarifaPorHora = TARIFA_PADRAO;
 
 // ==========================================
 // MÁQUINA DE ESTADOS DA TELA
@@ -142,8 +145,7 @@ void setup() {
 
   initUI();
 
-  // Busca a configuração do painel antes do primeiro desenho, para o totem
-  // já subir com o número de vagas que o operador definiu no site.
+  // Busca vagas e tarifa do painel antes de liberar o uso do totem.
   sincronizarConfiguracao();
 
   desenharTelaInicial();
@@ -335,17 +337,19 @@ void gerenciarConexao() {
 }
 
 void configurarFirebase() {
-  Serial.println("A iniciar o Firebase. Aguarde...");
+  Serial.println("A autenticar o totem no Firebase. Aguarde...");
   config.api_key = API_KEY;
   config.database_url = DATABASE_URL;
-  config.signer.test_mode = true;
+  config.token_status_callback = tokenStatusCallback;
+  auth.user.email = TOTEM_EMAIL;
+  auth.user.password = TOTEM_PASSWORD;
   fbdo.setResponseSize(2048);
 
   Firebase.begin(&config, &auth);
   Firebase.reconnectWiFi(true);
 
   firebaseConfigurado = true;
-  Serial.println("Firebase OK!");
+  Serial.println("Firebase iniciado; aguardando token seguro do dispositivo.");
 }
 
 // Retorna true se a hora foi sincronizada com sucesso. Cada tentativa de
@@ -410,10 +414,11 @@ void enviarHeartbeat() {
   // o operador caso ele configure mais vagas do que o totem consegue ler.
   conteudo.set("fields/vagasSuportadasTotem/integerValue", String(MAX_VAGAS));
   conteudo.set("fields/vagasEmOperacao/integerValue", String(vagasAtivas));
+  conteudo.set("fields/tarifaAplicadaTotem/doubleValue", tarifaPorHora);
 
   if (!Firebase.Firestore.patchDocument(
           &fbdo, PROJECT_ID, "", CAMINHO_ESTACIONAMENTO, conteudo.raw(),
-          "ultimaAtualizacao,vagasLivres,vagasSuportadasTotem,vagasEmOperacao")) {
+          "ultimaAtualizacao,vagasLivres,vagasSuportadasTotem,vagasEmOperacao,tarifaAplicadaTotem")) {
     Serial.println("[FIRESTORE] Aviso: falha ao enviar heartbeat.");
   }
 }
@@ -421,14 +426,13 @@ void enviarHeartbeat() {
 // ==========================================
 // CONFIGURAÇÃO VINDA DO PAINEL
 // ==========================================
-// Lê numVagas do documento do estacionamento. É assim que o número mostrado
-// no site e no totem ficam iguais: o operador edita no painel e o totem se
-// ajusta sozinho na próxima leitura, sem regravar firmware.
+// Lê numVagas e tarifaHora do documento do estacionamento. O operador edita
+// no painel e o equipamento se ajusta sem precisar regravar o firmware.
 void sincronizarConfiguracao() {
   if (!firebaseConfigurado || !Firebase.ready()) return;
 
   if (!Firebase.Firestore.getDocument(&fbdo, PROJECT_ID, "",
-                                      CAMINHO_ESTACIONAMENTO, "numVagas")) {
+                                      CAMINHO_ESTACIONAMENTO, "numVagas,tarifaHora")) {
     return;   // sem rede ou documento ainda não existe: mantém o valor atual
   }
 
@@ -439,10 +443,8 @@ void sincronizarConfiguracao() {
   if (resposta.get(campo, "fields/numVagas/integerValue") && campo.success) {
     int desejadas = campo.to<String>().toInt();
     if (desejadas > 0 && definirVagasAtivas(desejadas)) {
-      // mudou: redesenha a tela inicial para refletir na hora
-      if (estadoAtual == TELA_INICIAL) {
-        desenharTelaInicial();
-      }
+      Serial.print("[CONFIG] Vagas monitoradas: ");
+      Serial.println(vagasAtivas);
     }
     if (desejadas > MAX_VAGAS) {
       Serial.print("[CONFIG] Painel pediu ");
@@ -451,6 +453,19 @@ void sincronizarConfiguracao() {
       Serial.print(MAX_VAGAS);
       Serial.println(" sensores. Operando com o maximo possivel.");
     }
+  }
+
+  double novaTarifa = -1.0;
+  if (resposta.get(campo, "fields/tarifaHora/doubleValue") && campo.success) {
+    novaTarifa = campo.to<String>().toDouble();
+  } else if (resposta.get(campo, "fields/tarifaHora/integerValue") && campo.success) {
+    novaTarifa = campo.to<String>().toDouble();
+  }
+
+  if (novaTarifa >= 0.0 && novaTarifa <= 10000.0 && novaTarifa != tarifaPorHora) {
+    tarifaPorHora = novaTarifa;
+    Serial.print("[CONFIG] Tarifa sincronizada: R$ ");
+    Serial.println(tarifaPorHora, 2);
   }
 }
 
@@ -502,6 +517,9 @@ void registrarEntrada(String placa, String caminho) {
   // carro fisicamente estacionado).
   reservarVaga(indiceVagaLivre);
 
+  // Atualiza a tarifa antes de abrir a conta e a congela nesta entrada. Uma
+  // mudança de preço no painel não deve alterar retroativamente uma estadia.
+  sincronizarConfiguracao();
   long agora = obterTimestampAtual();
   int numeroVaga = indiceVagaLivre + 1;
 
@@ -509,7 +527,8 @@ void registrarEntrada(String placa, String caminho) {
   conteudo.set("fields/vagaAtual/integerValue", String(numeroVaga));
   conteudo.set("fields/horaEntrada/integerValue", String(agora));
   conteudo.set("fields/estacionamentoId/stringValue", ESTACIONAMENTO_ID);
-  bool ok = Firebase.Firestore.patchDocument(&fbdo, PROJECT_ID, "", caminho.c_str(), conteudo.raw(), "vagaAtual,horaEntrada,estacionamentoId");
+  conteudo.set("fields/tarifaHoraEntrada/doubleValue", tarifaPorHora);
+  bool ok = Firebase.Firestore.patchDocument(&fbdo, PROJECT_ID, "", caminho.c_str(), conteudo.raw(), "vagaAtual,horaEntrada,estacionamentoId,tarifaHoraEntrada");
 
   if (!ok) {
     // A escrita que abre a "conta" do veiculo falhou: libera a reserva e
@@ -584,6 +603,7 @@ void processarPlacaDigitada(String placa) {
   int vagaAtual = 0;
   long horaEntrada = 0;
   double saldo = 0;
+  double tarifaHoraEntrada = -1.0;
 
   if (json.get(resultado, "fields/ativo/booleanValue"))       ativo = resultado.to<bool>();
   if (json.get(resultado, "fields/vagaAtual/integerValue"))   vagaAtual = resultado.to<int>();
@@ -593,6 +613,10 @@ void processarPlacaDigitada(String placa) {
   // inteiros, ex. recarga de R$ 50, como integerValue automaticamente).
   if (json.get(resultado, "fields/saldo/doubleValue"))        saldo = resultado.to<double>();
   else if (json.get(resultado, "fields/saldo/integerValue"))  saldo = resultado.to<double>();
+  if (json.get(resultado, "fields/tarifaHoraEntrada/doubleValue"))
+    tarifaHoraEntrada = resultado.to<double>();
+  else if (json.get(resultado, "fields/tarifaHoraEntrada/integerValue"))
+    tarifaHoraEntrada = resultado.to<double>();
 
   if (!ativo) {
     desenharTelaResultado(RESULTADO_ERRO, "CADASTRO INATIVO", "Placa: " + placa, "Procure o balcao");
@@ -633,7 +657,13 @@ void processarPlacaDigitada(String placa) {
     } else {
       Serial.println("[COBRANCA] Timestamp de entrada invalido - cobranca zerada por seguranca.");
     }
-    double valorCobrado = (duracaoSegundos / 3600.0) * VALOR_POR_HORA;
+    // Registros antigos podem não ter a tarifa congelada. Nesse caso usa a
+    // configuração atual como fallback, sem impedir a saída.
+    if (tarifaHoraEntrada < 0.0) sincronizarConfiguracao();
+    double tarifaAplicada = tarifaHoraEntrada >= 0.0
+                               ? tarifaHoraEntrada
+                               : tarifaPorHora;
+    double valorCobrado = (duracaoSegundos / 3600.0) * tarifaAplicada;
     double novoSaldo = saldo - valorCobrado;
 
     FirebaseJson conteudo;
@@ -641,7 +671,8 @@ void processarPlacaDigitada(String placa) {
     conteudo.set("fields/horaEntrada/integerValue", String(0));
     conteudo.set("fields/estacionamentoId/stringValue", "");
     conteudo.set("fields/saldo/doubleValue", novoSaldo);
-    bool ok = Firebase.Firestore.patchDocument(&fbdo, PROJECT_ID, "", caminho.c_str(), conteudo.raw(), "vagaAtual,horaEntrada,estacionamentoId,saldo");
+    conteudo.set("fields/tarifaHoraEntrada/doubleValue", 0.0);
+    bool ok = Firebase.Firestore.patchDocument(&fbdo, PROJECT_ID, "", caminho.c_str(), conteudo.raw(), "vagaAtual,horaEntrada,estacionamentoId,saldo,tarifaHoraEntrada");
 
     if (!ok) {
       // Nao fecha a conta do veiculo no banco: nao abre a catraca e deixa
@@ -665,6 +696,7 @@ void processarPlacaDigitada(String placa) {
     historico.set("fields/saida/integerValue", String(agora));
     historico.set("fields/duracaoMinutos/integerValue", String(duracaoSegundos / 60));
     historico.set("fields/valorCobrado/doubleValue", valorCobrado);
+    historico.set("fields/tarifaHora/doubleValue", tarifaAplicada);
     historico.set("fields/estacionamentoId/stringValue", ESTACIONAMENTO_ID);
     if (!Firebase.Firestore.createDocument(&fbdo, PROJECT_ID, "", caminhoHistorico.c_str(), historico.raw())) {
       Serial.println("[FIRESTORE] Aviso: falha ao gravar historico (a saida ja foi liberada normalmente).");
@@ -691,6 +723,8 @@ void imprimirStatus() {
   Serial.println(horaSincronizada ? "sim" : "nao");
   Serial.print("Firebase configurado: ");
   Serial.println(firebaseConfigurado ? "sim" : "nao");
+  Serial.print("Tarifa sincronizada: R$ ");
+  Serial.println(tarifaPorHora, 2);
   Serial.print("Vagas livres (disponiveis para nova entrada): ");
   Serial.println(contarVagasLivres());
   for (int i = 0; i < vagasAtivas; i++) {

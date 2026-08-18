@@ -214,7 +214,7 @@ export default function Navbar() {
           type="button"
           className={`menu-hamburguer ${menuAberto ? "aberto" : ""}`}
           onClick={() => setMenuAberto(!menuAberto)}
-          aria-label="Abrir menu"
+          aria-label={menuAberto ? "Fechar menu" : "Abrir menu"}
           aria-expanded={menuAberto}
         >
           <span></span>

@@ -8,6 +8,25 @@ import { formatarTelefone, telefoneValido } from "../utils/format";
 import { LogoMark } from "../components/Logo";
 import "./Auth.css";
 
+function IconeMotorista() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M4.2 15.5h15.6l-1.4-5.1a2.1 2.1 0 0 0-2-1.5H7.6a2.1 2.1 0 0 0-2 1.5l-1.4 5.1Z" />
+      <path d="M3 15.5v2.2c0 .8.6 1.4 1.4 1.4h15.2c.8 0 1.4-.6 1.4-1.4v-2.2M7.1 15.5h.1m9.6 0h.1" />
+      <path d="M6.1 19.1v1.4m11.8-1.4v1.4" />
+    </svg>
+  );
+}
+
+function IconeEstacionamento() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <rect x="3.5" y="3.5" width="17" height="17" rx="3" />
+      <path d="M9 17V7h3.6a3.4 3.4 0 1 1 0 6.8H9m0-3.4h3.5" />
+    </svg>
+  );
+}
+
 // Motorista: uma etapa só.
 // Operador: 3 etapas — conta → estacionamento → vagas.
 // A TARIFA não entra aqui de propósito: é definida depois, no painel, onde
@@ -47,6 +66,7 @@ export default function Cadastro() {
 
   const forcaSenha = calcularForcaSenha(password);
   const totalEtapas = role === "operador" ? 3 : 1;
+  const nomesEtapas = ["Conta", "Estacionamento", "Operação"];
 
   function trocarPapel(novo) {
     setRole(novo);
@@ -112,6 +132,13 @@ export default function Cadastro() {
         return setError("A senha deve ter pelo menos 6 caracteres.");
     }
 
+    if (role === "operador") {
+      const vagas = Number(numVagas);
+      if (!Number.isInteger(vagas) || vagas < 1 || vagas > 200) {
+        return setError("Informe um número de vagas entre 1 e 200.");
+      }
+    }
+
     setLoading(true);
 
     let cred;
@@ -121,7 +148,9 @@ export default function Cadastro() {
       const ehFirestore = `${err?.code || ""}`.includes("permission");
       setError(
         ehFirestore
-          ? `Conta criada, mas o perfil não pôde ser salvo: ${traduzErroFirestore(err)}`
+          ? err.cadastroRevertido
+            ? `Não foi possível concluir o cadastro: ${traduzErroFirestore(err)} A conta incompleta foi removida; você pode tentar novamente.`
+            : `A conta foi criada, mas o perfil não pôde ser salvo: ${traduzErroFirestore(err)}`
           : mapAuthError(err.code)
       );
       setLoading(false);
@@ -169,14 +198,14 @@ export default function Cadastro() {
         <h1 className="auth-title">Criar conta</h1>
         <p className="subtitle">
           {role === "operador"
-            ? `Etapa ${etapa} de ${totalEtapas}`
+            ? `Etapa ${etapa} de ${totalEtapas} · ${nomesEtapas[etapa - 1]}`
             : "Comece agora, leva menos de um minuto"}
         </p>
 
         {/* trilha de etapas (só operador) */}
         {role === "operador" && (
           <div className="etapas-trilha" aria-hidden="true">
-            {["Conta", "Estacionamento", "Operação"].map((rot, i) => {
+            {nomesEtapas.map((rot, i) => {
               const n = i + 1;
               return (
                 <div
@@ -198,19 +227,23 @@ export default function Cadastro() {
           <div className="role-switch" role="radiogroup" aria-label="Tipo de conta">
             <button
               type="button"
+              role="radio"
+              aria-checked={role === "motorista"}
               className={`role-option ${role === "motorista" ? "active" : ""}`}
               onClick={() => trocarPapel("motorista")}
             >
-              <span className="role-icone">🚗</span>
+              <span className="role-icone"><IconeMotorista /></span>
               <span className="role-titulo">Sou motorista</span>
               <span className="role-desc">Estacionar na rede</span>
             </button>
             <button
               type="button"
+              role="radio"
+              aria-checked={role === "operador"}
               className={`role-option ${role === "operador" ? "active" : ""}`}
               onClick={() => trocarPapel("operador")}
             >
-              <span className="role-icone">🅿️</span>
+              <span className="role-icone"><IconeEstacionamento /></span>
               <span className="role-titulo">Tenho um estacionamento</span>
               <span className="role-desc">Automatizar meu pátio</span>
             </button>
@@ -295,6 +328,7 @@ export default function Cadastro() {
                     type="button"
                     className="input-acao"
                     onClick={() => setVerSenha((v) => !v)}
+                    aria-label={verSenha ? "Ocultar senha" : "Mostrar senha"}
                   >
                     {verSenha ? "Ocultar" : "Mostrar"}
                   </button>
@@ -410,6 +444,7 @@ export default function Cadastro() {
                   type="number"
                   min={1}
                   max={200}
+                  required
                   autoFocus
                   value={numVagas}
                   onChange={(e) => setNumVagas(e.target.value)}

@@ -1,52 +1,143 @@
 // =========================================================================
-// Regras de segurança do Firestore — ParaAí (TCC)
-//
-// Como publicar: Firebase Console > Firestore Database > aba "Regras" >
-// cole este conteúdo > Publicar.
-//
-// LIMITAÇÃO CONHECIDA (documentada também no README): o totem ESP32 usa a
-// lib Firebase-ESP-Client em "test_mode", ou seja, acessa o Firestore SEM
-// autenticação. Por isso as coleções que ele lê/escreve precisam ficar
-// abertas. Numa versão de produção, cada totem se autenticaria (service
-// account / token por dispositivo) e estas regras seriam restritivas.
+// Regras de segurança do Firestore — ParaAí
+// Cada pessoa acessa apenas os próprios dados. Cada totem usa uma conta
+// exclusiva do Firebase Authentication e fica vinculado a um estacionamento.
 // =========================================================================
 
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Dados da conta: só o próprio usuário logado lê/escreve o seu documento
-    match /users/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+    function signedIn() {
+      return request.auth != null;
     }
 
-    // Estacionamentos da rede: criados pelo painel (operador), atualizados
-    // pelo totem (heartbeat, sem auth) e lidos pelo painel.
-    match /estacionamentos/{estId} {
-      allow read: if true;
-      allow write: if true; // totem sem auth - ver nota acima
+    function estacionamentoExiste(estId) {
+      return exists(/databases/$(database)/documents/estacionamentos/$(estId));
+    }
 
-      // Ocupação vaga a vaga, escrita pelo totem
+    function donoDoEstacionamento(estId) {
+      return signedIn()
+        && estacionamentoExiste(estId)
+        && get(/databases/$(database)/documents/estacionamentos/$(estId)).data.ownerUid
+          == request.auth.uid;
+    }
+
+    function totemCadastrado() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/totems/$(request.auth.uid))
+        && get(/databases/$(database)/documents/totems/$(request.auth.uid)).data.ativo
+          == true;
+    }
+
+    function totemDoEstacionamento(estId) {
+      return totemCadastrado()
+        && get(/databases/$(database)/documents/totems/$(request.auth.uid)).data.estacionamentoId
+          == estId;
+    }
+
+    function donoDoVeiculo(placa) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/veiculos/$(placa))
+        && get(/databases/$(database)/documents/veiculos/$(placa)).data.ownerUid
+          == request.auth.uid;
+    }
+
+    function veiculoSemDono() {
+      return !('ownerUid' in resource.data)
+        || resource.data.ownerUid == null
+        || resource.data.ownerUid == '';
+    }
+
+    function pareamentoValido(dados) {
+      return dados.estacionamentoId is string
+        && estacionamentoExiste(dados.estacionamentoId)
+        && get(/databases/$(database)/documents/estacionamentos/$(dados.estacionamentoId)).data.totemPairingCode
+          is string
+        && dados.pairingCode
+          == get(/databases/$(database)/documents/estacionamentos/$(dados.estacionamentoId)).data.totemPairingCode;
+    }
+
+    match /users/{uid} {
+      allow read, create, update, delete:
+        if signedIn() && request.auth.uid == uid;
+    }
+
+    match /estacionamentos/{estId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if donoDoEstacionamento(estId)
+        || (totemDoEstacionamento(estId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'ultimaAtualizacao',
+            'vagasLivres',
+            'vagasSuportadasTotem',
+            'vagasEmOperacao',
+            'tarifaAplicadaTotem'
+          ]));
+      allow delete: if donoDoEstacionamento(estId);
+
       match /vagas/{vaga} {
-        allow read: if true;
-        allow write: if true;
+        allow read: if donoDoEstacionamento(estId)
+          || totemDoEstacionamento(estId);
+        allow create: if totemDoEstacionamento(estId)
+          && request.resource.data.keys().hasOnly(['ocupada', 'placa']);
+        allow update: if totemDoEstacionamento(estId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'ocupada', 'placa'
+          ]);
+        allow delete: if donoDoEstacionamento(estId);
       }
     }
 
-    // Carteira única do motorista (global na rede). O painel cadastra a
-    // placa e recarrega saldo; o totem lê o cadastro e debita na saída.
+    match /totems/{totemUid} {
+      allow read: if signedIn()
+        && (request.auth.uid == totemUid
+          || donoDoEstacionamento(resource.data.estacionamentoId));
+      allow create: if signedIn()
+        && ((request.auth.uid == totemUid
+            && pareamentoValido(request.resource.data))
+          || donoDoEstacionamento(request.resource.data.estacionamentoId));
+      allow update: if signedIn()
+        && donoDoEstacionamento(resource.data.estacionamentoId)
+        && request.resource.data.estacionamentoId
+          == resource.data.estacionamentoId;
+      allow delete: if signedIn()
+        && donoDoEstacionamento(resource.data.estacionamentoId);
+    }
+
     match /veiculos/{placa} {
-      allow read, write: if true;
+      allow read: if totemCadastrado()
+        || (signedIn() && resource.data.ownerUid == request.auth.uid)
+        || (signedIn() && veiculoSemDono());
+      allow create: if totemCadastrado()
+        || (signedIn() && request.resource.data.ownerUid == request.auth.uid);
+      allow update: if totemCadastrado()
+        || (signedIn()
+          && resource.data.ownerUid == request.auth.uid
+          && request.resource.data.ownerUid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'ownerNome', 'saldo', 'atualizadoEm'
+          ]))
+        || (signedIn()
+          && veiculoSemDono()
+          && request.resource.data.ownerUid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'ownerUid', 'ownerNome', 'atualizadoEm'
+          ]));
+      allow delete: if false;
     }
 
-    // Movimentações, escritas pelo totem na saída (campo estacionamentoId)
     match /historico/{registro} {
-      allow read: if true;
-      allow write: if true;
+      allow read: if donoDoEstacionamento(resource.data.estacionamentoId)
+        || donoDoVeiculo(resource.data.placa);
+      allow create: if totemCadastrado()
+        && request.resource.data.estacionamentoId
+          == get(/databases/$(database)/documents/totems/$(request.auth.uid)).data.estacionamentoId;
+      allow update, delete: if false;
     }
 
-    // Qualquer outra coleção: negado
     match /{document=**} {
       allow read, write: if false;
     }

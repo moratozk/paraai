@@ -28,7 +28,16 @@ export default function PainelMotorista() {
   // Em qual estacionamento da rede o carro está agora
   const estIdAtual = estacionado ? veiculo?.estacionamentoId || null : null;
   const { estacionamento: estAtual } = useEstacionamento(estIdAtual);
-  const tarifaAtual = Number(estAtual?.tarifaHora) || VALOR_POR_HORA;
+  // O totem congela a tarifa no momento da entrada para que uma alteração no
+  // painel não mude o preço de quem já está estacionado.
+  const tarifaDaEntrada = Number(veiculo?.tarifaHoraEntrada);
+  const tarifaDoEstacionamento = Number(estAtual?.tarifaHora);
+  const tarifaAtual =
+    estacionado && Number.isFinite(tarifaDaEntrada) && tarifaDaEntrada >= 0
+      ? tarifaDaEntrada
+      : Number.isFinite(tarifaDoEstacionamento) && tarifaDoEstacionamento >= 0
+        ? tarifaDoEstacionamento
+        : VALOR_POR_HORA;
 
   // Cronômetro ao vivo enquanto o carro está estacionado
   const [agora, setAgora] = useState(() => Math.floor(Date.now() / 1000));

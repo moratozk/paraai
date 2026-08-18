@@ -15,6 +15,8 @@
 //                    > "ID do projeto"
 //   DATABASE_URL -> Firebase Console > Realtime Database (se não usar,
 //                    pode deixar o valor de exemplo abaixo)
+//   TOTEM_EMAIL / TOTEM_PASSWORD -> credencial de dispositivo gerada no
+//                    painel do operador. Não use a conta pessoal do dono.
 //
 // Nunca faça commit do Credenciais.h real - ele já está no .gitignore.
 // =========================================================================
@@ -28,6 +30,11 @@
 #define API_KEY      "SUA_API_KEY_DO_FIREBASE"
 #define PROJECT_ID   "seu-projeto-firebase"
 #define DATABASE_URL "https://seu-projeto-firebase-default-rtdb.firebaseio.com/"
+
+// Conta exclusiva deste equipamento no Firebase Authentication. Gere em
+// Perfil > Segurança do totem e copie os dois valores exibidos uma única vez.
+#define TOTEM_EMAIL    "totem-gerado@dispositivo.paraai.app"
+#define TOTEM_PASSWORD "SENHA_FORTE_GERADA_NO_PAINEL"
 
 // Vincula ESTE totem a um estacionamento da rede ParaAí. Cadastre o
 // estacionamento no painel web e copie o ID exibido em

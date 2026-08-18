@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import {
   createUserWithEmailAndPassword,
+  deleteUser,
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
@@ -51,15 +52,33 @@ export function AuthProvider({ children }) {
         console.error("Aviso: falha ao atualizar perfil:", err);
       }
 
-      // Esta escrita é ESSENCIAL (define o papel da conta). Se falhar, o
-      // chamador precisa saber - não engolir o erro como "aviso".
-      await setDoc(doc(db, "users", cred.user.uid), {
-        name,
-        email,
-        telefone,
-        role,
-        createdAt: serverTimestamp(),
-      });
+      // Esta escrita é ESSENCIAL (define o papel da conta). Se ela falhar,
+      // desfazemos também a conta do Authentication. Sem esse rollback o
+      // e-mail fica ocupado, embora o cadastro não tenha sido concluído.
+      try {
+        await setDoc(doc(db, "users", cred.user.uid), {
+          name,
+          email,
+          telefone,
+          role,
+          createdAt: serverTimestamp(),
+        });
+      } catch (err) {
+        let cadastroRevertido = false;
+        try {
+          await deleteUser(cred.user);
+          cadastroRevertido = true;
+        } catch (rollbackErr) {
+          console.error("Falha ao desfazer conta incompleta:", rollbackErr);
+          await signOut(auth).catch(() => undefined);
+        }
+
+        const falha = new Error(err?.message || "Não foi possível salvar o perfil.");
+        falha.code = err?.code;
+        falha.cadastroRevertido = cadastroRevertido;
+        falha.cause = err;
+        throw falha;
+      }
 
       return cred;
     } finally {
@@ -75,10 +94,11 @@ export function AuthProvider({ children }) {
     return signOut(auth);
   }
 
-  // Envia o e-mail de recuperação. O link aponta de volta para o NOSSO site
-  // (/redefinir-senha), então o usuário digita a nova senha aqui dentro em
-  // vez de ser jogado numa página genérica do Firebase.
+  // O `url` abaixo é o destino após a redefinição. Para o link do e-mail abrir
+  // em /redefinir-senha, configure essa página como manipulador da ação no
+  // template de recuperação de senha do Firebase Authentication.
   function recuperarSenha(email) {
+    auth.languageCode = "pt-BR";
     return sendPasswordResetEmail(auth, email, {
       url: `${window.location.origin}/login`,
       handleCodeInApp: false,

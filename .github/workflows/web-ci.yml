@@ -1,0 +1,48 @@
+name: Verificação do site
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "Web/**"
+      - ".github/workflows/web-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "Web/**"
+      - ".github/workflows/web-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-build:
+    name: Lint e build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Web
+
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Web/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Verificar qualidade
+        run: npm run lint
+
+      - name: Gerar versão de produção
+        run: npm run build

@@ -200,7 +200,14 @@
   background: var(--accent-soft);
 }
 
-.role-icone { font-size: 1.4rem; line-height: 1; }
+.role-icone {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  color: var(--accent-text);
+}
+.role-icone svg { width: 100%; height: 100%; }
 .role-titulo, .auth-check strong { font-size: 0.9rem; font-weight: 700; }
 .role-desc, .auth-check span { font-size: 0.76rem; color: var(--text-muted); line-height: 1.4; }
 
@@ -319,6 +326,7 @@
 .forca-barra.n1::after { width: 33%; background: var(--danger); }
 .forca-barra.n2::after { width: 66%; background: var(--accent); }
 .forca-barra.n3::after { width: 100%; background: var(--success); }
+.forca-barra.n4::after { width: 100%; background: var(--success); }
 .forca-barra.n0::after { width: 0; }
 
 /* ---- endereço via CEP ---- */
@@ -367,4 +375,10 @@
   .auth-check { grid-template-columns: 1fr; }
   .cep-row { grid-template-columns: 1fr; }
   .acoes-etapa { flex-direction: column-reverse; }
+  .etapas-trilha {
+    width: min(100%, 220px);
+    justify-content: space-between;
+    margin-inline: auto;
+  }
+  .etapa-rotulo { display: none; }
 }

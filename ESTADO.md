@@ -1,7 +1,7 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **27/07/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **17/08/2026**.
 
 ---
 
@@ -17,8 +17,7 @@ O motorista digita a placa na tela do totem, a catraca abre, e na saída o
 valor sai da carteira digital dele. O dono do estacionamento acompanha
 faturamento e ocupação pelo painel.
 
-Projeto acadêmico (TCC). Branch de trabalho: `feat/reformulacao-painel-web`,
-PR aberto em https://github.com/moratozk/paraai/pull/1
+Projeto acadêmico (TCC). Branch atual: `main`.
 
 ---
 
@@ -60,14 +59,24 @@ na Arduino IDE e gravar.
 - Autocadastro de placa na entrada, sem gravar `ownerUid` — assim o motorista
   consegue reivindicar a placa depois pelo app
 - Cobrança de `horaEntrada` (instante em que a catraca abre) até a saída
+- Tarifa sincronizada com o painel e congelada no instante da entrada
 - Fontes próprias geradas de Bahnschrift (`Ferramentas/gerar_fonte.py`)
 - Reserva de vaga fecha a corrida de duas placas digitadas em sequência rápida
+- Autenticação por dispositivo: cada ESP usa conta própria e pode ser bloqueado
+  no painel sem expor as coleções do Firestore publicamente
+- Firmware compilado com sucesso para `ESP32 Dev Module`, core 3.3.10 e partição
+  **Huge APP**: 1.322.863 bytes (42% de 3 MB), RAM global em 16%
+- Firmware autenticado gravado no ESP32-D0WD-V3 pela COM3; token Firebase
+  chegou a `ready` e o heartbeat real confirmou 4 sensores e tarifa de R$ 8,50
 
 **Painel**
 - Faturamento por período, ocupação vaga a vaga, histórico de acessos
 - Status do totem em três estados: nunca conectou / offline / online
 - Avisa se o operador configurar mais vagas do que o totem tem sensores
 - Tarifa e número de vagas editáveis
+- Cadastro faz rollback da conta do Authentication se o perfil falhar
+- Rotas carregadas sob demanda e Firebase separado no build
+- Perfil do operador gera e revoga credenciais exclusivas de totem
 
 **Site**
 - Home com fotos que acompanham a rolagem, sem dependência de animação
@@ -85,13 +94,14 @@ na Arduino IDE e gravar.
    `Main/DisplayUI.ino` (linhas ~67-70). Sem isso o toque cai na tecla
    vizinha: toca no "O" e registra "I".
 
-2. **Compilar o firmware** — nunca foi compilado de verdade. Não havia
-   toolchain Arduino no ambiente onde o código foi escrito; a verificação
-   foi de balanceamento de chaves e ausência de funções duplicadas, o que
-   **não substitui o compilador**.
+2. **Testar o fluxo físico completo** — autenticação, heartbeat e sincronização
+   já foram confirmados no ESP real. Ainda falta executar uma entrada e saída
+   completas, conferindo teclado touch, sensores e abertura da catraca.
 
-3. **Testar a sincronização de vagas** — o firmware lê `numVagas` do Firestore
-   a cada minuto, mas isso só foi verificado no código, nunca com o ESP ligado.
+3. **Configurar a recuperação de senha no Firebase** — em Authentication >
+   Templates > Redefinição de senha, apontar a URL da ação para
+   `https://SEU_DOMINIO/redefinir-senha` e autorizar esse domínio. Sem essa
+   etapa, o Firebase abre a página padrão dele em vez da tela do ParaAí.
 
 4. Pagamento é simulado — não há gateway real.
 

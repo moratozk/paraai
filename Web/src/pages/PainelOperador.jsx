@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { atualizarConfiguracao } from "../services/estacionamentos";
@@ -225,8 +226,15 @@ export default function PainelOperador() {
   if (!estId) {
     return (
       <div className="page container">
-        <div className="card empty-state">
-          Sua conta de operador ainda não tem um estacionamento vinculado.
+        <div className="card empty-state setup-pendente">
+          <h2>Conclua o cadastro do estacionamento</h2>
+          <p>
+            Sua conta de operador está pronta, mas ainda falta informar os
+            dados do pátio para liberar o painel.
+          </p>
+          <Link to="/perfil" className="btn btn-primary">
+            Informar dados do estacionamento
+          </Link>
         </div>
       </div>
     );
@@ -285,7 +293,8 @@ export default function PainelOperador() {
                   onChange={(e) => setNovaTarifa(e.target.value)}
                 />
                 <span className="field-hint">
-                  Cobrada proporcional aos minutos estacionados.
+                  Cobrada proporcional aos minutos estacionados. O totem lê
+                  este valor automaticamente.
                 </span>
               </div>
               <div className="field">
@@ -299,8 +308,8 @@ export default function PainelOperador() {
                   onChange={(e) => setNovasVagas(e.target.value)}
                 />
                 <span className="field-hint">
-                  O totem se ajusta sozinho: em até um minuto a tela do
-                  equipamento passa a mostrar essa mesma quantidade.
+                  O totem se ajusta sozinho: em até um minuto passa a monitorar
+                  essa mesma quantidade, respeitando os sensores instalados.
                 </span>
                 {/* Avisa antes de salvar se o número passa do que o hardware lê */}
                 {sensoresDoTotem > 0 &&
@@ -330,9 +339,8 @@ export default function PainelOperador() {
             </div>
           </form>
           <p className="muted-note">
-            Atenção: a tarifa que o <strong>totem</strong> cobra é a definida no
-            firmware (<code>VALOR_POR_HORA</code>). O valor aqui vale para o
-            painel e para as estimativas mostradas ao motorista.
+            Painel e totem usam a mesma tarifa. O equipamento sincroniza as
+            alterações em até um minuto quando está conectado.
           </p>
         </div>
       )}
