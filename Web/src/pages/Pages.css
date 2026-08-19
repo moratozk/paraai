@@ -734,6 +734,50 @@
   margin-bottom: var(--gap);
 }
 
+/* ===========================================================================
+   ESTACIONAMENTOS PRÓXIMOS (motorista)
+   =========================================================================== */
+.estacionamentos-proximos { display: grid; gap: 1rem; }
+
+.cidade-proxima-campo {
+  display: grid;
+  grid-template-columns: minmax(130px, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: 0.8rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.estacionamentos-lista { display: grid; gap: 0.6rem; }
+
+.estacionamento-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.estacionamento-item:last-child { border-bottom: none; padding-bottom: 0; }
+
+.estacionamento-item > div { display: grid; gap: 0.25rem; min-width: 0; }
+.estacionamento-item strong { font-size: 0.95rem; }
+.estacionamento-item span,
+.estacionamento-item small { color: var(--text-muted); overflow-wrap: anywhere; }
+.estacionamento-item span { font-size: 0.82rem; }
+.estacionamento-item small {
+  color: var(--accent-text);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
 .input-busca {
   flex: 1;
   min-width: 180px;
@@ -958,6 +1002,8 @@
   .stats-grid { grid-template-columns: 1fr 1fr; }
   .fat-periodos { gap: 1rem; }
   .valores-grid { grid-template-columns: repeat(2, 1fr); }
+  .cidade-proxima-campo { grid-template-columns: 1fr; gap: 0.4rem; }
+  .estacionamento-item { align-items: flex-start; flex-direction: column; }
 }
 
 @media (max-width: 400px) {

@@ -1,7 +1,8 @@
 import { useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { LogoMark } from "../components/Logo";
 import Imagem from "../components/Imagem";
+import { useAuth } from "../context/AuthContext";
 import {
   useProgressoScroll,
   useRevelar,
@@ -137,8 +138,13 @@ function Surge({ children, atraso = 0, className = "", as: Tag = "div" }) {
    Página
    ------------------------------------------------------------------------- */
 export default function Home() {
+  const { user } = useAuth();
   const heroRef = useRef(null);
   const heroP = useProgressoScroll(heroRef);
+
+  // A landing explica o produto para quem ainda não tem conta. Depois do
+  // login, a entrada útil passa a ser o painel adequado ao papel da pessoa.
+  if (user) return <Navigate to="/dashboard" replace />;
 
   // O hero começa no topo da tela, então só interessa a segunda metade da
   // faixa de progresso — daí o remapeamento.

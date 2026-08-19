@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   useVeiculo,
   useHistoricoPlaca,
   useEstacionamento,
+  useEstacionamentos,
 } from "../hooks/useParkingData";
 import {
   formatarMoeda,
@@ -14,6 +15,24 @@ import {
 import { VALOR_POR_HORA } from "../utils/constants";
 import "./Pages.css";
 
+function normalizarTexto(valor) {
+  return String(valor || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR");
+}
+
+function enderecoDoEstacionamento(estacionamento) {
+  return [
+    estacionamento.logradouro,
+    estacionamento.numero,
+    estacionamento.bairro,
+    [estacionamento.cidade, estacionamento.uf].filter(Boolean).join(" - "),
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
 export default function PainelMotorista() {
   const { user, userData } = useAuth();
   const firstName = (userData?.name || user?.displayName || "Motorista").split(" ")[0];
@@ -21,6 +40,9 @@ export default function PainelMotorista() {
 
   const { veiculo } = useVeiculo(placa);
   const { historico } = useHistoricoPlaca(placa);
+  const { estacionamentos: estacionamentosRede, loading: carregandoEstacionamentos } =
+    useEstacionamentos();
+  const [cidadeBusca, setCidadeBusca] = useState("");
 
   const estacionado = Number(veiculo?.vagaAtual) > 0;
   const horaEntrada = Number(veiculo?.horaEntrada) || 0;
@@ -38,6 +60,21 @@ export default function PainelMotorista() {
       : Number.isFinite(tarifaDoEstacionamento) && tarifaDoEstacionamento >= 0
         ? tarifaDoEstacionamento
         : VALOR_POR_HORA;
+
+  // Se o motorista já estiver estacionado, a cidade atual é um bom ponto de
+  // partida. Fora do pátio, ele pode informar a própria cidade abaixo.
+  const cidadeReferencia = cidadeBusca.trim() || estAtual?.cidade || "";
+  const estacionamentoProximos = useMemo(() => {
+    const referencia = normalizarTexto(cidadeReferencia);
+    return [...estacionamentosRede]
+      .sort((a, b) => {
+        if (!referencia) return 0;
+        const aNaRegiao = normalizarTexto(`${a.cidade} ${a.bairro}`).includes(referencia);
+        const bNaRegiao = normalizarTexto(`${b.cidade} ${b.bairro}`).includes(referencia);
+        return Number(bNaRegiao) - Number(aNaRegiao);
+      })
+      .slice(0, 6);
+  }, [cidadeReferencia, estacionamentosRede]);
 
   // Cronômetro ao vivo enquanto o carro está estacionado
   const [agora, setAgora] = useState(() => Math.floor(Date.now() / 1000));
@@ -103,6 +140,62 @@ export default function PainelMotorista() {
           <span className="stat-value">{formatarMoeda(totalGasto)}</span>
         </div>
       </div>
+
+      <section className="card estacionamentos-proximos" aria-labelledby="estacionamentos-proximos-titulo">
+        <div className="card-head-row">
+          <div>
+            <h2 id="estacionamentos-proximos-titulo">Estacionamentos perto de você</h2>
+            <p className="muted-note" style={{ margin: 0 }}>
+              Informe sua cidade para priorizar os estacionamentos da sua região.
+            </p>
+          </div>
+          {cidadeReferencia && <span className="status-pill success">{cidadeReferencia}</span>}
+        </div>
+
+        <label className="cidade-proxima-campo" htmlFor="cidade-proxima">
+          <span>Onde você está?</span>
+          <input
+            id="cidade-proxima"
+            className="input-busca"
+            type="search"
+            value={cidadeBusca}
+            onChange={(event) => setCidadeBusca(event.target.value)}
+            placeholder={estAtual?.cidade || "Digite sua cidade"}
+          />
+        </label>
+
+        {carregandoEstacionamentos ? (
+          <div className="skeleton-lista" aria-label="Carregando estacionamentos">
+            {[0, 1, 2].map((item) => <div className="skeleton-linha" key={item} />)}
+          </div>
+        ) : estacionamentoProximos.length === 0 ? (
+          <p className="empty-state">Nenhum estacionamento disponível na rede ainda.</p>
+        ) : (
+          <div className="estacionamentos-lista">
+            {estacionamentoProximos.map((estacionamento) => {
+              const endereco = enderecoDoEstacionamento(estacionamento);
+              const mapa = encodeURIComponent(endereco || estacionamento.nome || estacionamento.id);
+              return (
+                <article className="estacionamento-item" key={estacionamento.id}>
+                  <div>
+                    <strong>{estacionamento.nome || "Estacionamento ParaAí"}</strong>
+                    <span>{endereco || estacionamento.cidade || "Endereço a confirmar"}</span>
+                    <small>{formatarMoeda(estacionamento.tarifaHora)}/hora</small>
+                  </div>
+                  <a
+                    className="btn btn-outline btn-sm"
+                    href={`https://www.google.com/maps/search/?api=1&query=${mapa}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Ver rota
+                  </a>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       <div className="dashboard-grid">
         <div className="dashboard-col">

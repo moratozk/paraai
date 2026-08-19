@@ -62,6 +62,35 @@ export function useEstacionamento(estId) {
 }
 
 // ---------------------------------------------------------------------
+// Estacionamentos da rede. Motoristas podem ler os dados públicos do
+// estabelecimento, mas não as vagas internas nem os dados de outros usuários.
+// ---------------------------------------------------------------------
+export function useEstacionamentos() {
+  const [snapState, setSnapState] = useState({ carregado: false, itens: [] });
+
+  useEffect(() => {
+    const unsub = onSnapshot(
+      collection(db, "estacionamentos"),
+      (snap) => {
+        const itens = [];
+        snap.forEach((d) => itens.push({ id: d.id, ...d.data() }));
+        itens.sort((a, b) =>
+          String(a.nome || "").localeCompare(String(b.nome || ""), "pt-BR")
+        );
+        setSnapState({ carregado: true, itens });
+      },
+      (err) => {
+        console.error("[estacionamentos] erro no listener:", err);
+        setSnapState({ carregado: true, itens: [] });
+      }
+    );
+    return unsub;
+  }, []);
+
+  return { estacionamentos: snapState.itens, loading: !snapState.carregado };
+}
+
+// ---------------------------------------------------------------------
 // Vagas de um estacionamento - sempre retorna numVagas itens, mesmo que
 // o totem ainda não tenha criado algum documento (aparece como livre).
 // ---------------------------------------------------------------------
