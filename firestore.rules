@@ -109,6 +109,11 @@ service cloud.firestore {
 
     match /veiculos/{placa} {
       allow read: if totemCadastrado()
+        // O painel consulta a placa antes de criá-la. Uma leitura de
+        // documento inexistente não revela dados e permite o primeiro
+        // cadastro; documentos existentes de terceiros continuam bloqueados.
+        || (signedIn()
+          && !exists(/databases/$(database)/documents/veiculos/$(placa)))
         || (signedIn() && resource.data.ownerUid == request.auth.uid)
         || (signedIn() && veiculoSemDono());
       allow create: if totemCadastrado()
