@@ -49,6 +49,93 @@ service cloud.firestore {
         || resource.data.ownerUid == '';
     }
 
+    // Formatos criados pelo painel e pelo totem. Validá-los aqui evita que
+    // clientes autenticados deixem documentos que o firmware não consegue
+    // interpretar (ou incluam campos inesperados).
+    function veiculoInicialDoPainelValido(dados) {
+      return dados.keys().hasOnly([
+          'ativo', 'vagaAtual', 'horaEntrada', 'saldo', 'estacionamentoId',
+          'tarifaHoraEntrada', 'ownerUid', 'ownerNome', 'atualizadoEm'
+        ])
+        && dados.keys().hasAll([
+          'ativo', 'vagaAtual', 'horaEntrada', 'saldo', 'ownerUid',
+          'ownerNome', 'atualizadoEm'
+        ])
+        && dados.ativo == true
+        && dados.vagaAtual == 0
+        && dados.horaEntrada == 0
+        && dados.saldo is number && dados.saldo >= 0
+        // Os dois campos abaixo foram acrescentados depois da primeira
+        // versão do painel. Aceitamos a ausência apenas para não interromper
+        // uma página antiga que ainda esteja em cache durante a atualização.
+        && (!('estacionamentoId' in dados) || dados.estacionamentoId == '')
+        && (!('tarifaHoraEntrada' in dados) || dados.tarifaHoraEntrada == 0)
+        && dados.ownerUid == request.auth.uid
+        && dados.ownerNome is string
+        && dados.atualizadoEm is timestamp;
+    }
+
+    function veiculoInicialDoTotemValido(dados) {
+      return dados.keys().hasOnly([
+          'ativo', 'vagaAtual', 'horaEntrada', 'saldo', 'estacionamentoId',
+          'tarifaHoraEntrada', 'cadastradoNoTotem'
+        ])
+        && dados.keys().hasAll([
+          'ativo', 'vagaAtual', 'horaEntrada', 'saldo', 'estacionamentoId',
+          'cadastradoNoTotem'
+        ])
+        && dados.ativo == true
+        && dados.vagaAtual == 0
+        && dados.horaEntrada == 0
+        && dados.saldo is number && dados.saldo >= 0
+        && dados.estacionamentoId == ''
+        // Também aceita o firmware já gravado antes de tarifaHoraEntrada
+        // existir. O próximo firmware passa a criar o campo explicitamente.
+        && (!('tarifaHoraEntrada' in dados) || dados.tarifaHoraEntrada == 0)
+        && dados.cadastradoNoTotem == true;
+    }
+
+    // Um totem só pode abrir uma estadia que ainda está fora de qualquer
+    // pátio e fechá-la se ela pertence ao próprio estacionamento. Isso mantém
+    // a carteira global, mas impede um equipamento de alterar uma estadia
+    // operada por outro totem.
+    function totemPodeRegistrarEntrada() {
+      return totemCadastrado()
+        && resource.data.vagaAtual == 0
+        && (!('estacionamentoId' in resource.data)
+          || resource.data.estacionamentoId == '')
+        && request.resource.data.vagaAtual is int
+        && request.resource.data.vagaAtual > 0
+        && request.resource.data.horaEntrada is int
+        && request.resource.data.horaEntrada > 0
+        && request.resource.data.estacionamentoId
+          == get(/databases/$(database)/documents/totems/$(request.auth.uid)).data.estacionamentoId
+        && request.resource.data.tarifaHoraEntrada is number
+        && request.resource.data.tarifaHoraEntrada >= 0
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'vagaAtual', 'horaEntrada', 'estacionamentoId', 'tarifaHoraEntrada'
+        ]);
+    }
+
+    function totemPodeRegistrarSaida() {
+      return totemCadastrado()
+        && resource.data.vagaAtual is int
+        && resource.data.vagaAtual > 0
+        && resource.data.estacionamentoId
+          == get(/databases/$(database)/documents/totems/$(request.auth.uid)).data.estacionamentoId
+        && resource.data.saldo is number
+        && request.resource.data.vagaAtual == 0
+        && request.resource.data.horaEntrada == 0
+        && request.resource.data.estacionamentoId == ''
+        && request.resource.data.saldo is number
+        && request.resource.data.saldo <= resource.data.saldo
+        && request.resource.data.tarifaHoraEntrada == 0
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'vagaAtual', 'horaEntrada', 'estacionamentoId', 'saldo',
+          'tarifaHoraEntrada'
+        ]);
+    }
+
     function pareamentoValido(dados) {
       return dados.estacionamentoId is string
         && estacionamentoExiste(dados.estacionamentoId)
@@ -109,11 +196,19 @@ service cloud.firestore {
 
     match /veiculos/{placa} {
       allow read: if totemCadastrado()
+        // O painel consulta primeiro para saber se deve criar ou reivindicar.
+        // Sem esta exceção, a leitura de uma placa inédita é recusada antes
+        // de a regra de create poder ser avaliada.
+        || (signedIn()
+          && !exists(/databases/$(database)/documents/veiculos/$(placa)))
         || (signedIn() && resource.data.ownerUid == request.auth.uid)
         || (signedIn() && veiculoSemDono());
-      allow create: if totemCadastrado()
-        || (signedIn() && request.resource.data.ownerUid == request.auth.uid);
-      allow update: if totemCadastrado()
+      allow create: if (totemCadastrado()
+          && veiculoInicialDoTotemValido(request.resource.data))
+        || (signedIn()
+          && veiculoInicialDoPainelValido(request.resource.data));
+      allow update: if totemPodeRegistrarEntrada()
+        || totemPodeRegistrarSaida()
         || (signedIn()
           && resource.data.ownerUid == request.auth.uid
           && request.resource.data.ownerUid == request.auth.uid
