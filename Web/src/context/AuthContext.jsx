@@ -183,17 +183,10 @@ export function AuthProvider({ children }) {
         (snap) => {
           const data = snap.exists() ? snap.data() : {};
 
-          // AUTO-REPARO: contas criadas enquanto as regras do Firestore
-          // bloqueavam escrita ficaram sem documento. Se o documento não
-          // existe, recria o básico a partir do Auth.
-          //
-          // NUNCA grava "role" aqui. Este callback dispara assim que a conta
-          // é criada - antes de o cadastro terminar de gravar o documento -
-          // então gravar role:"motorista" aqui competia com a escrita do
-          // cadastro e podia sobrescrever um cadastro de OPERADOR (o papel
-          // vencedor dependia de qual escrita chegasse por último). O papel
-          // já tem fallback "motorista" na derivação abaixo, então o reparo
-          // não precisa - e não pode - opinar sobre ele.
+          // AUTO-REPARO: contas antigas que ficaram sem documento recebem o
+          // perfil mínimo de motorista. O reparo só roda depois que o fluxo
+          // de cadastro termina, por isso não concorre com a escolha de papel
+          // feita na criação de uma conta nova.
           if (
             !snap.exists() &&
             !cadastroEmAndamento.current &&
@@ -205,6 +198,7 @@ export function AuthProvider({ children }) {
               {
                 name: currentUser.displayName || null,
                 email: currentUser.email || null,
+                role: "motorista",
                 createdAt: serverTimestamp(),
               },
               { merge: true }
