@@ -145,14 +145,51 @@ service cloud.firestore {
           == get(/databases/$(database)/documents/estacionamentos/$(dados.estacionamentoId)).data.totemPairingCode;
     }
 
+    function perfilDeOperador(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid))
+        && get(/databases/$(database)/documents/users/$(uid)).data.role == 'operador';
+    }
+
+    function vinculoInicialDeEstacionamentoValido(uid) {
+      return resource.data.role == 'operador'
+        && !('estacionamentoId' in resource.data)
+        && request.resource.data.role == 'operador'
+        && request.resource.data.estacionamentoId is string
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['estacionamentoId'])
+        && exists(/databases/$(database)/documents/estacionamentos/$(request.resource.data.estacionamentoId))
+        && get(/databases/$(database)/documents/estacionamentos/$(request.resource.data.estacionamentoId)).data.ownerUid
+          == uid;
+    }
+
+    function placaDeMotoristaValida() {
+      return resource.data.role == 'motorista'
+        && request.resource.data.placa is string
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['placa']);
+    }
+
     match /users/{uid} {
-      allow read, create, update, delete:
-        if signedIn() && request.auth.uid == uid;
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow delete: if false;
+      // O papel é escolhido apenas na criação da conta. Isso impede que uma
+      // conta de motorista seja convertida pelo cliente em conta de operador.
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.role in ['motorista', 'operador'];
+      allow update: if signedIn() && request.auth.uid == uid
+        && (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'name', 'email', 'telefone', 'photoURL'
+          ])
+          || placaDeMotoristaValida()
+          || vinculoInicialDeEstacionamentoValido(uid)
+        );
     }
 
     match /estacionamentos/{estId} {
       allow read: if signedIn();
       allow create: if signedIn()
+        && perfilDeOperador(request.auth.uid)
         && request.resource.data.ownerUid == request.auth.uid;
       allow update: if donoDoEstacionamento(estId)
         || (totemDoEstacionamento(estId)

@@ -41,6 +41,13 @@ export async function criarEstacionamento({
   cidade = "",
   uf = "",
 }) {
+  const perfil = await getDoc(doc(db, "users", uid));
+  if (!perfil.exists() || perfil.data().role !== "operador") {
+    throw new Error(
+      "Apenas contas criadas como dono de estacionamento podem cadastrar um estacionamento."
+    );
+  }
+
   let id = gerarIdEstacionamento();
   // colisão é improvável, mas custa uma leitura conferir
   if ((await getDoc(doc(db, "estacionamentos", id))).exists()) {
