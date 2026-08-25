@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import QRCode from "qrcode";
 import { adicionarSaldo } from "../services/veiculos";
 import { formatarMoeda } from "../utils/format";
 import "./ModalRecarga.css";
@@ -16,6 +17,8 @@ export default function ModalRecarga({ placa, saldoAtual, aoFechar, aoConcluir }
   const [metodo, setMetodo] = useState("pix");
   const [erro, setErro] = useState("");
   const [copiado, setCopiado] = useState(false);
+  const [qrCode, setQrCode] = useState("");
+  const [erroQr, setErroQr] = useState("");
 
   // fecha com ESC
   useEffect(() => {
@@ -26,6 +29,33 @@ export default function ModalRecarga({ placa, saldoAtual, aoFechar, aoConcluir }
 
   const valorFinal = valorLivre ? Number(valorLivre.replace(",", ".")) : valor;
   const valorValido = valorFinal > 0 && valorFinal <= 1000;
+  const valorParaQr = Number.isFinite(valorFinal) ? valorFinal.toFixed(2) : "0.00";
+  const codigoDemonstracao = `PARAAI|RECARGA_SIMULADA|PLACA=${placa}|VALOR=${valorParaQr}`;
+
+  useEffect(() => {
+    let ativo = true;
+
+    QRCode.toDataURL(codigoDemonstracao, {
+      errorCorrectionLevel: "M",
+      margin: 1,
+      width: 180,
+      color: { dark: "#05060a", light: "#ffffff" },
+    })
+      .then((url) => {
+        if (ativo) {
+          setQrCode(url);
+          setErroQr("");
+        }
+      })
+      .catch((err) => {
+        console.error("Falha ao gerar QR Code:", err);
+        if (ativo) setErroQr("Não foi possível gerar o QR Code da demonstração.");
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, [codigoDemonstracao]);
 
   async function confirmarPagamento() {
     setErro("");
@@ -47,8 +77,17 @@ export default function ModalRecarga({ placa, saldoAtual, aoFechar, aoConcluir }
     }
   }
 
-  // código PIX fictício, só para a demonstração visual
-  const codigoPix = `00020126580014BR.GOV.BCB.PIX0136paraai-${placa}-${valorFinal}5204000053039865802BR5910PARAAI TCC6009SAO PAULO62070503***6304DEMO`;
+  async function copiarCodigoDemonstracao() {
+    try {
+      if (!navigator.clipboard) throw new Error("Área de transferência indisponível");
+      await navigator.clipboard.writeText(codigoDemonstracao);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    } catch (err) {
+      console.error("Falha ao copiar código da demonstração:", err);
+      setErro("Não foi possível copiar o código. Selecione-o e copie manualmente.");
+    }
+  }
 
   return (
     <div className="modal-overlay" onClick={() => etapa !== "processando" && aoFechar()}>
@@ -161,7 +200,7 @@ export default function ModalRecarga({ placa, saldoAtual, aoFechar, aoConcluir }
                 <span className="metodo-icone">⚡</span>
                 <span>
                   <strong>PIX</strong>
-                  <small>Aprovação imediata</small>
+                  <small>Demonstração com QR escaneável</small>
                 </span>
               </button>
               <button
@@ -178,19 +217,19 @@ export default function ModalRecarga({ placa, saldoAtual, aoFechar, aoConcluir }
 
             {metodo === "pix" ? (
               <div className="pix-area">
-                <div className="pix-qr" aria-hidden="true">
-                  <QrFake />
+                <div className="pix-qr">
+                  {qrCode ? (
+                    <img src={qrCode} alt="QR Code da recarga simulada" />
+                  ) : (
+                    <span className="qr-carregando">Gerando QR…</span>
+                  )}
                 </div>
                 <div className="pix-codigo">
-                  <span className="field-hint">PIX copia e cola</span>
-                  <code>{codigoPix.slice(0, 42)}…</code>
+                  <span className="field-hint">Código da demonstração</span>
+                  <code>{codigoDemonstracao}</code>
                   <button
                     className="btn btn-outline btn-sm btn-block"
-                    onClick={() => {
-                      navigator.clipboard?.writeText(codigoPix);
-                      setCopiado(true);
-                      setTimeout(() => setCopiado(false), 2000);
-                    }}
+                    onClick={copiarCodigoDemonstracao}
                   >
                     {copiado ? "✓ Copiado" : "Copiar código"}
                   </button>
@@ -216,17 +255,19 @@ export default function ModalRecarga({ placa, saldoAtual, aoFechar, aoConcluir }
             )}
 
             <div className="aviso-simulado">
-              <strong>Ambiente de demonstração.</strong> Nenhuma cobrança é
-              feita — ao confirmar, o saldo é creditado automaticamente para
-              fins acadêmicos.
+              <strong>Ambiente de demonstração.</strong> O QR Code é escaneável,
+              mas não é um PIX de cobrança. Ao confirmar, o saldo é creditado
+              automaticamente apenas para fins acadêmicos.
             </div>
+
+            {erroQr && <p className="error-text">{erroQr}</p>}
 
             <div className="modal-acoes">
               <button className="btn btn-ghost" onClick={() => setEtapa("valor")}>
                 Voltar
               </button>
               <button className="btn btn-primary" onClick={confirmarPagamento}>
-                {metodo === "pix" ? "Já paguei" : "Pagar agora"}
+                {metodo === "pix" ? "Confirmar recarga simulada" : "Simular recarga"}
               </button>
             </div>
           </>
@@ -263,23 +304,4 @@ export default function ModalRecarga({ placa, saldoAtual, aoFechar, aoConcluir }
       </div>
     </div>
   );
-}
-
-// QR decorativo (padrão fixo) — apenas ilustrativo para a demonstração
-function QrFake() {
-  const celulas = [];
-  const semente = 0b1011010011100101101;
-  for (let i = 0; i < 169; i++) {
-    const linha = Math.floor(i / 13);
-    const col = i % 13;
-    const cantoTL = linha < 3 && col < 3;
-    const cantoTR = linha < 3 && col > 9;
-    const cantoBL = linha > 9 && col < 3;
-    const preto =
-      cantoTL || cantoTR || cantoBL
-        ? !(linha === 1 && col % 12 === 1)
-        : ((semente >> (i % 19)) & 1) === 1 && (i * 7) % 3 !== 0;
-    celulas.push(<span key={i} className={preto ? "qr-on" : ""} />);
-  }
-  return <div className="qr-grid">{celulas}</div>;
 }
