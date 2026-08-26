@@ -157,9 +157,32 @@ service cloud.firestore {
         && request.resource.data.estacionamentoId is string
         && request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['estacionamentoId'])
-        && exists(/databases/$(database)/documents/estacionamentos/$(request.resource.data.estacionamentoId))
-        && get(/databases/$(database)/documents/estacionamentos/$(request.resource.data.estacionamentoId)).data.ownerUid
+        && getAfter(/databases/$(database)/documents/estacionamentos/$(request.resource.data.estacionamentoId)).data.ownerUid
           == uid;
+    }
+
+    function catalogoSomenteComCamposPublicos(dados) {
+      return dados.keys().hasOnly([
+          'nome', 'numVagas', 'tarifaHora', 'cep', 'logradouro', 'numero',
+          'bairro', 'cidade', 'uf', 'ultimaAtualizacao', 'vagasLivres',
+          'vagasEmOperacao', 'atualizadoEm'
+        ])
+        && dados.nome is string
+        && dados.numVagas is number && dados.numVagas > 0
+        && dados.tarifaHora is number && dados.tarifaHora >= 0
+        && dados.cep is string
+        && dados.logradouro is string
+        && dados.numero is string
+        && dados.bairro is string
+        && dados.cidade is string
+        && dados.uf is string
+        && (!('ultimaAtualizacao' in dados)
+          || (dados.ultimaAtualizacao is number && dados.ultimaAtualizacao >= 0))
+        && (!('vagasLivres' in dados)
+          || (dados.vagasLivres is number && dados.vagasLivres >= 0))
+        && (!('vagasEmOperacao' in dados)
+          || (dados.vagasEmOperacao is number && dados.vagasEmOperacao >= 0))
+        && (!('atualizadoEm' in dados) || dados.atualizadoEm is timestamp);
     }
 
     function placaDeMotoristaValida() {
@@ -187,7 +210,9 @@ service cloud.firestore {
     }
 
     match /estacionamentos/{estId} {
-      allow read: if signedIn();
+      // Motoristas leem a projeção segura em catalogoEstacionamentos.
+      allow read: if donoDoEstacionamento(estId)
+        || totemDoEstacionamento(estId);
       allow create: if signedIn()
         && perfilDeOperador(request.auth.uid)
         && request.resource.data.ownerUid == request.auth.uid;
@@ -213,6 +238,18 @@ service cloud.firestore {
           ]);
         allow delete: if donoDoEstacionamento(estId);
       }
+    }
+
+    match /catalogoEstacionamentos/{estId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && catalogoSomenteComCamposPublicos(request.resource.data)
+        && getAfter(/databases/$(database)/documents/estacionamentos/$(estId)).data.ownerUid
+          == request.auth.uid;
+      allow update: if signedIn()
+        && catalogoSomenteComCamposPublicos(request.resource.data)
+        && donoDoEstacionamento(estId);
+      allow delete: if donoDoEstacionamento(estId);
     }
 
     match /totems/{totemUid} {

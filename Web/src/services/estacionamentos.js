@@ -9,8 +9,8 @@ import {
   doc,
   getDoc,
   setDoc,
-  updateDoc,
   serverTimestamp,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "../firebase/firebaseConfig";
 
@@ -25,6 +25,28 @@ function gerarIdEstacionamento() {
     sufixo += chars[Math.floor(Math.random() * chars.length)];
   }
   return `EST-${sufixo}`;
+}
+
+function dadosPublicos(estacionamento) {
+  const tarifa = Number(estacionamento.tarifaHora);
+  const dados = {
+    nome: String(estacionamento.nome || "").trim(),
+    numVagas: Number(estacionamento.numVagas) || 4,
+    tarifaHora: Number.isFinite(tarifa) && tarifa >= 0 ? tarifa : TARIFA_PADRAO,
+    cep: estacionamento.cep || "",
+    logradouro: estacionamento.logradouro || "",
+    numero: estacionamento.numero || "",
+    bairro: estacionamento.bairro || "",
+    cidade: estacionamento.cidade || "",
+    uf: estacionamento.uf || "",
+  };
+
+  for (const campo of ["ultimaAtualizacao", "vagasLivres", "vagasEmOperacao"]) {
+    const valor = Number(estacionamento[campo]);
+    if (Number.isFinite(valor) && valor >= 0) dados[campo] = valor;
+  }
+
+  return dados;
 }
 
 export async function criarEstacionamento({
@@ -54,7 +76,7 @@ export async function criarEstacionamento({
     id = gerarIdEstacionamento();
   }
 
-  await setDoc(doc(db, "estacionamentos", id), {
+  const estacionamento = {
     nome,
     numVagas: Number(numVagas) || 4,
     tarifaHora: Number(tarifaHora) || 5,
@@ -67,13 +89,17 @@ export async function criarEstacionamento({
     uf,
     ownerUid: uid,
     criadoEm: serverTimestamp(),
-  });
+  };
 
-  await setDoc(
+  const batch = writeBatch(db);
+  batch.set(doc(db, "estacionamentos", id), estacionamento);
+  batch.set(doc(db, "catalogoEstacionamentos", id), dadosPublicos(estacionamento));
+  batch.set(
     doc(db, "users", uid),
     { estacionamentoId: id, role: "operador" },
     { merge: true }
   );
+  await batch.commit();
 
   return id;
 }
@@ -106,5 +132,29 @@ export async function atualizarConfiguracao(estId, campos) {
     dados.nome = String(campos.nome).trim();
   }
 
-  await updateDoc(doc(db, "estacionamentos", estId), dados);
+  const atual = await getDoc(doc(db, "estacionamentos", estId));
+  if (!atual.exists()) throw new Error("Estacionamento não encontrado.");
+
+  const batch = writeBatch(db);
+  batch.update(doc(db, "estacionamentos", estId), dados);
+  batch.set(
+    doc(db, "catalogoEstacionamentos", estId),
+    {
+      ...dadosPublicos({ ...atual.data(), ...campos }),
+      atualizadoEm: serverTimestamp(),
+    },
+    { merge: true }
+  );
+  await batch.commit();
+}
+
+// Também funciona como migração: ao abrir o painel, estacionamentos antigos
+// ganham sua vitrine pública sem copiar ownerUid, códigos ou credenciais.
+export function sincronizarCatalogo(estacionamento) {
+  if (!estacionamento?.id) return Promise.resolve();
+  return setDoc(
+    doc(db, "catalogoEstacionamentos", estacionamento.id),
+    { ...dadosPublicos(estacionamento), atualizadoEm: serverTimestamp() },
+    { merge: true }
+  );
 }

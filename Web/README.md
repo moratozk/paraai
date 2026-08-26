@@ -25,6 +25,8 @@ explicando a experiência para donos de estacionamento e motoristas.
 - Carteira única: um saldo que vale em toda a rede; recarga simulada.
 - Painel: onde o carro está (qual estacionamento/vaga), cronômetro e custo
   estimado ao vivo, últimos acessos e recibos, total gasto.
+- Marketplace: busca por nome, bairro, cidade ou CEP; filtros de preço e vagas,
+  ordenação por disponibilidade e rota para o endereço no mapa.
 
 Todos os dados são **ao vivo** (`onSnapshot`): sensor detecta o carro ou o
 totem registra uma saída, o painel atualiza sem F5.
@@ -69,15 +71,15 @@ src/
 │                     ThemeContext (claro/escuro)
 ├── firebase/         Inicialização do SDK (lê variáveis do .env)
 ├── hooks/            useParkingData: useEstacionamento, useVagas,
-│                     useVeiculo, useHistoricoPlaca,
+│                     useCatalogoEstacionamentos, useVeiculo, useHistoricoPlaca,
 │                     useHistoricoEstacionamento — todos com onSnapshot
 ├── services/         veiculos.js (placa, recarga),
 │                     estacionamentos.js (cadastro do estacionamento)
 ├── utils/            constants.js (valores compartilhados com o firmware),
 │                     format.js (moeda, datas, validação de placa)
 └── pages/            Home, Login, Cadastro (2 papéis), Dashboard (roteia por
-                      papel), PainelOperador, PainelMotorista, Historico,
-                      Perfil e Configuracoes
+                      papel), PainelOperador, PainelMotorista, Marketplace,
+                      Historico, Perfil e Configuracoes
 ```
 
 ## Contrato de dados com o totem

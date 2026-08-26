@@ -15,6 +15,7 @@ const Cadastro = lazy(() => import("./pages/Cadastro"));
 const RecuperarSenha = lazy(() => import("./pages/RecuperarSenha"));
 const RedefinirSenha = lazy(() => import("./pages/RedefinirSenha"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
+const MarketplaceEstacionamentos = lazy(() => import("./pages/MarketplaceEstacionamentos"));
 const Historico = lazy(() => import("./pages/Historico"));
 const Perfil = lazy(() => import("./pages/Perfil"));
 const Configuracoes = lazy(() => import("./pages/Configuracoes"));
@@ -57,6 +58,14 @@ export default function App() {
                   element={
                     <PrivateRoute>
                       <Historico />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/estacionamentos"
+                  element={
+                    <PrivateRoute>
+                      <MarketplaceEstacionamentos />
                     </PrivateRoute>
                   }
                 />
