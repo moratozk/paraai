@@ -1,7 +1,7 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **17/08/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **19/08/2026**.
 
 ---
 
@@ -142,6 +142,13 @@ Usar o mesmo tom nos dois reprova em um dos casos.
 
 **Firebase App Check** precisa continuar em "Monitorando" (não forçado), senão
 bloqueia tanto o site quanto o ESP32.
+
+**Regras do Firestore precisam acompanhar o site.** O arquivo
+`firestore.rules` permite que o motorista consulte uma placa inexistente antes
+de criá-la e limita cada totem às transições de entrada/saída do próprio
+estacionamento. Publique as regras depois que essa alteração entrar na `main`;
+sem a publicação, o erro `Missing or insufficient permissions` ao cadastrar
+uma placa nova continua no Firebase já implantado.
 
 **`getComputedStyle` devolve valor em cache** logo após trocar o atributo do
 tema. Para auditar contraste, force um repaint antes de medir — sem isso o
