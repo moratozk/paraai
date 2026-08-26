@@ -485,7 +485,7 @@ export default function Perfil() {
         </div>
       )}
 
-      {(role === "motorista" || (role === "operador" && !estId)) && (
+      {role === "operador" && !estId && (
         <div className="card vehicle-card">
           <h2>
             {role === "operador"

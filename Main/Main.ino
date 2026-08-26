@@ -105,6 +105,7 @@ bool sincronizarHora();
 void configurarFirebase();
 long obterTimestampAtual();
 void abrirCatraca();
+bool placaValida(String placa);
 void processarPlacaDigitada(String placa);
 bool atualizarOcupacaoFirestore(int indiceVaga, bool ocupada);
 void atualizarPlacaNaVagaFirestore(int indiceVaga, String placa);
@@ -218,10 +219,15 @@ void loop() {
           atualizarCaixaPlaca(placaDigitada);
         }
       } else if (tecla == '\n') { // OK
-        if (placaDigitada.length() >= 4) {
+        if (placaValida(placaDigitada)) {
           estadoAtual = TELA_PROCESSANDO;
           desenharTelaProcessando("Consultando placa...");
           processarPlacaDigitada(placaDigitada);
+        } else {
+          desenharTelaResultado(RESULTADO_ALERTA, "PLACA INVALIDA",
+                                "Use ABC1234", "ou ABC1D23");
+          resultadoDesde = millis();
+          estadoAtual = TELA_RESULTADO;
         }
       } else if (tecla != 0) {
         if (placaDigitada.length() < 7) {
@@ -300,7 +306,13 @@ bool conectarWiFi(unsigned long timeoutMs) {
 
   unsigned long inicio = millis();
   while (WiFi.status() != WL_CONNECTED) {
-    if (millis() - inicio > timeoutMs) return false;
+    if (millis() - inicio > timeoutMs) {
+      // Cancela a tentativa pendente. Sem isso, a próxima chamada a
+      // WiFi.begin() pode falhar com "sta is connecting, cannot set config".
+      WiFi.disconnect(false, false);
+      Serial.println("\n[WIFI] Tentativa inicial expirou.");
+      return false;
+    }
     Serial.print(".");
     delay(300);
   }
@@ -318,6 +330,9 @@ void gerenciarConexao() {
     if (agora - ultimaTentativaWifi >= WIFI_RETRY_MS) {
       ultimaTentativaWifi = agora;
       Serial.println("[WIFI] Desconectado - tentando (re)conectar em segundo plano...");
+      // Uma tentativa anterior pode ainda estar pendente. Cancela-a antes de
+      // configurar a nova, para o ESP32 aceitar a troca de credenciais/rede.
+      WiFi.disconnect(false, false);
       WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     }
     return;
@@ -374,6 +389,28 @@ long obterTimestampAtual() {
   time_t agora;
   time(&agora);
   return (long)agora;
+}
+
+// Aceita os dois formatos brasileiros que o painel também valida:
+// ABC1234 (antigo) e ABC1D23 (Mercosul). O teclado só produz A-Z e 0-9,
+// mas validar aqui impede criar cadastros que o motorista não conseguiria
+// vincular depois pelo app.
+bool placaValida(String placa) {
+  if (placa.length() != 7) return false;
+
+  for (int i = 0; i < 3; i++) {
+    if (placa[i] < 'A' || placa[i] > 'Z') return false;
+  }
+  if (placa[3] < '0' || placa[3] > '9') return false;
+
+  bool antiga = true;
+  for (int i = 4; i < 7; i++) {
+    if (placa[i] < '0' || placa[i] > '9') antiga = false;
+  }
+  bool mercosul = placa[4] >= 'A' && placa[4] <= 'Z'
+    && placa[5] >= '0' && placa[5] <= '9'
+    && placa[6] >= '0' && placa[6] <= '9';
+  return antiga || mercosul;
 }
 
 // ==========================================
@@ -485,6 +522,7 @@ bool cadastrarVeiculoNoTotem(String placa) {
   conteudo.set("fields/horaEntrada/integerValue", String(0));
   conteudo.set("fields/saldo/doubleValue", 0.0);
   conteudo.set("fields/estacionamentoId/stringValue", "");
+  conteudo.set("fields/tarifaHoraEntrada/doubleValue", 0.0);
   conteudo.set("fields/cadastradoNoTotem/booleanValue", true);
 
   bool ok = Firebase.Firestore.createDocument(&fbdo, PROJECT_ID, "", caminho.c_str(), conteudo.raw());

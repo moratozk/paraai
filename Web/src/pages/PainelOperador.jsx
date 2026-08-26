@@ -1,8 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
-import { atualizarConfiguracao } from "../services/estacionamentos";
+import {
+  atualizarConfiguracao,
+  sincronizarCatalogo,
+} from "../services/estacionamentos";
 import {
   useEstacionamento,
   useVagas,
@@ -127,6 +130,30 @@ export default function PainelOperador() {
   const estId = userData?.estacionamentoId || null;
 
   const { estacionamento, online } = useEstacionamento(estId);
+
+  const assinaturaCatalogo = [
+    estacionamento?.nome,
+    estacionamento?.numVagas,
+    estacionamento?.tarifaHora,
+    estacionamento?.cep,
+    estacionamento?.logradouro,
+    estacionamento?.numero,
+    estacionamento?.bairro,
+    estacionamento?.cidade,
+    estacionamento?.uf,
+    estacionamento?.ultimaAtualizacao,
+    estacionamento?.vagasLivres,
+    estacionamento?.vagasEmOperacao,
+  ].join("|");
+
+  useEffect(() => {
+    if (!estacionamento?.id) return;
+    sincronizarCatalogo(estacionamento).catch((err) =>
+      console.error("Não foi possível sincronizar o catálogo:", err)
+    );
+    // A assinatura contém somente os campos públicos sincronizados acima.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [estacionamento?.id, assinaturaCatalogo]);
 
   // Quantos sensores o equipamento reportou ter. Só existe depois do primeiro
   // heartbeat; até lá não dá para avisar sobre limite de hardware.

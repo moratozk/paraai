@@ -242,21 +242,20 @@
   padding: 8px;
   background: #fff;
   border-radius: 8px;
-}
-
-.qr-grid {
+  width: 164px;
+  height: 164px;
   display: grid;
-  grid-template-columns: repeat(13, 7px);
-  grid-template-rows: repeat(13, 7px);
-  gap: 1px;
+  place-items: center;
 }
 
-.qr-grid span {
-  background: #fff;
-  border-radius: 1px;
+.pix-qr img {
+  display: block;
+  width: 148px;
+  height: 148px;
+  image-rendering: pixelated;
 }
 
-.qr-grid .qr-on { background: #05060a; }
+.qr-carregando { color: #30343c; font-size: 0.72rem; }
 
 .pix-codigo {
   flex: 1;

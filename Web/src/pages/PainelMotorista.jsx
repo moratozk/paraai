@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import {
   useVeiculo,
   useHistoricoPlaca,
-  useEstacionamento,
+  useEstacionamentoPublico,
 } from "../hooks/useParkingData";
 import {
   formatarMoeda,
@@ -27,7 +27,7 @@ export default function PainelMotorista() {
 
   // Em qual estacionamento da rede o carro está agora
   const estIdAtual = estacionado ? veiculo?.estacionamentoId || null : null;
-  const { estacionamento: estAtual } = useEstacionamento(estIdAtual);
+  const { estacionamento: estAtual } = useEstacionamentoPublico(estIdAtual);
   // O totem congela a tarifa no momento da entrada para que uma alteração no
   // painel não mude o preço de quem já está estacionado.
   const tarifaDaEntrada = Number(veiculo?.tarifaHoraEntrada);
@@ -102,6 +102,16 @@ export default function PainelMotorista() {
           <span className="stat-label">Total gasto</span>
           <span className="stat-value">{formatarMoeda(totalGasto)}</span>
         </div>
+      </div>
+
+      <div className="card destaque-aviso marketplace-chamada-painel">
+        <div>
+          <strong>Vai estacionar?</strong> Compare os locais da rede, veja a
+          tarifa e confira as vagas antes de sair.
+        </div>
+        <Link to="/estacionamentos" className="btn btn-primary btn-sm">
+          Explorar estacionamentos
+        </Link>
       </div>
 
       <div className="dashboard-grid">
