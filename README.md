@@ -46,6 +46,8 @@ totem e a tabela de movimentações.
 recarrega a carteira e usa qualquer estacionamento da rede: digita a placa no
 totem, estaciona, e na saída o valor é debitado do saldo. No painel vê onde o
 carro está, o custo estimado ao vivo, os últimos acessos e todos os recibos.
+Também encontra estacionamentos da rede por nome, bairro, cidade, tarifa e
+disponibilidade na página **Estacionamentos**.
 
 ## Modelo de dados (Firestore)
 
@@ -56,6 +58,10 @@ estacionamentos/{EST-XXXXXX}
 
 estacionamentos/{id}/vagas/{1..N}
   ocupada, placa                          -- sensor em tempo real
+
+catalogoEstacionamentos/{EST-XXXXXX}
+  nome, endereço, tarifaHora, numVagas,
+  ultimaAtualizacao, vagasLivres          -- vitrine segura do motorista
 
 veiculos/{PLACA}                          -- GLOBAL: carteira única na rede
   ativo, vagaAtual (0=fora), horaEntrada (Unix s), saldo,

@@ -1,7 +1,7 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **25/08/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **26/08/2026**.
 
 ---
 
@@ -86,6 +86,9 @@ na Arduino IDE e gravar.
 - Tema claro e escuro, ambos com contraste conferido em WCAG AA
 - Papel da conta é definitivo: motorista não pode cadastrar estacionamento e
   operador não usa o fluxo de motorista; as regras do Firestore reforçam isso
+- Marketplace do motorista em `/estacionamentos`, com busca, filtros, tarifa,
+  disponibilidade e rota; usa `catalogoEstacionamentos` para não expor dados
+  operacionais ou credenciais dos pátios
 
 ---
 
@@ -134,6 +137,12 @@ levemente quente; o contraste vem da hierarquia, não do brilho.
 cadastro. Motorista não vê nem consegue criar estacionamento; um operador só
 vincula o próprio estacionamento inicial. Não oferecer conversão entre papéis
 no Perfil.
+
+**O marketplace usa uma projeção pública autenticada.** Motoristas leem
+`catalogoEstacionamentos`, nunca o documento operacional completo. Novos
+estacionamentos criam a vitrine junto com o cadastro; os antigos são migrados
+quando o operador abre o painel. Sem leitura recente, a tela mostra “Sem
+leitura” em vez de inventar vagas disponíveis.
 
 ---
 

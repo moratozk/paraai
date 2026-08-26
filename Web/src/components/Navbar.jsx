@@ -101,6 +101,7 @@ export default function Navbar() {
         ]
       : [
           { to: "/dashboard", label: "Painel" },
+          { to: "/estacionamentos", label: "Estacionamentos" },
           { to: "/historico", label: "Meus acessos" },
         ]
     : [];

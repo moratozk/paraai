@@ -2,6 +2,7 @@
 // Hooks de dados em TEMPO REAL (onSnapshot) sobre o modelo multi-tenant:
 //
 //   estacionamentos/{id}            info + heartbeat do totem
+//   catalogoEstacionamentos/{id}     dados seguros exibidos aos motoristas
 //   estacionamentos/{id}/vagas/{n}  ocupação vaga a vaga
 //   veiculos/{PLACA}                carteira única do motorista (global)
 //   historico/{id}                  movimentações (campo estacionamentoId)
@@ -57,6 +58,67 @@ export function useEstacionamento(estId) {
   return {
     estacionamento: dados ? { id: estId, ...dados } : null,
     online,
+    loading: !atualizado,
+  };
+}
+
+// ---------------------------------------------------------------------
+// Catálogo da rede para motoristas. Fica separado do documento operacional
+// para não expor proprietário, pareamento ou configurações internas.
+// ---------------------------------------------------------------------
+export function useCatalogoEstacionamentos() {
+  const [estado, setEstado] = useState({ itens: [], loading: true, erro: "" });
+
+  useEffect(() => {
+    const unsub = onSnapshot(
+      collection(db, "catalogoEstacionamentos"),
+      (snap) => {
+        const itens = snap.docs.map((item) => ({ id: item.id, ...item.data() }));
+        itens.sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || "")));
+        setEstado({ itens, loading: false, erro: "" });
+      },
+      (err) => {
+        console.error("[catalogo-estacionamentos] erro no listener:", err);
+        setEstado({
+          itens: [],
+          loading: false,
+          erro: "Não foi possível carregar os estacionamentos agora.",
+        });
+      }
+    );
+
+    return unsub;
+  }, []);
+
+  return {
+    estacionamentos: estado.itens,
+    loading: estado.loading,
+    erro: estado.erro,
+  };
+}
+
+export function useEstacionamentoPublico(estId) {
+  const [snapState, setSnapState] = useState({ id: null, dados: null });
+
+  useEffect(() => {
+    if (!estId) return undefined;
+    return onSnapshot(
+      doc(db, "catalogoEstacionamentos", estId),
+      (snap) =>
+        setSnapState({ id: estId, dados: snap.exists() ? snap.data() : null }),
+      (err) => {
+        console.error("[estacionamento-publico] erro no listener:", err);
+        setSnapState({ id: estId, dados: null });
+      }
+    );
+  }, [estId]);
+
+  if (!estId) return { estacionamento: null, loading: false };
+  const atualizado = snapState.id === estId;
+  return {
+    estacionamento: atualizado
+      ? snapState.dados && { id: estId, ...snapState.dados }
+      : null,
     loading: !atualizado,
   };
 }
