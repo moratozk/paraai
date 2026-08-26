@@ -5,6 +5,7 @@ import { ThemeProvider } from "./context/ThemeContext";
 import { ToastProvider } from "./context/ToastContext";
 import Navbar from "./components/Navbar";
 import PrivateRoute from "./components/PrivateRoute";
+import PublicRoute from "./components/PublicRoute";
 import AvisoConfiguracao from "./components/AvisoConfiguracao";
 
 // Cada tela vira um pacote separado. Assim a home não baixa de uma vez os
@@ -39,11 +40,11 @@ export default function App() {
                 }
               >
                 <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/cadastro" element={<Cadastro />} />
-                <Route path="/recuperar-senha" element={<RecuperarSenha />} />
-                <Route path="/redefinir-senha" element={<RedefinirSenha />} />
+                <Route path="/" element={<PublicRoute><Home /></PublicRoute>} />
+                <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+                <Route path="/cadastro" element={<PublicRoute><Cadastro /></PublicRoute>} />
+                <Route path="/recuperar-senha" element={<PublicRoute><RecuperarSenha /></PublicRoute>} />
+                <Route path="/redefinir-senha" element={<PublicRoute><RedefinirSenha /></PublicRoute>} />
 
                 <Route
                   path="/dashboard"
@@ -85,7 +86,14 @@ export default function App() {
                     </PrivateRoute>
                   }
                 />
-                  <Route path="*" element={<Navigate to="/" replace />} />
+                  <Route
+                    path="*"
+                    element={
+                      <PublicRoute>
+                        <Navigate to="/" replace />
+                      </PublicRoute>
+                    }
+                  />
                 </Routes>
               </Suspense>
             </div>
