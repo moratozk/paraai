@@ -1,7 +1,7 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **19/08/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **25/08/2026**.
 
 ---
 
@@ -84,6 +84,8 @@ na Arduino IDE e gravar.
 - Recuperação e redefinição de senha
 - Recarga de saldo (PIX/cartão simulados)
 - Tema claro e escuro, ambos com contraste conferido em WCAG AA
+- Papel da conta é definitivo: motorista não pode cadastrar estacionamento e
+  operador não usa o fluxo de motorista; as regras do Firestore reforçam isso
 
 ---
 
@@ -127,6 +129,11 @@ quem entra quer estacionar, não conhecer o hardware.
 
 **Modo claro não usa branco puro.** Cansa a vista. A base é um cinza
 levemente quente; o contraste vem da hierarquia, não do brilho.
+
+**Motorista e operador são contas separadas.** O papel é escolhido no
+cadastro. Motorista não vê nem consegue criar estacionamento; um operador só
+vincula o próprio estacionamento inicial. Não oferecer conversão entre papéis
+no Perfil.
 
 ---
 
