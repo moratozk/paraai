@@ -1,7 +1,7 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **26/08/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **31/08/2026**.
 
 ---
 
@@ -71,6 +71,11 @@ na Arduino IDE e gravar.
 
 **Painel**
 - Faturamento por período, ocupação vaga a vaga, histórico de acessos
+- Mapa visual e interativo do pátio em tempo real, com corredor, entrada,
+  saída e vagas reservadas para PCD, idosos e gestantes
+- Controle manual seguro para ocupar, identificar por placa e liberar vagas
+  durante a apresentação mesmo sem os sensores físicos ligados
+- Atalho “Preparar demo FATEC” preenche o nome Estacionamento FATEC e 20 vagas
 - Status do totem em três estados: nunca conectou / offline / online
 - Avisa se o operador configurar mais vagas do que o totem tem sensores
 - Tarifa e número de vagas editáveis
@@ -143,6 +148,12 @@ no Perfil.
 estacionamentos criam a vitrine junto com o cadastro; os antigos são migrados
 quando o operador abre o painel. Sem leitura recente, a tela mostra “Sem
 leitura” em vez de inventar vagas disponíveis.
+
+**O mapa manual é uma contingência do operador.** Ele grava o mesmo documento
+`estacionamentos/{id}/vagas/{numero}` usado pelo totem e chega aos painéis por
+`onSnapshot`. Se os sensores estiverem ligados, a leitura física continua
+podendo atualizar esses documentos. As novas regras precisam ser publicadas
+depois que a alteração entrar em `main`.
 
 ---
 
