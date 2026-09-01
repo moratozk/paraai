@@ -1,0 +1,197 @@
+.mapa-vagas-card {
+  grid-column: 1 / -1;
+  overflow: hidden;
+}
+
+.mapa-vagas-cabecalho { align-items: flex-start; }
+.mapa-vagas-cabecalho h2 { margin: 0 0 0.25rem; }
+.mapa-vagas-cabecalho p { color: var(--text-secondary); font-size: 0.82rem; }
+
+.mapa-legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 1rem;
+  margin-bottom: 1rem;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mapa-legenda span { display: inline-flex; align-items: center; gap: 0.38rem; }
+.legenda-cor { width: 10px; height: 10px; border-radius: 3px; background: var(--success); }
+.legenda-cor.ocupada { background: var(--danger); }
+.legenda-cor.pcd { background: #3b82f6; }
+.legenda-cor.idoso { background: #a78bfa; }
+.legenda-cor.gestante { background: #ec4899; }
+
+.mapa-vagas-scroll {
+  overflow-x: auto;
+  padding: 0.2rem 0 0.7rem;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.mapa-patio {
+  min-width: 900px;
+  padding: clamp(0.8rem, 2vw, 1.25rem);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(90deg, transparent 49.7%, rgba(255, 184, 0, 0.12) 50%, transparent 50.3%),
+    var(--bg-input);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.015);
+}
+
+.mapa-fileira {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(72px, 1fr));
+  gap: 0.55rem;
+}
+
+.mapa-vaga {
+  position: relative;
+  min-height: 116px;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 0.4rem;
+  padding: 0.55rem;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--success) 8%, var(--bg-solid));
+  border: 1px solid color-mix(in srgb, var(--success) 58%, var(--border));
+  border-radius: 8px 8px 3px 3px;
+  text-align: left;
+  transition: transform 0.18s var(--mola), border-color 0.18s, box-shadow 0.18s;
+}
+
+.mapa-vaga::before,
+.mapa-vaga::after {
+  content: "";
+  position: absolute;
+  bottom: -8px;
+  width: 2px;
+  height: 15px;
+  background: color-mix(in srgb, var(--text-muted) 48%, transparent);
+}
+.mapa-vaga::before { left: -1px; }
+.mapa-vaga::after { right: -1px; }
+.mapa-fileira.inferior .mapa-vaga { border-radius: 3px 3px 8px 8px; }
+.mapa-fileira.inferior .mapa-vaga::before,
+.mapa-fileira.inferior .mapa-vaga::after { top: -8px; bottom: auto; }
+
+.mapa-vaga:hover { transform: translateY(-2px); border-color: var(--accent); }
+.mapa-vaga:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.mapa-vaga.selecionada { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.mapa-vaga.ocupada {
+  background: color-mix(in srgb, var(--danger) 11%, var(--bg-solid));
+  border-color: color-mix(in srgb, var(--danger) 64%, var(--border));
+}
+.mapa-vaga.especial.pcd { box-shadow: inset 0 3px #3b82f6; }
+.mapa-vaga.especial.idoso { box-shadow: inset 0 3px #a78bfa; }
+.mapa-vaga.especial.gestante { box-shadow: inset 0 3px #ec4899; }
+.mapa-vaga.especial.selecionada { box-shadow: inset 0 3px currentColor, 0 0 0 3px var(--accent-soft); }
+
+.mapa-vaga-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.25rem; }
+.mapa-vaga-topo strong { font-family: var(--font-display); font-size: 1.22rem; line-height: 1; }
+.mapa-vaga-tipo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.18rem;
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.mapa-vaga-corpo { display: grid; place-items: center; }
+.mapa-carro {
+  width: 76%;
+  min-height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px 14px 7px 7px;
+  background: var(--danger);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  box-shadow: inset 0 5px rgba(255, 255, 255, 0.16), 0 5px 12px rgba(0, 0, 0, 0.22);
+}
+.mapa-livre { color: var(--success); font-size: 0.65rem; font-weight: 800; letter-spacing: 0.1em; }
+.mapa-vaga-rodape {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapa-corredor {
+  height: 90px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  margin: 0.4rem 0;
+  border-top: 2px dashed color-mix(in srgb, var(--accent) 42%, transparent);
+  border-bottom: 2px dashed color-mix(in srgb, var(--accent) 42%, transparent);
+}
+.mapa-setas {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-align: center;
+  text-transform: uppercase;
+}
+.mapa-portao {
+  padding: 0.35rem 0.6rem;
+  border-radius: 5px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.mapa-vaga-editor {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) auto;
+  align-items: end;
+  gap: 0.8rem 1rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+}
+.mapa-editor-resumo { display: grid; gap: 0.25rem; min-width: 130px; }
+.mapa-editor-resumo strong { font-size: 1rem; }
+.mapa-editor-resumo .status-pill.danger {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.mapa-editor-placa { margin: 0; }
+.mapa-editor-acoes { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.45rem; }
+.mapa-editor-erro, .mapa-editor-nota { grid-column: 1 / -1; margin: 0; }
+
+@media (max-width: 760px) {
+  .mapa-vaga-editor { grid-template-columns: 1fr; align-items: stretch; }
+  .mapa-editor-acoes { justify-content: stretch; }
+  .mapa-editor-acoes .btn { flex: 1; }
+  .mapa-editor-erro, .mapa-editor-nota { grid-column: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mapa-vaga { transition: none; }
+}

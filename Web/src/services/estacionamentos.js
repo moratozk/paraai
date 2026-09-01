@@ -158,3 +158,18 @@ export function sincronizarCatalogo(estacionamento) {
     { merge: true }
   );
 }
+
+// Controle manual usado na apresentação e em contingência quando o pátio não
+// está com os sensores ligados. A subcoleção já é observada por onSnapshot,
+// portanto todos os painéis abertos refletem a mudança imediatamente.
+export function atualizarVagaManual({ estId, numero, ocupada, placa = "" }) {
+  const numeroVaga = Number(numero);
+  if (!estId || !Number.isInteger(numeroVaga) || numeroVaga < 1 || numeroVaga > 200) {
+    return Promise.reject(new Error("Vaga inválida."));
+  }
+
+  return setDoc(doc(db, "estacionamentos", estId, "vagas", String(numeroVaga)), {
+    ocupada: Boolean(ocupada),
+    placa: ocupada ? String(placa || "").trim().toUpperCase() : "",
+  });
+}

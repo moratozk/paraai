@@ -12,6 +12,7 @@ import {
   useHistoricoEstacionamento,
 } from "../hooks/useParkingData";
 import StatusTotem from "../components/StatusTotem";
+import MapaVagas from "../components/MapaVagas";
 import {
   formatarMoeda,
   formatarDataHora,
@@ -164,15 +165,24 @@ export default function PainelOperador() {
   const [periodo, setPeriodo] = useState("7d");
   const [busca, setBusca] = useState("");
 
-  // edição de tarifa / vagas direto no painel
+  // edição dos dados operacionais direto no painel
   const [editando, setEditando] = useState(false);
+  const [novoNome, setNovoNome] = useState("");
   const [novaTarifa, setNovaTarifa] = useState("");
   const [novasVagas, setNovasVagas] = useState("");
   const [salvandoConfig, setSalvandoConfig] = useState(false);
 
   function abrirEdicao() {
+    setNovoNome(estacionamento?.nome || "");
     setNovaTarifa(String(estacionamento?.tarifaHora ?? 5));
     setNovasVagas(String(estacionamento?.numVagas ?? 4));
+    setEditando(true);
+  }
+
+  function prepararDemonstracaoFatec() {
+    setNovoNome("Estacionamento FATEC");
+    setNovaTarifa(String(estacionamento?.tarifaHora ?? 5));
+    setNovasVagas("20");
     setEditando(true);
   }
 
@@ -181,6 +191,7 @@ export default function PainelOperador() {
     setSalvandoConfig(true);
     try {
       await atualizarConfiguracao(estId, {
+        nome: novoNome,
         tarifaHora: novaTarifa.replace(",", "."),
         numVagas: novasVagas,
       });
@@ -281,8 +292,14 @@ export default function PainelOperador() {
           </p>
         </div>
         <div className="header-acoes">
+          {(estacionamento?.nome !== "Estacionamento FATEC" ||
+            Number(estacionamento?.numVagas) !== 20) && (
+            <button className="btn btn-primary btn-sm" onClick={prepararDemonstracaoFatec}>
+              Preparar demo FATEC
+            </button>
+          )}
           <button className="btn btn-outline btn-sm" onClick={abrirEdicao}>
-            Ajustar tarifa e vagas
+            Ajustar estacionamento
           </button>
         </div>
       </div>
@@ -307,6 +324,17 @@ export default function PainelOperador() {
                 Configuração do pátio
               </h2>
             </div>
+            <div className="field">
+              <label htmlFor="novoNome">Nome do estacionamento</label>
+              <input
+                id="novoNome"
+                type="text"
+                value={novoNome}
+                onChange={(e) => setNovoNome(e.target.value)}
+                autoFocus
+                required
+              />
+            </div>
             <div className="field-row">
               <div className="field">
                 <label htmlFor="novaTarifa">Tarifa por hora (R$)</label>
@@ -315,7 +343,6 @@ export default function PainelOperador() {
                   type="number"
                   min={0}
                   step="0.50"
-                  autoFocus
                   value={novaTarifa}
                   onChange={(e) => setNovaTarifa(e.target.value)}
                 />
@@ -469,6 +496,12 @@ export default function PainelOperador() {
         </div>
       </div>
 
+      <MapaVagas
+        estId={estId}
+        vagas={vagas}
+        nomeEstacionamento={estacionamento?.nome}
+      />
+
       <div className="dashboard-grid">
         <div className="dashboard-col">
           {/* ---------- Gráfico ---------- */}
@@ -578,43 +611,6 @@ export default function PainelOperador() {
         </div>
 
         <div className="dashboard-col">
-          {/* ---------- Pátio ao vivo ---------- */}
-          <div className="card">
-            <div className="card-head-row">
-              <h2 style={{ marginBottom: 0, background: "none", paddingBottom: 0 }}>
-                Pátio ao vivo
-              </h2>
-              <span className="live-dot" title="Atualiza em tempo real">
-                <span className="status-dot online pulsa"></span>AO VIVO
-              </span>
-            </div>
-            <div className="vagas-grid mini animada">
-              {vagas.map((v) => (
-                <div
-                  key={v.id}
-                  className={`vaga-slot ${v.ocupada ? "occupied" : "free"}`}
-                  title={
-                    v.ocupada
-                      ? `Vaga ${v.numero} ocupada${v.placa ? ` — ${v.placa}` : ""}`
-                      : `Vaga ${v.numero} livre`
-                  }
-                >
-                  <span className="vaga-numero">VAGA {v.numero}</span>
-                  {v.ocupada ? (
-                    <>
-                      <span className="vaga-icon">🚗</span>
-                      {v.placa && (
-                        <span className="placa-tag placa-tag-sm">{v.placa}</span>
-                      )}
-                    </>
-                  ) : (
-                    <span className="vaga-free">LIVRE</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* ---------- Clientes ---------- */}
           <div className="card">
             <h2>Melhores clientes</h2>
