@@ -192,6 +192,25 @@ service cloud.firestore {
           .hasOnly(['placa']);
     }
 
+    function vagaManualValida(dados) {
+      return dados.keys().hasOnly(['ocupada', 'placa'])
+        && dados.keys().hasAll(['ocupada', 'placa'])
+        && dados.ocupada is bool
+        && dados.placa is string
+        && dados.placa.size() <= 8
+        && (dados.ocupada || dados.placa == '');
+    }
+
+    // O firmware grava ocupação e placa em chamadas separadas. Essa forma
+    // aceita o documento parcial do equipamento sem afrouxar a escrita manual.
+    function vagaDoTotemValida(dados) {
+      return dados.keys().hasOnly(['ocupada', 'placa'])
+        && dados.keys().hasAny(['ocupada', 'placa'])
+        && (!('ocupada' in dados) || dados.ocupada is bool)
+        && (!('placa' in dados)
+          || (dados.placa is string && dados.placa.size() <= 8));
+    }
+
     match /users/{uid} {
       allow read: if signedIn() && request.auth.uid == uid;
       allow delete: if false;
@@ -230,12 +249,19 @@ service cloud.firestore {
       match /vagas/{vaga} {
         allow read: if donoDoEstacionamento(estId)
           || totemDoEstacionamento(estId);
-        allow create: if totemDoEstacionamento(estId)
-          && request.resource.data.keys().hasOnly(['ocupada', 'placa']);
-        allow update: if totemDoEstacionamento(estId)
+        // O dono pode operar o mapa durante a apresentação ou em contingência.
+        // A validação mantém exatamente o mesmo formato usado pelo equipamento.
+        allow create: if (totemDoEstacionamento(estId)
+            && vagaDoTotemValida(request.resource.data))
+          || (donoDoEstacionamento(estId)
+            && vagaManualValida(request.resource.data));
+        allow update: if ((totemDoEstacionamento(estId)
+              && vagaDoTotemValida(request.resource.data))
+            || (donoDoEstacionamento(estId)
+              && vagaManualValida(request.resource.data)))
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'ocupada', 'placa'
-          ]);
+              'ocupada', 'placa'
+            ]);
         allow delete: if donoDoEstacionamento(estId);
       }
     }
