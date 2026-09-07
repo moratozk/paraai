@@ -1,7 +1,7 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **31/08/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **07/09/2026**.
 
 ---
 
@@ -154,6 +154,11 @@ leitura” em vez de inventar vagas disponíveis.
 `onSnapshot`. Se os sensores estiverem ligados, a leitura física continua
 podendo atualizar esses documentos. As novas regras precisam ser publicadas
 depois que a alteração entrar em `main`.
+
+Quando o mapa manual está ativo, sua contagem de vagas livres também é
+publicada em `catalogoEstacionamentos`. Ela usa campos próprios, separados do
+heartbeat dos sensores, para que as 20 vagas mapeadas da FATEC continuem
+visíveis ao motorista e cada ocupação/liberação manual atualize a vitrine.
 
 ---
 

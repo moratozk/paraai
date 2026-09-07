@@ -165,7 +165,8 @@ service cloud.firestore {
       return dados.keys().hasOnly([
           'nome', 'numVagas', 'tarifaHora', 'cep', 'logradouro', 'numero',
           'bairro', 'cidade', 'uf', 'ultimaAtualizacao', 'vagasLivres',
-          'vagasEmOperacao', 'atualizadoEm'
+          'vagasEmOperacao', 'modoDisponibilidade', 'vagasLivresMapeadas',
+          'ultimaAtualizacaoMapa', 'atualizadoEm'
         ])
         && dados.nome is string
         && dados.numVagas is number && dados.numVagas > 0
@@ -182,6 +183,14 @@ service cloud.firestore {
           || (dados.vagasLivres is number && dados.vagasLivres >= 0))
         && (!('vagasEmOperacao' in dados)
           || (dados.vagasEmOperacao is number && dados.vagasEmOperacao >= 0))
+        && (!('modoDisponibilidade' in dados)
+          || dados.modoDisponibilidade == 'mapa')
+        && (!('vagasLivresMapeadas' in dados)
+          || (dados.vagasLivresMapeadas is number
+            && dados.vagasLivresMapeadas >= 0
+            && dados.vagasLivresMapeadas <= dados.numVagas))
+        && (!('ultimaAtualizacaoMapa' in dados)
+          || dados.ultimaAtualizacaoMapa is timestamp)
         && (!('atualizadoEm' in dados) || dados.atualizadoEm is timestamp);
     }
 

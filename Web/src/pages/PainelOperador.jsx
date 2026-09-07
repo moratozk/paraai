@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import {
   atualizarConfiguracao,
+  publicarMapaVagas,
   sincronizarCatalogo,
 } from "../services/estacionamentos";
 import {
@@ -171,11 +172,13 @@ export default function PainelOperador() {
   const [novaTarifa, setNovaTarifa] = useState("");
   const [novasVagas, setNovasVagas] = useState("");
   const [salvandoConfig, setSalvandoConfig] = useState(false);
+  const [publicarMapaAoSalvar, setPublicarMapaAoSalvar] = useState(false);
 
   function abrirEdicao() {
     setNovoNome(estacionamento?.nome || "");
     setNovaTarifa(String(estacionamento?.tarifaHora ?? 5));
     setNovasVagas(String(estacionamento?.numVagas ?? 4));
+    setPublicarMapaAoSalvar(estacionamento?.modoDisponibilidade === "mapa");
     setEditando(true);
   }
 
@@ -183,6 +186,7 @@ export default function PainelOperador() {
     setNovoNome("Estacionamento FATEC");
     setNovaTarifa(String(estacionamento?.tarifaHora ?? 5));
     setNovasVagas("20");
+    setPublicarMapaAoSalvar(true);
     setEditando(true);
   }
 
@@ -195,6 +199,9 @@ export default function PainelOperador() {
         tarifaHora: novaTarifa.replace(",", "."),
         numVagas: novasVagas,
       });
+      if (publicarMapaAoSalvar) {
+        await publicarMapaVagas(estId);
+      }
       toast.sucesso("Configuração atualizada!");
       setEditando(false);
     } catch (err) {

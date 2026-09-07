@@ -6,8 +6,10 @@
 // =========================================================================
 
 import {
+  collection,
   doc,
   getDoc,
+  getDocs,
   setDoc,
   serverTimestamp,
   writeBatch,
@@ -44,6 +46,17 @@ function dadosPublicos(estacionamento) {
   for (const campo of ["ultimaAtualizacao", "vagasLivres", "vagasEmOperacao"]) {
     const valor = Number(estacionamento[campo]);
     if (Number.isFinite(valor) && valor >= 0) dados[campo] = valor;
+  }
+
+  if (estacionamento.modoDisponibilidade === "mapa") {
+    dados.modoDisponibilidade = "mapa";
+    const vagasLivresMapeadas = Number(estacionamento.vagasLivresMapeadas);
+    if (Number.isFinite(vagasLivresMapeadas) && vagasLivresMapeadas >= 0) {
+      dados.vagasLivresMapeadas = vagasLivresMapeadas;
+    }
+    if (estacionamento.ultimaAtualizacaoMapa) {
+      dados.ultimaAtualizacaoMapa = estacionamento.ultimaAtualizacaoMapa;
+    }
   }
 
   return dados;
@@ -159,17 +172,66 @@ export function sincronizarCatalogo(estacionamento) {
   );
 }
 
+// Publica a disponibilidade calculada pelo mapa manual. Documentos de vaga
+// ainda inexistentes representam vagas livres, como no painel do operador.
+// Os campos ficam separados do heartbeat para um totem com menos sensores não
+// sobrescrever a disponibilidade das 20 vagas mapeadas da demonstração.
+export async function publicarMapaVagas(estId) {
+  if (!estId) throw new Error("Estacionamento inválido.");
+
+  const estacionamentoRef = doc(db, "estacionamentos", estId);
+  const [estacionamentoSnap, vagasSnap] = await Promise.all([
+    getDoc(estacionamentoRef),
+    getDocs(collection(db, "estacionamentos", estId, "vagas")),
+  ]);
+
+  if (!estacionamentoSnap.exists()) {
+    throw new Error("Estacionamento não encontrado.");
+  }
+
+  const estacionamento = estacionamentoSnap.data();
+  const numVagas = Math.max(1, Number(estacionamento.numVagas) || 1);
+  let vagasOcupadas = 0;
+  vagasSnap.forEach((vaga) => {
+    const numero = Number(vaga.id);
+    if (numero >= 1 && numero <= numVagas && vaga.data().ocupada === true) {
+      vagasOcupadas += 1;
+    }
+  });
+
+  const disponibilidade = {
+    modoDisponibilidade: "mapa",
+    vagasLivresMapeadas: Math.max(0, numVagas - vagasOcupadas),
+    ultimaAtualizacaoMapa: serverTimestamp(),
+  };
+  const batch = writeBatch(db);
+  batch.set(estacionamentoRef, disponibilidade, { merge: true });
+  batch.set(
+    doc(db, "catalogoEstacionamentos", estId),
+    {
+      ...dadosPublicos({ ...estacionamento, ...disponibilidade }),
+      ...disponibilidade,
+      atualizadoEm: serverTimestamp(),
+    },
+    { merge: true }
+  );
+  await batch.commit();
+
+  return disponibilidade.vagasLivresMapeadas;
+}
+
 // Controle manual usado na apresentação e em contingência quando o pátio não
 // está com os sensores ligados. A subcoleção já é observada por onSnapshot,
 // portanto todos os painéis abertos refletem a mudança imediatamente.
-export function atualizarVagaManual({ estId, numero, ocupada, placa = "" }) {
+export async function atualizarVagaManual({ estId, numero, ocupada, placa = "" }) {
   const numeroVaga = Number(numero);
   if (!estId || !Number.isInteger(numeroVaga) || numeroVaga < 1 || numeroVaga > 200) {
-    return Promise.reject(new Error("Vaga inválida."));
+    throw new Error("Vaga inválida.");
   }
 
-  return setDoc(doc(db, "estacionamentos", estId, "vagas", String(numeroVaga)), {
+  await setDoc(doc(db, "estacionamentos", estId, "vagas", String(numeroVaga)), {
     ocupada: Boolean(ocupada),
     placa: ocupada ? String(placa || "").trim().toUpperCase() : "",
   });
+  return publicarMapaVagas(estId);
 }

@@ -36,8 +36,14 @@ function prepararEstacionamento(item, agora) {
   const online =
     ultimaAtualizacao > 0 &&
     agora - ultimaAtualizacao < TOTEM_OFFLINE_APOS_SEGUNDOS;
-  const leituraVagas = Number(item.vagasLivres);
-  const temLeitura = online && Number.isFinite(leituraVagas) && leituraVagas >= 0;
+  const disponibilidadePeloMapa = item.modoDisponibilidade === "mapa";
+  const leituraVagas = Number(
+    disponibilidadePeloMapa ? item.vagasLivresMapeadas : item.vagasLivres
+  );
+  const temLeitura =
+    (disponibilidadePeloMapa || online) &&
+    Number.isFinite(leituraVagas) &&
+    leituraVagas >= 0;
   const vagasLivres = temLeitura ? leituraVagas : null;
   const tarifaHora = Number(item.tarifaHora);
   const endereco = montarEnderecoLinha(item);
@@ -48,6 +54,7 @@ function prepararEstacionamento(item, agora) {
   return {
     ...item,
     online,
+    disponibilidadePeloMapa,
     temLeitura,
     vagasLivres,
     disponivel: temLeitura && vagasLivres > 0,
