@@ -160,9 +160,9 @@ publicada em `catalogoEstacionamentos`. Ela usa campos próprios, separados do
 heartbeat dos sensores, para que as 20 vagas mapeadas da FATEC continuem
 visíveis ao motorista e cada ocupação/liberação manual atualize a vitrine.
 O catálogo também recebe uma subcoleção `vagas` somente com o estado
-livre/ocupada, sem placas. Assim, motoristas podem abrir o mapa da FATEC,
-escolher visualmente uma das 20 posições e iniciar a rota; a entrada continua
-sendo confirmada pela placa no totem.
+livre/ocupada, sem placas. Assim, motoristas podem abrir uma sobreposição
+dedicada do mapa da FATEC, escolher visualmente uma das 20 posições e iniciar
+a rota; a entrada continua sendo confirmada pela placa no totem.
 
 ---
 

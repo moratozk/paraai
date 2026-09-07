@@ -277,7 +277,7 @@ export default function MarketplaceEstacionamentos() {
                             )
                           }
                         >
-                          {mapaAberto === item.id ? "Fechar vagas" : "Ver e escolher vaga"}
+                          Abrir mapa de vagas
                         </button>
                       )}
                       {rota ? (
@@ -298,7 +298,11 @@ export default function MarketplaceEstacionamentos() {
                       )}
                     </div>
                     {mapaAberto === item.id && item.disponibilidadePeloMapa && (
-                      <MapaVagasPublico estacionamento={item} rota={rota} />
+                      <MapaVagasPublico
+                        estacionamento={item}
+                        rota={rota}
+                        onFechar={() => setMapaAberto(null)}
+                      />
                     )}
                   </div>
                 </article>

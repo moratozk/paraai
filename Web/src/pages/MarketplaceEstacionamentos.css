@@ -329,12 +329,79 @@
   margin-top: 1rem;
 }
 
+.mapa-publico-overlay {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: clamp(0.7rem, 3vw, 2rem);
+  background: rgba(3, 5, 8, 0.82);
+  backdrop-filter: blur(10px);
+}
+
+.mapa-publico-modal {
+  width: min(960px, 100%);
+  max-height: calc(100dvh - clamp(1.4rem, 6vw, 4rem));
+  overflow-y: auto;
+  border: 1px solid color-mix(in srgb, var(--accent) 48%, var(--border));
+  border-radius: var(--radius);
+  background: var(--bg-solid);
+  box-shadow: var(--shadow-deep), var(--glow-accent);
+}
+
+.mapa-publico-modal-header {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: clamp(1.1rem, 3vw, 1.8rem);
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-solid) 94%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.mapa-publico-modal-header h2 {
+  margin-top: 0.3rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.65rem, 4vw, 2.6rem);
+  font-weight: 400;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.mapa-publico-modal-header p {
+  margin-top: 0.45rem;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.mapa-publico-fechar {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.mapa-publico-fechar:hover {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
 .mapa-publico {
   display: grid;
-  gap: 0.8rem;
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border);
+  gap: 1.15rem;
+  padding: clamp(1.1rem, 3vw, 1.8rem);
 }
 
 .mapa-publico-topo {
@@ -345,12 +412,12 @@
 }
 
 .mapa-publico-topo > div { display: grid; gap: 0.18rem; }
-.mapa-publico-topo strong { font-size: 0.9rem; }
+.mapa-publico-topo strong { font-size: 1.05rem; }
 .mapa-publico-topo span,
 .mapa-publico-aviso,
 .mapa-publico-carregando {
   color: var(--text-muted);
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   line-height: 1.45;
 }
 
@@ -367,7 +434,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.7rem;
-  font-size: 0.64rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
 }
 
@@ -384,19 +451,26 @@
 
 .mapa-publico-fileira {
   display: grid;
-  grid-template-columns: repeat(10, minmax(31px, 1fr));
-  gap: 0.35rem;
-  overflow-x: auto;
-  padding-bottom: 0.15rem;
+  grid-template-columns: repeat(10, minmax(52px, 1fr));
+  gap: clamp(0.35rem, 1vw, 0.75rem);
+}
+
+.mapa-publico-patio {
+  display: grid;
+  gap: 1rem;
+  padding: clamp(0.8rem, 2vw, 1.4rem);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-asphalt);
 }
 
 .mapa-publico-vaga {
   display: grid;
   place-items: center;
   gap: 0.15rem;
-  min-width: 31px;
-  min-height: 48px;
-  padding: 0.3rem 0.15rem;
+  min-width: 0;
+  min-height: 72px;
+  padding: 0.5rem 0.2rem;
   border: 1px solid var(--border-strong);
   border-radius: 7px 7px 3px 3px;
   background: var(--bg-input);
@@ -422,8 +496,8 @@
 .mapa-publico-vaga.pcd,
 .mapa-publico-vaga.idoso,
 .mapa-publico-vaga.gestante { border-color: var(--accent); }
-.mapa-publico-vaga span { font-size: 0.7rem; font-weight: 900; }
-.mapa-publico-vaga small { font-size: 0.5rem; }
+.mapa-publico-vaga span { font-size: 0.86rem; font-weight: 900; }
+.mapa-publico-vaga small { font-size: 0.58rem; }
 
 .mapa-publico-corredor {
   display: flex;
@@ -439,6 +513,16 @@
 }
 
 .mapa-publico-corredor b { color: var(--accent-text); font-weight: 800; }
+
+.mapa-publico-rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 48px;
+}
+
+.mapa-publico-rodape .btn { flex: 0 0 auto; }
 
 .marketplace-carregando,
 .marketplace-vazio {
@@ -481,6 +565,16 @@
   .marketplace-filtros { width: 100%; }
   .marketplace-ordem { justify-content: space-between; }
   .marketplace-lista-topo { flex-direction: column; gap: 0.25rem; }
+  .mapa-publico-overlay { place-items: end center; padding: 0; }
+  .mapa-publico-modal {
+    width: 100%;
+    max-height: 94dvh;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .mapa-publico-fileira { grid-template-columns: repeat(5, minmax(48px, 1fr)); }
+  .mapa-publico-vaga { min-height: 62px; }
+  .mapa-publico-rodape { align-items: stretch; flex-direction: column; }
+  .mapa-publico-rodape .btn { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
