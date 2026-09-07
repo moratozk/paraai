@@ -285,6 +285,16 @@ service cloud.firestore {
         && catalogoSomenteComCamposPublicos(request.resource.data)
         && donoDoEstacionamento(estId);
       allow delete: if donoDoEstacionamento(estId);
+
+      // Projeção do mapa para motoristas: expõe somente livre/ocupada, nunca
+      // placa, proprietário ou credencial operacional.
+      match /vagas/{vaga} {
+        allow read: if signedIn();
+        allow create, update: if donoDoEstacionamento(estId)
+          && request.resource.data.keys().hasOnly(['ocupada'])
+          && request.resource.data.ocupada is bool;
+        allow delete: if donoDoEstacionamento(estId);
+      }
     }
 
     match /totems/{totemUid} {

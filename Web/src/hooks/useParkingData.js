@@ -123,6 +123,55 @@ export function useEstacionamentoPublico(estId) {
   };
 }
 
+// Estado seguro das vagas exibidas no mapa do motorista. A projeção pública
+// contém somente ocupada/livre; placas continuam restritas ao operador.
+export function useVagasPublicas(estId, numVagas = TOTAL_VAGAS) {
+  const [snapState, setSnapState] = useState({ id: null, docs: {}, erro: "" });
+
+  useEffect(() => {
+    if (!estId) return undefined;
+    return onSnapshot(
+      collection(db, "catalogoEstacionamentos", estId, "vagas"),
+      (snap) => {
+        const porId = {};
+        snap.forEach((vaga) => {
+          porId[vaga.id] = vaga.data();
+        });
+        setSnapState({ id: estId, docs: porId, erro: "" });
+      },
+      (err) => {
+        console.error("[vagas-publicas] erro no listener:", err);
+        setSnapState({
+          id: estId,
+          docs: {},
+          erro: "Não foi possível carregar as vagas agora.",
+        });
+      }
+    );
+  }, [estId]);
+
+  const atualizado = snapState.id === estId;
+  const total = Math.max(1, Number(numVagas) || TOTAL_VAGAS);
+  const vagas = useMemo(
+    () =>
+      Array.from({ length: total }, (_, indice) => {
+        const id = String(indice + 1);
+        return {
+          id,
+          numero: indice + 1,
+          ocupada: Boolean(atualizado && snapState.docs[id]?.ocupada),
+        };
+      }),
+    [atualizado, snapState.docs, total]
+  );
+
+  return {
+    vagas,
+    loading: Boolean(estId) && !atualizado,
+    erro: atualizado ? snapState.erro : "",
+  };
+}
+
 // ---------------------------------------------------------------------
 // Vagas de um estacionamento - sempre retorna numVagas itens, mesmo que
 // o totem ainda não tenha criado algum documento (aparece como livre).

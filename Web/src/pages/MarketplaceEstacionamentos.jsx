@@ -5,6 +5,7 @@ import { useCatalogoEstacionamentos } from "../hooks/useParkingData";
 import { montarEnderecoLinha } from "../services/cep";
 import { formatarMoeda } from "../utils/format";
 import { TOTEM_OFFLINE_APOS_SEGUNDOS } from "../utils/constants";
+import MapaVagasPublico from "../components/MapaVagasPublico";
 import "./Pages.css";
 import "./MarketplaceEstacionamentos.css";
 
@@ -70,6 +71,7 @@ export default function MarketplaceEstacionamentos() {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todos");
   const [ordem, setOrdem] = useState("relevancia");
+  const [mapaAberto, setMapaAberto] = useState(null);
   const [agora, setAgora] = useState(() => Math.floor(Date.now() / 1000));
 
   useEffect(() => {
@@ -264,9 +266,25 @@ export default function MarketplaceEstacionamentos() {
                     </div>
 
                     <div className="marketplace-card-acoes">
+                      {item.disponibilidadePeloMapa && (
+                        <button
+                          className="btn btn-primary btn-block"
+                          type="button"
+                          aria-expanded={mapaAberto === item.id}
+                          onClick={() =>
+                            setMapaAberto((atual) =>
+                              atual === item.id ? null : item.id
+                            )
+                          }
+                        >
+                          {mapaAberto === item.id ? "Fechar vagas" : "Ver e escolher vaga"}
+                        </button>
+                      )}
                       {rota ? (
                         <a
-                          className="btn btn-primary btn-block"
+                          className={`btn btn-block ${
+                            item.disponibilidadePeloMapa ? "btn-outline" : "btn-primary"
+                          }`}
                           href={rota}
                           target="_blank"
                           rel="noreferrer"
@@ -279,6 +297,9 @@ export default function MarketplaceEstacionamentos() {
                         </button>
                       )}
                     </div>
+                    {mapaAberto === item.id && item.disponibilidadePeloMapa && (
+                      <MapaVagasPublico estacionamento={item} rota={rota} />
+                    )}
                   </div>
                 </article>
               );

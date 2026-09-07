@@ -2,17 +2,8 @@ import { useState } from "react";
 import { useToast } from "../context/ToastContext";
 import { atualizarVagaManual } from "../services/estacionamentos";
 import { normalizarPlaca, placaValida } from "../utils/format";
+import { VAGAS_ESPECIAIS } from "../utils/mapaVagas";
 import "./MapaVagas.css";
-
-// Distribuição fixa para a apresentação: o tipo de uma vaga não muda a cada
-// recarregamento e continua fácil de reconhecer no mapa do pátio.
-const VAGAS_ESPECIAIS = {
-  1: { tipo: "pcd", rotulo: "PCD", icone: "♿" },
-  2: { tipo: "pcd", rotulo: "PCD", icone: "♿" },
-  9: { tipo: "idoso", rotulo: "Idoso", icone: "60+" },
-  10: { tipo: "gestante", rotulo: "Gestante", icone: "G" },
-  11: { tipo: "idoso", rotulo: "Idoso", icone: "60+" },
-};
 
 function Vaga({ vaga, selecionada, onSelecionar }) {
   const especial = VAGAS_ESPECIAIS[vaga.numero];

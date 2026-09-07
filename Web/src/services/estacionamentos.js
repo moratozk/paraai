@@ -191,17 +191,17 @@ export async function publicarMapaVagas(estId) {
 
   const estacionamento = estacionamentoSnap.data();
   const numVagas = Math.max(1, Number(estacionamento.numVagas) || 1);
-  let vagasOcupadas = 0;
+  const vagasOcupadas = new Set();
   vagasSnap.forEach((vaga) => {
     const numero = Number(vaga.id);
     if (numero >= 1 && numero <= numVagas && vaga.data().ocupada === true) {
-      vagasOcupadas += 1;
+      vagasOcupadas.add(numero);
     }
   });
 
   const disponibilidade = {
     modoDisponibilidade: "mapa",
-    vagasLivresMapeadas: Math.max(0, numVagas - vagasOcupadas),
+    vagasLivresMapeadas: Math.max(0, numVagas - vagasOcupadas.size),
     ultimaAtualizacaoMapa: serverTimestamp(),
   };
   const batch = writeBatch(db);
@@ -215,6 +215,12 @@ export async function publicarMapaVagas(estId) {
     },
     { merge: true }
   );
+  for (let numero = 1; numero <= numVagas; numero += 1) {
+    batch.set(
+      doc(db, "catalogoEstacionamentos", estId, "vagas", String(numero)),
+      { ocupada: vagasOcupadas.has(numero) }
+    );
+  }
   await batch.commit();
 
   return disponibilidade.vagasLivresMapeadas;
