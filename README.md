@@ -79,6 +79,10 @@ historico/{PLACA_timestamp}
   placa, vaga, entrada, saida, duracaoMinutos, valorCobrado, tarifaHora,
   estacionamentoId
 
+historico/{ID_GERADO_PELO_APP}
+  origem="aplicativo", ownerUid, placa, vaga, entrada, saida,
+  duracaoMinutos, tarifaMinuto, valorAntecipado, valorCobrado, status
+
 totems/{FIREBASE_AUTH_UID}
   estacionamentoId, nome, email, ativo       -- identidade do equipamento
 

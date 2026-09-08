@@ -439,6 +439,15 @@
 .history-table tbody tr { transition: background 0.15s; }
 .history-table tbody tr:hover { background: var(--bg-elevated); }
 .history-table tbody tr:last-child td { border-bottom: none; }
+.history-active-pill { margin-left: 0.45rem; vertical-align: middle; }
+.history-payment { display: grid; gap: 0.18rem; }
+.history-payment small {
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
 
 /* ==========================================================================
    PLACA

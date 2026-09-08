@@ -100,6 +100,10 @@ na Arduino IDE e gravar.
 - Estadias iniciadas pelo aplicativo aparecem no painel do motorista com
   cronômetro e total crescente, reservam a vaga escolhida e descontam o valor
   final da carteira simulada ao encerrar
+- A compra da vaga cria imediatamente uma movimentação em `historico`, por
+  isso aparece em “Meus acessos” ainda em andamento. O horário de entrada
+  persistido alimenta o temporizador mesmo se a página for fechada; a tela
+  separa total acumulado, valor já descontado e saldo ainda a pagar
 
 ---
 
@@ -171,7 +175,9 @@ sobreposição dedicada do mapa da FATEC, escolher visualmente uma das 20
 posições e iniciar uma estadia pelo aplicativo. O documento
 `estadiasApp/{uid}` mantém no máximo uma estadia ativa por conta, sem reutilizar
 os campos de entrada física do totem. Enquanto ela está ativa, a mesma placa
-não pode abrir outra entrada no equipamento.
+não pode abrir outra entrada no equipamento. Cada nova estadia também cria um
+documento próprio em `historico`, que muda de `ativa` para `finalizada` no
+encerramento e não é perdido quando a próxima compra começa.
 
 **Pagamento pelo aplicativo também é simulado.** “Pagar agora” antecipa um
 minuto (R$ 0,22) e cobra o restante ao encerrar; “Pagar depois” não desconta no

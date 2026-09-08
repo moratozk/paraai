@@ -1,4 +1,5 @@
 import {
+  collection,
   doc,
   runTransaction,
   serverTimestamp,
@@ -9,6 +10,36 @@ export const TARIFA_MINUTO_FATEC = 0.22;
 
 function arredondarCentavos(valor) {
   return Math.round((Number(valor) + Number.EPSILON) * 100) / 100;
+}
+
+export function calcularCobrancaEstadiaApp(
+  estadia,
+  agora = Math.floor(Date.now() / 1000)
+) {
+  const inicio = Number(estadia?.inicio ?? estadia?.entrada) || agora;
+  const ativa = estadia?.status === "ativa";
+  const fim = ativa ? agora : Number(estadia?.fim ?? estadia?.saida) || inicio;
+  const segundos = Math.max(0, fim - inicio);
+  const minutos = ativa
+    ? Math.max(1, Math.ceil(segundos / 60))
+    : Math.max(0, Number(estadia?.minutosCobrados ?? estadia?.duracaoMinutos) || 0);
+  const tarifaMinuto = Number(estadia?.tarifaMinuto) || TARIFA_MINUTO_FATEC;
+  const valorTotal = ativa
+    ? arredondarCentavos(minutos * tarifaMinuto)
+    : arredondarCentavos(estadia?.valorCobrado);
+  const valorAntecipado = arredondarCentavos(estadia?.valorAntecipado);
+  const valorDescontado = ativa ? valorAntecipado : valorTotal;
+
+  return {
+    segundos,
+    minutos,
+    tarifaMinuto,
+    valorTotal,
+    valorDescontado,
+    valorPendente: arredondarCentavos(
+      ativa ? Math.max(0, valorTotal - valorAntecipado) : 0
+    ),
+  };
 }
 
 export async function iniciarEstadiaApp({
@@ -28,6 +59,7 @@ export async function iniciarEstadiaApp({
 
   const veiculoRef = doc(db, "veiculos", placa);
   const estadiaRef = doc(db, "estadiasApp", uid);
+  const historicoRef = doc(collection(db, "historico"));
   const vagaRef = doc(
     db,
     "catalogoEstacionamentos",
@@ -71,10 +103,27 @@ export async function iniciarEstadiaApp({
       estacionamentoId,
       vaga: numeroVaga,
       vagaId: String(numeroVaga),
+      historicoId: historicoRef.id,
       inicio,
       tarifaMinuto: TARIFA_MINUTO_FATEC,
       modoPagamento,
       valorAntecipado: antecipado,
+      status: "ativa",
+      criadoEm: serverTimestamp(),
+    });
+    transacao.set(historicoRef, {
+      origem: "aplicativo",
+      ownerUid: uid,
+      placa,
+      estacionamentoId,
+      vaga: numeroVaga,
+      entrada: inicio,
+      saida: 0,
+      duracaoMinutos: 0,
+      tarifaMinuto: TARIFA_MINUTO_FATEC,
+      modoPagamento,
+      valorAntecipado: antecipado,
+      valorCobrado: antecipado,
       status: "ativa",
       criadoEm: serverTimestamp(),
     });
@@ -145,6 +194,17 @@ export async function finalizarEstadiaApp({ uid, placa }) {
       valorDebitadoNaSaida: valorRestante,
       finalizadoEm: serverTimestamp(),
     });
+    if (estadia.historicoId) {
+      const historicoRef = doc(db, "historico", estadia.historicoId);
+      transacao.update(historicoRef, {
+        status: "finalizada",
+        saida: fim,
+        duracaoMinutos: minutos,
+        valorCobrado: valorTotal,
+        valorDebitadoNaSaida: valorRestante,
+        finalizadoEm: serverTimestamp(),
+      });
+    }
     transacao.set(vagaRef, { reservada: false }, { merge: true });
     resumo = { minutos, valorTotal, saldoFinal: arredondarCentavos(saldo - valorRestante) };
   });

@@ -295,7 +295,11 @@ function useHistoricoPorCampo(campo, valor) {
       (snap) => {
         const itens = [];
         snap.forEach((d) => itens.push({ id: d.id, ...d.data() }));
-        itens.sort((a, b) => (Number(b.saida) || 0) - (Number(a.saida) || 0));
+        itens.sort(
+          (a, b) =>
+            (Number(b.saida) || Number(b.entrada) || 0) -
+            (Number(a.saida) || Number(a.entrada) || 0)
+        );
         setSnapState({ chave: valor, itens });
       },
       (err) => {

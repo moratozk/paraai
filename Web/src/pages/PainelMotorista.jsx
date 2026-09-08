@@ -14,7 +14,10 @@ import {
   formatarDuracaoAoVivo,
 } from "../utils/format";
 import { VALOR_POR_HORA } from "../utils/constants";
-import { finalizarEstadiaApp } from "../services/estadiasApp";
+import {
+  calcularCobrancaEstadiaApp,
+  finalizarEstadiaApp,
+} from "../services/estadiasApp";
 import "./Pages.css";
 
 export default function PainelMotorista() {
@@ -62,14 +65,7 @@ export default function PainelMotorista() {
   const segundosEstacionado =
     estacionado && horaEntrada > 0 ? Math.max(0, agora - horaEntrada) : 0;
   const custoEstimado = (segundosEstacionado / 3600) * tarifaAtual;
-  const segundosEstadiaApp = estadiaAppAtiva
-    ? Math.max(0, agora - Number(estadiaApp.inicio || agora))
-    : 0;
-  const minutosEstadiaApp = estadiaAppAtiva
-    ? Math.max(1, Math.ceil(segundosEstadiaApp / 60))
-    : 0;
-  const custoEstadiaApp =
-    minutosEstadiaApp * Number(estadiaApp?.tarifaMinuto || 0);
+  const cobrancaEstadiaApp = calcularCobrancaEstadiaApp(estadiaApp, agora);
 
   const ultimosAcessos = historico.slice(0, 5);
   const totalGasto = historico.reduce(
@@ -87,7 +83,7 @@ export default function PainelMotorista() {
     try {
       const resumo = await finalizarEstadiaApp({ uid: user.uid, placa });
       toast.sucesso(
-        `Permanência encerrada: ${formatarMoeda(resumo.valorTotal)} descontados da carteira.`
+        `Permanência encerrada. Total cobrado: ${formatarMoeda(resumo.valorTotal)}.`
       );
     } catch (err) {
       setErroEstadiaApp(err.message || "Não foi possível concluir o pagamento.");
@@ -108,11 +104,16 @@ export default function PainelMotorista() {
           <div>
             <span className="stat-label">Estacionamento pelo aplicativo</span>
             <strong>
-              Vaga {estadiaApp.vaga} · {formatarDuracaoAoVivo(segundosEstadiaApp)}
+              Vaga {estadiaApp.vaga} ·{" "}
+              {formatarDuracaoAoVivo(cobrancaEstadiaApp.segundos)}
             </strong>
             <span>
-              Total até agora: {formatarMoeda(custoEstadiaApp)} · cobrança de{" "}
-              {formatarMoeda(estadiaApp.tarifaMinuto)}/min
+              Total até agora: {formatarMoeda(cobrancaEstadiaApp.valorTotal)} ·{" "}
+              {formatarMoeda(cobrancaEstadiaApp.tarifaMinuto)}/min
+            </span>
+            <span>
+              Já descontado: {formatarMoeda(cobrancaEstadiaApp.valorDescontado)} ·{" "}
+              falta pagar: {formatarMoeda(cobrancaEstadiaApp.valorPendente)}
             </span>
             {erroEstadiaApp && <span className="error-text">{erroEstadiaApp}</span>}
           </div>
@@ -122,7 +123,9 @@ export default function PainelMotorista() {
             disabled={finalizandoApp}
             onClick={encerrarEstadiaPeloApp}
           >
-            {finalizandoApp ? "Finalizando…" : "Encerrar e pagar"}
+            {finalizandoApp
+              ? "Finalizando…"
+              : `Encerrar e pagar ${formatarMoeda(cobrancaEstadiaApp.valorPendente)}`}
           </button>
         </div>
       )}
@@ -272,18 +275,34 @@ export default function PainelMotorista() {
               </p>
             ) : (
               <>
-                {ultimosAcessos.map((item) => (
-                  <div className="activity-item" key={item.id}>
-                    <div>
-                      <strong>Vaga {item.vaga}</strong>
-                      {item.estacionamentoId ? ` · ${item.estacionamentoId}` : ""}
-                      <div className="activity-time">{formatarDataHora(item.saida)}</div>
+                {ultimosAcessos.map((item) => {
+                  const cobranca =
+                    item.origem === "aplicativo"
+                      ? calcularCobrancaEstadiaApp(item, agora)
+                      : null;
+                  return (
+                    <div className="activity-item" key={item.id}>
+                      <div>
+                        <strong>Vaga {item.vaga}</strong>
+                        {item.estacionamentoId ? ` · ${item.estacionamentoId}` : ""}
+                        <div className="activity-time">
+                          {item.status === "ativa"
+                            ? formatarDuracaoAoVivo(cobranca.segundos)
+                            : formatarDataHora(item.saida)}
+                        </div>
+                      </div>
+                      <span
+                        className={`status-pill ${
+                          item.status === "ativa" ? "warning" : "success"
+                        }`}
+                      >
+                        {item.status === "ativa"
+                          ? `${formatarMoeda(cobranca.valorPendente)} a pagar`
+                          : formatarMoeda(item.valorCobrado)}
+                      </span>
                     </div>
-                    <span className="status-pill success">
-                      {formatarMoeda(item.valorCobrado)}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
                 <Link to="/historico" className="btn btn-outline btn-block" style={{ marginTop: 16 }}>
                   Ver histórico completo
                 </Link>

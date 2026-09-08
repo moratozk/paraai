@@ -366,13 +366,13 @@ service cloud.firestore {
     function estadiaAppNovaValida(uid, dados) {
       return dados.keys().hasOnly([
           'ownerUid', 'placa', 'estacionamentoId', 'vaga', 'vagaId',
-          'inicio', 'tarifaMinuto', 'modoPagamento', 'valorAntecipado',
-          'status', 'criadoEm'
+          'historicoId', 'inicio', 'tarifaMinuto', 'modoPagamento',
+          'valorAntecipado', 'status', 'criadoEm'
         ])
         && dados.keys().hasAll([
           'ownerUid', 'placa', 'estacionamentoId', 'vaga', 'vagaId',
-          'inicio', 'tarifaMinuto', 'modoPagamento', 'valorAntecipado',
-          'status', 'criadoEm'
+          'historicoId', 'inicio', 'tarifaMinuto', 'modoPagamento',
+          'valorAntecipado', 'status', 'criadoEm'
         ])
         && dados.ownerUid == uid
         && dados.placa is string
@@ -385,6 +385,7 @@ service cloud.firestore {
         && dados.estacionamentoId is string
         && dados.vaga is int && dados.vaga > 0 && dados.vaga <= 200
         && dados.vagaId is string
+        && dados.historicoId is string
         && dados.inicio is int && dados.inicio > 0
         && dados.tarifaMinuto == 0.22
         && dados.modoPagamento in ['agora', 'depois']
@@ -395,7 +396,55 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/catalogoEstacionamentos/$(dados.estacionamentoId)/vagas/$(dados.vagaId)).data.ocupada
           == false
         && getAfter(/databases/$(database)/documents/catalogoEstacionamentos/$(dados.estacionamentoId)/vagas/$(dados.vagaId)).data.reservada
-          == true;
+          == true
+        && getAfter(/databases/$(database)/documents/historico/$(dados.historicoId)).data.ownerUid
+          == uid
+        && getAfter(/databases/$(database)/documents/historico/$(dados.historicoId)).data.status
+          == 'ativa';
+    }
+
+    function historicoAppNovoValido(uid, registro, dados) {
+      return dados.keys().hasOnly([
+          'origem', 'ownerUid', 'placa', 'estacionamentoId', 'vaga',
+          'entrada', 'saida', 'duracaoMinutos', 'tarifaMinuto',
+          'modoPagamento', 'valorAntecipado', 'valorCobrado', 'status',
+          'criadoEm'
+        ])
+        && dados.keys().hasAll([
+          'origem', 'ownerUid', 'placa', 'estacionamentoId', 'vaga',
+          'entrada', 'saida', 'duracaoMinutos', 'tarifaMinuto',
+          'modoPagamento', 'valorAntecipado', 'valorCobrado', 'status',
+          'criadoEm'
+        ])
+        && dados.origem == 'aplicativo'
+        && dados.ownerUid == uid
+        && dados.placa is string
+        && get(/databases/$(database)/documents/users/$(uid)).data.placa
+          == dados.placa
+        && get(/databases/$(database)/documents/veiculos/$(dados.placa)).data.ownerUid
+          == uid
+        && dados.estacionamentoId is string
+        && dados.vaga is int && dados.vaga > 0 && dados.vaga <= 200
+        && dados.entrada is int && dados.entrada > 0
+        && dados.saida == 0
+        && dados.duracaoMinutos == 0
+        && dados.tarifaMinuto == 0.22
+        && dados.modoPagamento in ['agora', 'depois']
+        && ((dados.modoPagamento == 'agora' && dados.valorAntecipado == 0.22)
+          || (dados.modoPagamento == 'depois' && dados.valorAntecipado == 0))
+        && dados.valorCobrado == dados.valorAntecipado
+        && dados.status == 'ativa'
+        && dados.criadoEm is timestamp
+        && getAfter(/databases/$(database)/documents/estadiasApp/$(uid)).data.historicoId
+          == registro
+        && getAfter(/databases/$(database)/documents/estadiasApp/$(uid)).data.placa
+          == dados.placa
+        && getAfter(/databases/$(database)/documents/estadiasApp/$(uid)).data.estacionamentoId
+          == dados.estacionamentoId
+        && getAfter(/databases/$(database)/documents/estadiasApp/$(uid)).data.vaga
+          == dados.vaga
+        && getAfter(/databases/$(database)/documents/estadiasApp/$(uid)).data.status
+          == 'ativa';
     }
 
     match /totems/{totemUid} {
@@ -447,10 +496,44 @@ service cloud.firestore {
     match /historico/{registro} {
       allow read: if donoDoEstacionamento(resource.data.estacionamentoId)
         || donoDoVeiculo(resource.data.placa);
-      allow create: if totemCadastrado()
-        && request.resource.data.estacionamentoId
-          == get(/databases/$(database)/documents/totems/$(request.auth.uid)).data.estacionamentoId;
-      allow update, delete: if false;
+      allow create: if (totemCadastrado()
+          && request.resource.data.estacionamentoId
+            == get(/databases/$(database)/documents/totems/$(request.auth.uid)).data.estacionamentoId)
+        || (signedIn()
+          && historicoAppNovoValido(
+            request.auth.uid,
+            registro,
+            request.resource.data
+          ));
+      allow update: if signedIn()
+        && resource.data.origem == 'aplicativo'
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == request.auth.uid
+        && resource.data.status == 'ativa'
+        && request.resource.data.status == 'finalizada'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'saida', 'duracaoMinutos', 'valorCobrado',
+          'valorDebitadoNaSaida', 'finalizadoEm'
+        ])
+        && request.resource.data.saida is int
+        && request.resource.data.duracaoMinutos is int
+        && request.resource.data.duracaoMinutos >= 1
+        && request.resource.data.valorCobrado is number
+        && request.resource.data.valorCobrado >= 0.22
+        && request.resource.data.valorDebitadoNaSaida is number
+        && request.resource.data.valorDebitadoNaSaida >= 0
+        && request.resource.data.finalizadoEm is timestamp
+        && getAfter(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.historicoId
+          == registro
+        && getAfter(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.status
+          == 'finalizada'
+        && getAfter(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.fim
+          == request.resource.data.saida
+        && getAfter(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.minutosCobrados
+          == request.resource.data.duracaoMinutos
+        && getAfter(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.valorCobrado
+          == request.resource.data.valorCobrado;
+      allow delete: if false;
     }
 
     match /{document=**} {

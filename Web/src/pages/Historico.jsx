@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -8,7 +9,9 @@ import {
   formatarMoeda,
   formatarDataHora,
   formatarDuracao,
+  formatarDuracaoAoVivo,
 } from "../utils/format";
+import { calcularCobrancaEstadiaApp } from "../services/estadiasApp";
 import "./Pages.css";
 
 // Motorista: seus acessos e pagamentos na rede.
@@ -25,8 +28,34 @@ export default function Historico() {
   const { historico, loading } =
     role === "operador" ? porEst : porPlaca;
 
-  const totalValor = historico.reduce(
-    (soma, item) => soma + (Number(item.valorCobrado) || 0),
+  const temEstadiaAppAtiva = historico.some(
+    (item) => item.origem === "aplicativo" && item.status === "ativa"
+  );
+  const [agora, setAgora] = useState(() => Math.floor(Date.now() / 1000));
+  useEffect(() => {
+    if (!temEstadiaAppAtiva) return undefined;
+    const id = setInterval(() => setAgora(Math.floor(Date.now() / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [temEstadiaAppAtiva]);
+
+  const acessosExibidos = useMemo(
+    () =>
+      historico.map((item) => ({
+        ...item,
+        cobrancaApp:
+          item.origem === "aplicativo"
+            ? calcularCobrancaEstadiaApp(item, agora)
+            : null,
+      })),
+    [historico, agora]
+  );
+
+  const totalValor = acessosExibidos.reduce(
+    (soma, item) =>
+      soma +
+      (item.status === "ativa"
+        ? Number(item.cobrancaApp?.valorDescontado) || 0
+        : Number(item.valorCobrado) || 0),
     0
   );
 
@@ -58,7 +87,7 @@ export default function Historico() {
         </div>
       ) : loading ? (
         <div className="card empty-state">Carregando...</div>
-      ) : historico.length === 0 ? (
+      ) : acessosExibidos.length === 0 ? (
         <div className="card empty-state">
           <p>Nenhum registro ainda.</p>
           <p className="muted-note">
@@ -74,7 +103,7 @@ export default function Historico() {
               <span className="stat-label">
                 {role === "operador" ? "Movimentações" : "Utilizações"}
               </span>
-              <span className="stat-value">{historico.length}</span>
+              <span className="stat-value">{acessosExibidos.length}</span>
             </div>
             <div className="card stat-card">
               <span className="stat-label">
@@ -84,7 +113,7 @@ export default function Historico() {
             </div>
           </div>
 
-          <div className="card">
+          <div className="card tabela-wrap">
             <table className="history-table">
               <thead>
                 <tr>
@@ -97,18 +126,47 @@ export default function Historico() {
                 </tr>
               </thead>
               <tbody>
-                {historico.map((item) => (
+                {acessosExibidos.map((item) => (
                   <tr key={item.id}>
                     {role === "operador" && (
                       <td>
                         <span className="placa-tag placa-tag-sm">{item.placa}</span>
                       </td>
                     )}
-                    <td>Vaga {item.vaga}</td>
+                    <td>
+                      Vaga {item.vaga}
+                      {item.status === "ativa" && (
+                        <span className="status-pill warning history-active-pill">
+                          Em andamento
+                        </span>
+                      )}
+                    </td>
                     <td>{formatarDataHora(item.entrada)}</td>
-                    <td>{formatarDataHora(item.saida)}</td>
-                    <td>{formatarDuracao(item.duracaoMinutos)}</td>
-                    <td className="money">{formatarMoeda(item.valorCobrado)}</td>
+                    <td>
+                      {item.status === "ativa"
+                        ? "Em andamento"
+                        : formatarDataHora(item.saida)}
+                    </td>
+                    <td>
+                      {item.status === "ativa"
+                        ? formatarDuracaoAoVivo(item.cobrancaApp.segundos)
+                        : formatarDuracao(item.duracaoMinutos)}
+                    </td>
+                    <td className="money history-payment">
+                      <strong>
+                        {formatarMoeda(
+                          item.status === "ativa"
+                            ? item.cobrancaApp.valorTotal
+                            : item.valorCobrado
+                        )}
+                      </strong>
+                      {item.status === "ativa" && (
+                        <small>
+                          {formatarMoeda(item.cobrancaApp.valorDescontado)} descontado ·{" "}
+                          {formatarMoeda(item.cobrancaApp.valorPendente)} a pagar
+                        </small>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
