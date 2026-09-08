@@ -14,6 +14,7 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <WiFi.h>
+#include <Preferences.h>
 #include <time.h>
 #include <math.h>
 #include <Adafruit_GFX.h>
@@ -63,20 +64,35 @@ XPT2046_Touchscreen ts(TOUCH_CS);
 
 // -------------------------------------------------------------------------
 // CALIBRAÇÃO DO TOUCH
-// Estes são valores GENÉRICOS. Cada painel XPT2046 varia de fábrica, e usar
-// os genéricos faz o toque cair na tecla vizinha (tocar no "O" e registrar
-// "I", por exemplo).
-//
-// Para calibrar o SEU painel: grave o sketch CalibracaoTouch/CalibracaoTouch.ino,
-// toque nas 4 miras e cole aqui as 4 linhas que o Monitor Serial imprimir.
+// Valores de seguranca usados apenas quando ainda nao existe uma calibracao
+// valida na memoria. O assistente integrado mede o painel real e grava os
+// limites no NVS; assim nao e mais preciso trocar de sketch e recompilar.
 // -------------------------------------------------------------------------
 #define TOUCH_X_MIN 200
 #define TOUCH_X_MAX 3700
 #define TOUCH_Y_MIN 200
 #define TOUCH_Y_MAX 3700
 
-const unsigned long TOQUE_COOLDOWN_MS = 300;
-static unsigned long ultimoToqueMillis = 0;
+static long touchXMin = TOUCH_X_MIN;
+static long touchXMax = TOUCH_X_MAX;
+static long touchYMin = TOUCH_Y_MIN;
+static long touchYMax = TOUCH_Y_MAX;
+
+const char* NVS_UI_NAMESPACE = "paraai-ui";  // Preferences limita a 15 caracteres
+const uint8_t VERSAO_CALIBRACAO_TOUCH = 1;
+
+// Um toque so vira evento depois de permanecer pressionado e so rearma apos
+// uma soltura estavel. Isso elimina repeticao por dedo mantido, toques perdidos
+// pelo antigo cooldown de 300 ms e o vazamento de um toque entre duas telas.
+const unsigned long TOQUE_ESTABILIZAR_MS = 25;
+const unsigned long SOLTURA_ESTABILIZAR_MS = 40;
+static bool toqueFisicoPresente = false;
+static bool toqueEstavelAtivo = false;
+static bool eventoToqueDisponivel = false;
+static unsigned long toquePressionadoDesde = 0;
+static unsigned long toqueSoltoDesde = 0;
+static int ultimoToqueX = 0;
+static int ultimoToqueY = 0;
 
 // -------------------------------------------------------------------------
 // PALETA (identidade ParaAí: âmbar viário sobre asfalto)
@@ -95,13 +111,20 @@ const int HEADER_H = 30;          // cabeçalho enxuto
 const int FAIXA_Y  = HEADER_H;    // faixa tracejada logo abaixo
 const int CONTEUDO_Y = HEADER_H + 8;
 
-// teclado
-const char* LINHAS_TECLADO[4]  = {"QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM", "0123456789"};
-const int   TECLA_NUM_CHARS[4] = {10, 9, 7, 10};
-const int   TECLA_W = 28, TECLA_H = 28, TECLA_GAP = 2;
-const int   TECLA_PITCH = TECLA_W + TECLA_GAP;      // 30
-const int   TECLA_ROW_Y[4] = {74, 106, 138, 170};
-const int   BOTAO_ACAO_Y = 204, BOTAO_ACAO_H = 32;
+// Teclado contextual: mostra apenas os caracteres validos para a posicao
+// atual da placa. As teclas crescem e placas invalidas deixam de ser geradas.
+const char* LINHAS_LETRAS[3] = {"ABCDEFGHI", "JKLMNOPQR", "STUVWXYZ"};
+const int LETRAS_POR_LINHA[3] = {9, 9, 8};
+const int LETRA_W = 31, LETRA_H = 34, LETRA_GAP = 3;
+const int LETRA_ROW_Y[3] = {75, 112, 149};
+
+const char* LINHAS_NUMEROS[2] = {"12345", "67890"};
+const int NUMERO_W = 54, NUMERO_H = 42, NUMERO_GAP = 6;
+const int NUMERO_ROW_Y[2] = {84, 134};
+
+const int BOTAO_ACAO_Y = 190, BOTAO_ACAO_H = 46;
+const int BOTAO_VOLTAR_X = 8, BOTAO_VOLTAR_W = 146;
+const int BOTAO_CANCELAR_X = 166, BOTAO_CANCELAR_W = 146;
 
 // botões SIM/NAO da tela de confirmação
 const int CONF_BTN_Y = 176, CONF_BTN_H = 46;
@@ -117,24 +140,58 @@ const int BTN_SAIDA_X   = 28, BTN_SAIDA_Y   = 160;
 // o que o motorista escolheu na tela inicial
 enum Operacao { OP_NENHUMA, OP_ENTRADA, OP_SAIDA };
 
+enum FormatoPlaca {
+  FORMATO_NAO_ESCOLHIDO,
+  FORMATO_ANTIGA,
+  FORMATO_MERCOSUL
+};
+
+enum AcaoTeclado {
+  TECLADO_NENHUMA,
+  TECLADO_CARACTERE,
+  TECLADO_APAGAR,
+  TECLADO_CONFIRMAR,
+  TECLADO_CANCELAR,
+  TECLADO_FORMATO_ANTIGA,
+  TECLADO_FORMATO_MERCOSUL
+};
+
+struct EventoTeclado {
+  AcaoTeclado acao;
+  char caractere;
+};
+
+enum ModoTecladoInterno {
+  MODO_TECLADO_LETRAS,
+  MODO_TECLADO_NUMEROS,
+  MODO_TECLADO_ESCOLHER_FORMATO,
+  MODO_TECLADO_CONFIRMAR
+};
+
 // -------------------------------------------------------------------------
 // API PÚBLICA
 // -------------------------------------------------------------------------
 void initUI();
 void desenharTelaInicial();
 Operacao verificarToqueTelaInicial();
-void desenharTelaTeclado(String placaAtual);
+void desenharTelaTeclado(String placaAtual, FormatoPlaca formato);
 void atualizarCaixaPlaca(String placaAtual);
-char verificarToqueTeclado();
+EventoTeclado verificarToqueTeclado(String placaAtual, FormatoPlaca formato);
 void desenharTelaProcessando(String mensagem);
 void desenharTelaResultado(TipoResultado tipo, String linha1, String linha2, String linha3);
 void desenharTelaConfirmarCadastro(String placa);
 int  verificarToqueConfirmacao();   // 1 = SIM, 0 = NAO, -1 = nada
 void atualizarRelogioCabecalho();
+bool executarCalibracaoTouch(bool forcar);
+bool verificarPressaoLongaStatus();
+void desenharTelaConfiguracoes();
+int  verificarToqueConfiguracoes(); // 1 = WiFi, 2 = calibrar, 3 = voltar
+void desenharTelaPortalWifi(String ap, String senha, String ip, String mensagem);
+void desenharTelaTestandoWifi(String ssid);
+bool verificarToqueCancelarPortalWifi();
 
 // helpers internos
 void initCores();
-int  offsetXLinha(int indiceLinha);
 void centralizarTexto(String texto, int yTopo, uint16_t cor, const GFXfont *fonte = nullptr, uint8_t tamanho = 1);
 void textoCentralizadoEm(String texto, int xCaixa, int yCaixa, int wCaixa, int hCaixa, uint16_t cor, const GFXfont *fonte = nullptr, uint8_t tamanho = 1);
 void desenharIconeWifi(int x, int y);
@@ -143,19 +200,24 @@ void desenharFaixaTracejada(int y);
 void desenharCabecalho();
 void desenharLogoP(int cx, int cy, int lado);
 void desenharSplash();
-void desenharTeclado();
+void desenharTeclado(String placaAtual, FormatoPlaca formato);
 void desenharIconeCarregando(int cx, int cy, int raio);
 void desenharIconeResultado(TipoResultado tipo, uint16_t cor);
 void desenharPlacaVeicular(int x, int y, int w, int h, String texto);
 bool toqueDentro(int tx, int ty, int x, int y, int w, int h);
 void lerToqueTela(int &x, int &y);
+bool lerNovoToque(int &x, int &y);
+void atualizarEstadoToque();
+void bloquearToqueAtualAteSoltar();
+bool carregarCalibracaoTouch();
+bool salvarCalibracaoTouch(long xMin, long xMax, long yMin, long yMax);
+bool calibracaoTouchPlausivel(long xMin, long xMax, long yMin, long yMax);
+bool detectarToqueMantidoNoBoot();
+ModoTecladoInterno obterModoTeclado(String placaAtual, FormatoPlaca formato);
+EventoTeclado criarEventoTeclado(AcaoTeclado acao, char caractere = 0);
+bool placaProntaParaConfirmar(String placaAtual, FormatoPlaca formato);
 int  alturaFonte(const GFXfont *fonte, uint8_t tamanho);
 int  larguraTexto(String texto, const GFXfont *fonte, uint8_t tamanho);
-
-int offsetXLinha(int indiceLinha) {
-  int larguraLinha = TECLA_NUM_CHARS[indiceLinha] * TECLA_PITCH - TECLA_GAP;
-  return (TELA_W - larguraLinha) / 2;
-}
 
 // -------------------------------------------------------------------------
 // INICIALIZAÇÃO
@@ -192,6 +254,15 @@ void initUI() {
   initCores();
   tft.fillScreen(corFundo);
   desenharSplash();
+
+  // A propria splash e a janela de recuperacao: manter o dedo na tela por
+  // cerca de 800 ms forca uma nova calibracao, mesmo se os limites salvos
+  // estiverem ruins demais para acertar o menu de configuracoes.
+  bool forcarCalibracao = detectarToqueMantidoNoBoot();
+  if (!executarCalibracaoTouch(forcarCalibracao)) {
+    Serial.println("[UI] Calibracao nao concluida ou nao persistida; mantendo limites disponiveis.");
+  }
+  bloquearToqueAtualAteSoltar();
   Serial.println("[UI] Display e Touch XPT2046 inicializados.");
 }
 
@@ -231,6 +302,19 @@ int larguraTexto(String texto, const GFXfont *fonte, uint8_t tamanho) {
 // yTopo = onde o topo das maiúsculas deve ficar.
 void centralizarTexto(String texto, int yTopo, uint16_t cor, const GFXfont *fonte, uint8_t tamanho) {
   int w = larguraTexto(texto, fonte, tamanho);
+  // Mensagens de falha e SSIDs variam de tamanho. Ajustar a fonte antes de
+  // desenhar evita texto cortado ou quebra automática sobre outros controles.
+  if (w > TELA_W - 20 && tamanho > 1) tamanho = 1;
+  w = larguraTexto(texto, fonte, tamanho);
+  if (w > TELA_W - 20 && (fonte == FONTE_GIGANTE || fonte == FONTE_GRANDE)) fonte = FONTE_MEDIA;
+  w = larguraTexto(texto, fonte, tamanho);
+  if (w > TELA_W - 20) fonte = FONTE_PEQUENA;
+  w = larguraTexto(texto, fonte, tamanho);
+  if (w > TELA_W - 20) {
+    while (texto.length() && larguraTexto(texto + "...", fonte, tamanho) > TELA_W - 20) texto.remove(texto.length() - 1);
+    texto += "...";
+    w = larguraTexto(texto, fonte, tamanho);
+  }
   tft.setTextColor(cor);
   int x = (TELA_W - w) / 2;
   if (fonte == nullptr) {
@@ -256,18 +340,405 @@ void textoCentralizadoEm(String texto, int xCaixa, int yCaixa, int wCaixa, int h
 }
 
 bool toqueDentro(int tx, int ty, int x, int y, int w, int h) {
-  return (tx >= x && tx <= x + w && ty >= y && ty <= y + h);
+  return (tx >= x && tx < x + w && ty >= y && ty < y + h);
 }
 
-// Converte a leitura bruta do XPT2046 em coordenada de tela, já limitada
-// à área visível. Centralizado numa função só para que a calibração valha
-// igualmente para todas as telas.
-void lerToqueTela(int &x, int &y) {
-  TS_Point p = ts.getPoint();
-  x = map(p.x, TOUCH_X_MIN, TOUCH_X_MAX, 0, TELA_W);
-  y = map(p.y, TOUCH_Y_MIN, TOUCH_Y_MAX, 0, TELA_H);
+long diferencaAbsoluta(long a, long b) {
+  return a >= b ? a - b : b - a;
+}
+
+void mapearToqueBruto(long brutoX, long brutoY,
+                      long xMin, long xMax, long yMin, long yMax,
+                      int &x, int &y) {
+  x = map(brutoX, xMin, xMax, 0, TELA_W - 1);
+  y = map(brutoY, yMin, yMax, 0, TELA_H - 1);
   x = constrain(x, 0, TELA_W - 1);
   y = constrain(y, 0, TELA_H - 1);
+}
+
+// Converte a leitura bruta do XPT2046 em coordenada de tela. O getPoint()
+// da biblioteca ja seleciona o par mais proximo entre tres leituras; aqui
+// usamos a mediana de mais tres pontos para rejeitar o primeiro contato.
+bool lerToqueFiltrado(int &x, int &y) {
+  long amostrasX[3];
+  long amostrasY[3];
+
+  for (int i = 0; i < 3; i++) {
+    if (!ts.touched()) return false;
+    TS_Point p = ts.getPoint();
+    amostrasX[i] = p.x;
+    amostrasY[i] = p.y;
+    delay(4);
+  }
+
+  for (int i = 1; i < 3; i++) {
+    long valorX = amostrasX[i];
+    long valorY = amostrasY[i];
+    int j = i - 1;
+    while (j >= 0 && amostrasX[j] > valorX) {
+      amostrasX[j + 1] = amostrasX[j];
+      j--;
+    }
+    amostrasX[j + 1] = valorX;
+
+    j = i - 1;
+    while (j >= 0 && amostrasY[j] > valorY) {
+      amostrasY[j + 1] = amostrasY[j];
+      j--;
+    }
+    amostrasY[j + 1] = valorY;
+  }
+
+  mapearToqueBruto(amostrasX[1], amostrasY[1],
+                   touchXMin, touchXMax, touchYMin, touchYMax, x, y);
+  return true;
+}
+
+void lerToqueTela(int &x, int &y) {
+  TS_Point p = ts.getPoint();
+  mapearToqueBruto(p.x, p.y, touchXMin, touchXMax, touchYMin, touchYMax, x, y);
+}
+
+void atualizarEstadoToque() {
+  unsigned long agora = millis();
+  toqueFisicoPresente = ts.touched();
+
+  if (toqueFisicoPresente) {
+    toqueSoltoDesde = 0;
+    if (toqueEstavelAtivo) {
+      // A posição atual serve apenas para cancelar gestos longos se o dedo
+      // sair do alvo; continuar pressionado nunca cria outra tecla.
+      if (!eventoToqueDisponivel) lerToqueTela(ultimoToqueX, ultimoToqueY);
+      return;
+    }
+
+    if (toquePressionadoDesde == 0) {
+      toquePressionadoDesde = agora;
+      return;
+    }
+    if (agora - toquePressionadoDesde < TOQUE_ESTABILIZAR_MS) return;
+
+    int x, y;
+    if (lerToqueFiltrado(x, y)) {
+      ultimoToqueX = x;
+      ultimoToqueY = y;
+      toqueEstavelAtivo = true;
+      eventoToqueDisponivel = true;
+    }
+    toquePressionadoDesde = 0;
+    return;
+  }
+
+  toquePressionadoDesde = 0;
+  if (!toqueEstavelAtivo) {
+    toqueSoltoDesde = 0;
+    return;
+  }
+
+  if (toqueSoltoDesde == 0) {
+    toqueSoltoDesde = agora;
+    return;
+  }
+  if (agora - toqueSoltoDesde >= SOLTURA_ESTABILIZAR_MS) {
+    toqueEstavelAtivo = false;
+    eventoToqueDisponivel = false;
+    toqueSoltoDesde = 0;
+  }
+}
+
+bool lerNovoToque(int &x, int &y) {
+  atualizarEstadoToque();
+  if (!eventoToqueDisponivel) return false;
+
+  eventoToqueDisponivel = false;
+  x = ultimoToqueX;
+  y = ultimoToqueY;
+  return true;
+}
+
+void bloquearToqueAtualAteSoltar() {
+  toqueFisicoPresente = ts.touched();
+  toqueEstavelAtivo = toqueFisicoPresente;
+  eventoToqueDisponivel = false;
+  toquePressionadoDesde = 0;
+  toqueSoltoDesde = 0;
+}
+
+bool calibracaoTouchPlausivel(long xMin, long xMax, long yMin, long yMax) {
+  const long LIMITE_INFERIOR = -1000;
+  const long LIMITE_SUPERIOR = 5100;
+  if (xMin < LIMITE_INFERIOR || xMin > LIMITE_SUPERIOR ||
+      xMax < LIMITE_INFERIOR || xMax > LIMITE_SUPERIOR ||
+      yMin < LIMITE_INFERIOR || yMin > LIMITE_SUPERIOR ||
+      yMax < LIMITE_INFERIOR || yMax > LIMITE_SUPERIOR) {
+    return false;
+  }
+  long spanX = diferencaAbsoluta(xMin, xMax);
+  long spanY = diferencaAbsoluta(yMin, yMax);
+  return spanX >= 1800 && spanX <= 5000 &&
+         spanY >= 1400 && spanY <= 5000;
+}
+
+bool carregarCalibracaoTouch() {
+  Preferences preferencias;
+  if (!preferencias.begin(NVS_UI_NAMESPACE, true)) return false;
+
+  uint8_t versao = preferencias.getUChar("cal_ver", 0);
+  long xMin = preferencias.getInt("x_min", TOUCH_X_MIN);
+  long xMax = preferencias.getInt("x_max", TOUCH_X_MAX);
+  long yMin = preferencias.getInt("y_min", TOUCH_Y_MIN);
+  long yMax = preferencias.getInt("y_max", TOUCH_Y_MAX);
+  preferencias.end();
+
+  if (versao != VERSAO_CALIBRACAO_TOUCH ||
+      !calibracaoTouchPlausivel(xMin, xMax, yMin, yMax)) {
+    return false;
+  }
+
+  touchXMin = xMin;
+  touchXMax = xMax;
+  touchYMin = yMin;
+  touchYMax = yMax;
+  Serial.println("[TOUCH] Calibracao carregada da memoria.");
+  return true;
+}
+
+bool salvarCalibracaoTouch(long xMin, long xMax, long yMin, long yMax) {
+  Preferences preferencias;
+  if (!preferencias.begin(NVS_UI_NAMESPACE, false)) return false;
+
+  // Invalida primeiro e publica a versao por ultimo. Se faltar energia entre
+  // as escritas, o proximo boot ignora o conjunto incompleto.
+  bool ok = preferencias.putUChar("cal_ver", 0) == sizeof(uint8_t);
+  bool gravouXMin = preferencias.putInt("x_min", (int32_t)xMin) == sizeof(int32_t);
+  bool gravouXMax = preferencias.putInt("x_max", (int32_t)xMax) == sizeof(int32_t);
+  bool gravouYMin = preferencias.putInt("y_min", (int32_t)yMin) == sizeof(int32_t);
+  bool gravouYMax = preferencias.putInt("y_max", (int32_t)yMax) == sizeof(int32_t);
+  ok = ok && gravouXMin && gravouXMax && gravouYMin && gravouYMax;
+  if (ok) {
+    ok = preferencias.putUChar("cal_ver", VERSAO_CALIBRACAO_TOUCH) == sizeof(uint8_t);
+  }
+  preferencias.end();
+  return ok;
+}
+
+bool detectarToqueMantidoNoBoot() {
+  const unsigned long JANELA_MS = 3000;
+  const unsigned long SEGURAR_MS = 800;
+  unsigned long inicio = millis();
+  unsigned long pressionadoDesde = 0;
+
+  while (millis() - inicio < JANELA_MS) {
+    if (ts.touched()) {
+      if (pressionadoDesde == 0) pressionadoDesde = millis();
+      if (millis() - pressionadoDesde >= SEGURAR_MS) {
+        Serial.println("[TOUCH] Toque mantido no boot: recalibracao solicitada.");
+        return true;
+      }
+    } else {
+      pressionadoDesde = 0;
+    }
+    delay(10);
+  }
+  return false;
+}
+
+void desenharMiraCalibracao(int x, int y, uint16_t cor) {
+  tft.drawCircle(x, y, 12, cor);
+  tft.drawCircle(x, y, 11, cor);
+  tft.drawFastHLine(x - 18, y, 36, cor);
+  tft.drawFastVLine(x, y - 18, 36, cor);
+  tft.fillCircle(x, y, 3, cor);
+}
+
+void ordenarAmostras(long valores[], int quantidade) {
+  for (int i = 1; i < quantidade; i++) {
+    long valor = valores[i];
+    int j = i - 1;
+    while (j >= 0 && valores[j] > valor) {
+      valores[j + 1] = valores[j];
+      j--;
+    }
+    valores[j + 1] = valor;
+  }
+}
+
+bool esperarSolturaCalibracao(unsigned long timeoutMs) {
+  unsigned long inicio = millis();
+  unsigned long soltoDesde = 0;
+  while (millis() - inicio < timeoutMs) {
+    if (!ts.touched()) {
+      if (soltoDesde == 0) soltoDesde = millis();
+      if (millis() - soltoDesde >= 80) return true;
+    } else {
+      soltoDesde = 0;
+    }
+    delay(8);
+  }
+  return false;
+}
+
+bool capturarPontoCalibracao(long &mediaX, long &mediaY) {
+  const int AMOSTRAS = 15;
+  const int DESCARTAR = 3;
+  long valoresX[AMOSTRAS];
+  long valoresY[AMOSTRAS];
+
+  if (!esperarSolturaCalibracao(5000)) return false;
+
+  unsigned long esperaDesde = millis();
+  unsigned long pressaoDesde = 0;
+  while (millis() - esperaDesde < 30000) {
+    if (ts.touched()) {
+      if (pressaoDesde == 0) pressaoDesde = millis();
+      if (millis() - pressaoDesde >= 45) break;
+    } else {
+      pressaoDesde = 0;
+    }
+    delay(8);
+  }
+  if (pressaoDesde == 0 || millis() - esperaDesde >= 30000) return false;
+
+  for (int i = 0; i < AMOSTRAS; i++) {
+    if (!ts.touched()) return false;
+    TS_Point ponto = ts.getPoint();
+    valoresX[i] = ponto.x;
+    valoresY[i] = ponto.y;
+    delay(6);
+  }
+
+  if (!esperarSolturaCalibracao(5000)) return false;
+
+  ordenarAmostras(valoresX, AMOSTRAS);
+  ordenarAmostras(valoresY, AMOSTRAS);
+  long somaX = 0;
+  long somaY = 0;
+  for (int i = DESCARTAR; i < AMOSTRAS - DESCARTAR; i++) {
+    somaX += valoresX[i];
+    somaY += valoresY[i];
+  }
+  const int UTILIZADAS = AMOSTRAS - 2 * DESCARTAR;
+  mediaX = somaX / UTILIZADAS;
+  mediaY = somaY / UTILIZADAS;
+  return true;
+}
+
+void desenharPassoCalibracao(int passo, int total, int alvoX, int alvoY, String instrucao) {
+  tft.fillScreen(corFundo);
+  centralizarTexto("CALIBRAR TOUCH", 78, corTexto, FONTE_GRANDE);
+  centralizarTexto(instrucao, 110, corDestaque, FONTE_MEDIA);
+  centralizarTexto("Ponto " + String(passo) + " de " + String(total), 136,
+                   corTextoFraco, FONTE_PEQUENA);
+  desenharMiraCalibracao(alvoX, alvoY, corDestaque);
+}
+
+bool executarCalibracaoTouch(bool forcar) {
+  bool calibracaoAnteriorValida = carregarCalibracaoTouch();
+  if (calibracaoAnteriorValida && !forcar) return true;
+
+  const int MARGEM = 26;
+  const int alvoX[4] = {MARGEM, TELA_W - MARGEM, MARGEM, TELA_W - MARGEM};
+  const int alvoY[4] = {MARGEM, MARGEM, TELA_H - MARGEM, TELA_H - MARGEM};
+  long brutoX[4];
+  long brutoY[4];
+
+  // O toque que pediu a recalibracao nao pode valer como o primeiro ponto.
+  if (!esperarSolturaCalibracao(7000)) return false;
+
+  for (int ponto = 0; ponto < 4; ponto++) {
+    bool capturado = false;
+    for (int tentativa = 0; tentativa < 3 && !capturado; tentativa++) {
+      desenharPassoCalibracao(ponto + 1, 4, alvoX[ponto], alvoY[ponto],
+                             "Toque no centro da mira");
+      capturado = capturarPontoCalibracao(brutoX[ponto], brutoY[ponto]);
+      if (!capturado) {
+        centralizarTexto("MANTENHA O DEDO FIRME", 168, corErro, FONTE_PEQUENA);
+        delay(700);
+      }
+    }
+    if (!capturado) return false;
+    desenharMiraCalibracao(alvoX[ponto], alvoY[ponto], corSucesso);
+    delay(220);
+  }
+
+  long xEsquerda = (brutoX[0] + brutoX[2]) / 2;
+  long xDireita = (brutoX[1] + brutoX[3]) / 2;
+  long ySuperior = (brutoY[0] + brutoY[1]) / 2;
+  long yInferior = (brutoY[2] + brutoY[3]) / 2;
+  long spanX = diferencaAbsoluta(xEsquerda, xDireita);
+  long spanY = diferencaAbsoluta(ySuperior, yInferior);
+
+  bool ladosCoerentes = spanX >= 1800 && spanY >= 1400 &&
+    diferencaAbsoluta(brutoX[0], brutoX[2]) <= spanX / 5 &&
+    diferencaAbsoluta(brutoX[1], brutoX[3]) <= spanX / 5 &&
+    diferencaAbsoluta(brutoY[0], brutoY[1]) <= spanY / 5 &&
+    diferencaAbsoluta(brutoY[2], brutoY[3]) <= spanY / 5;
+
+  if (!ladosCoerentes) {
+    tft.fillScreen(corFundo);
+    centralizarTexto("CALIBRACAO INCONSISTENTE", 78, corErro, FONTE_MEDIA);
+    centralizarTexto("Tente novamente com o dedo firme", 112, corTexto, FONTE_PEQUENA);
+    delay(1200);
+    return false;
+  }
+
+  float escalaX = (float)(xDireita - xEsquerda) /
+                  (float)(alvoX[1] - alvoX[0]);
+  float escalaY = (float)(yInferior - ySuperior) /
+                  (float)(alvoY[2] - alvoY[0]);
+  long novoXMin = xEsquerda - (long)(MARGEM * escalaX);
+  long novoXMax = xDireita + (long)((MARGEM - 1) * escalaX);
+  long novoYMin = ySuperior - (long)(MARGEM * escalaY);
+  long novoYMax = yInferior + (long)((MARGEM - 1) * escalaY);
+
+  if (!calibracaoTouchPlausivel(novoXMin, novoXMax, novoYMin, novoYMax)) {
+    return false;
+  }
+
+  // Um quinto ponto independente impede gravar uma calibracao ruim causada
+  // por uma mira tocada fora do centro.
+  long centroBrutoX, centroBrutoY;
+  tft.fillScreen(corFundo);
+  centralizarTexto("TESTE FINAL", 42, corTexto, FONTE_GRANDE);
+  centralizarTexto("Toque na mira central", 184, corDestaque, FONTE_MEDIA);
+  centralizarTexto("Ponto 5 de 5", 210, corTextoFraco, FONTE_PEQUENA);
+  desenharMiraCalibracao(TELA_W / 2, TELA_H / 2, corDestaque);
+  if (!capturarPontoCalibracao(centroBrutoX, centroBrutoY)) return false;
+
+  int centroX, centroY;
+  mapearToqueBruto(centroBrutoX, centroBrutoY,
+                   novoXMin, novoXMax, novoYMin, novoYMax, centroX, centroY);
+  if (diferencaAbsoluta(centroX, TELA_W / 2) > 25 ||
+      diferencaAbsoluta(centroY, TELA_H / 2) > 25) {
+    tft.fillScreen(corFundo);
+    centralizarTexto("TESTE CENTRAL FALHOU", 82, corErro, FONTE_GRANDE);
+    centralizarTexto("Refaca a calibracao", 120, corTexto, FONTE_MEDIA);
+    delay(1200);
+    return false;
+  }
+
+  touchXMin = novoXMin;
+  touchXMax = novoXMax;
+  touchYMin = novoYMin;
+  touchYMax = novoYMax;
+  bool persistiu = salvarCalibracaoTouch(novoXMin, novoXMax, novoYMin, novoYMax);
+
+  tft.fillScreen(corFundo);
+  centralizarTexto("TOUCH CALIBRADO", 80, corSucesso, FONTE_GRANDE);
+  centralizarTexto(persistiu ? "Configuracao salva" : "Valido apenas nesta sessao",
+                   122, persistiu ? corTexto : corAlerta, FONTE_MEDIA);
+  delay(900);
+  bloquearToqueAtualAteSoltar();
+
+  Serial.print("[TOUCH] Limites: X=");
+  Serial.print(touchXMin);
+  Serial.print("..");
+  Serial.print(touchXMax);
+  Serial.print(" Y=");
+  Serial.print(touchYMin);
+  Serial.print("..");
+  Serial.println(touchYMax);
+  return persistiu;
 }
 
 // -------------------------------------------------------------------------
@@ -377,8 +848,8 @@ void desenharSplash() {
   desenharLogoP(160, 78, 80);
   centralizarTexto("PARAAI", 134, corTexto, FONTE_GIGANTE);   // 134..159
   centralizarTexto("Estacionamento inteligente", 176, corDestaque, FONTE_MEDIA); // 176..189
-  desenharFaixaTracejada(212);
-  delay(1200);
+  centralizarTexto("Segure a tela para calibrar", 202, corTextoFraco, FONTE_PEQUENA);
+  desenharFaixaTracejada(226);
 }
 
 // -------------------------------------------------------------------------
@@ -437,22 +908,17 @@ void desenharTelaInicial() {
                       corFundo, FONTE_GIGANTE);
   textoCentralizadoEm("vou embora e pagar", BTN_SAIDA_X, BTN_SAIDA_Y + BTN_OP_H - 24,
                       BTN_OP_W, 18, corFundo, FONTE_PEQUENA);
+  bloquearToqueAtualAteSoltar();
 }
 
 Operacao verificarToqueTelaInicial() {
-  if (!ts.touched()) return OP_NENHUMA;
-  unsigned long agora = millis();
-  if (agora - ultimoToqueMillis < TOQUE_COOLDOWN_MS) return OP_NENHUMA;
-
   int x, y;
-  lerToqueTela(x, y);
+  if (!lerNovoToque(x, y)) return OP_NENHUMA;
 
   if (toqueDentro(x, y, BTN_ENTRADA_X, BTN_ENTRADA_Y, BTN_OP_W, BTN_OP_H)) {
-    ultimoToqueMillis = agora;
     return OP_ENTRADA;
   }
   if (toqueDentro(x, y, BTN_SAIDA_X, BTN_SAIDA_Y, BTN_OP_W, BTN_OP_H)) {
-    ultimoToqueMillis = agora;
     return OP_SAIDA;
   }
   return OP_NENHUMA;
@@ -467,66 +933,229 @@ void atualizarCaixaPlaca(String placaAtual) {
   desenharPlacaVeicular(52, 38, 216, 32, exibir);
 }
 
-void desenharTeclado() {
-  for (int linha = 0; linha < 4; linha++) {
-    int offsetX = offsetXLinha(linha);
-    for (int col = 0; col < TECLA_NUM_CHARS[linha]; col++) {
-      int x = offsetX + col * TECLA_PITCH;
-      int y = TECLA_ROW_Y[linha];
-      tft.fillRoundRect(x, y, TECLA_W, TECLA_H, 5, corBotao);
-      tft.drawRoundRect(x, y, TECLA_W, TECLA_H, 5, corBotaoBorda);
-      // tamanho 2 = 10x14px: legível de pé, a um braço de distância
-      textoCentralizadoEm(String(LINHAS_TECLADO[linha][col]), x, y, TECLA_W, TECLA_H, corTexto, FONTE_MEDIA);
-    }
-  }
-
-  tft.fillRoundRect(14, BOTAO_ACAO_Y, 84, BOTAO_ACAO_H, 6, corPainel);
-  tft.drawRoundRect(14, BOTAO_ACAO_Y, 84, BOTAO_ACAO_H, 6, corErro);
-  textoCentralizadoEm("APAGAR", 14, BOTAO_ACAO_Y, 84, BOTAO_ACAO_H, corErro, FONTE_PEQUENA);
-
-  tft.fillRoundRect(110, BOTAO_ACAO_Y, 100, BOTAO_ACAO_H, 6, corDestaque);
-  textoCentralizadoEm("OK", 110, BOTAO_ACAO_Y, 100, BOTAO_ACAO_H, corHeaderTexto, FONTE_GRANDE);
-
-  tft.fillRoundRect(222, BOTAO_ACAO_Y, 84, BOTAO_ACAO_H, 6, corPainel);
-  tft.drawRoundRect(222, BOTAO_ACAO_Y, 84, BOTAO_ACAO_H, 6, corBotaoBorda);
-  textoCentralizadoEm("CANCELAR", 222, BOTAO_ACAO_Y, 84, BOTAO_ACAO_H, corTextoFraco, FONTE_PEQUENA);
+EventoTeclado criarEventoTeclado(AcaoTeclado acao, char caractere) {
+  EventoTeclado evento;
+  evento.acao = acao;
+  evento.caractere = caractere;
+  return evento;
 }
 
-void desenharTelaTeclado(String placaAtual) {
+ModoTecladoInterno obterModoTeclado(String placaAtual, FormatoPlaca formato) {
+  int posicao = placaAtual.length();
+  if (posicao < 3) return MODO_TECLADO_LETRAS;
+  if (posicao == 3) return MODO_TECLADO_NUMEROS;
+  if (posicao == 4) {
+    if (formato == FORMATO_NAO_ESCOLHIDO) return MODO_TECLADO_ESCOLHER_FORMATO;
+    return formato == FORMATO_MERCOSUL ? MODO_TECLADO_LETRAS : MODO_TECLADO_NUMEROS;
+  }
+  if (posicao < 7) return MODO_TECLADO_NUMEROS;
+  return MODO_TECLADO_CONFIRMAR;
+}
+
+bool placaProntaParaConfirmar(String placaAtual, FormatoPlaca formato) {
+  if (placaAtual.length() != 7 || formato == FORMATO_NAO_ESCOLHIDO) return false;
+  for (int i = 0; i < 3; i++) {
+    if (placaAtual[i] < 'A' || placaAtual[i] > 'Z') return false;
+  }
+  if (placaAtual[3] < '0' || placaAtual[3] > '9') return false;
+
+  if (formato == FORMATO_ANTIGA) {
+    for (int i = 4; i < 7; i++) {
+      if (placaAtual[i] < '0' || placaAtual[i] > '9') return false;
+    }
+    return true;
+  }
+
+  return placaAtual[4] >= 'A' && placaAtual[4] <= 'Z' &&
+         placaAtual[5] >= '0' && placaAtual[5] <= '9' &&
+         placaAtual[6] >= '0' && placaAtual[6] <= '9';
+}
+
+void desenharAcoesTeclado(String placaAtual) {
+  tft.fillRoundRect(BOTAO_VOLTAR_X, BOTAO_ACAO_Y,
+                    BOTAO_VOLTAR_W, BOTAO_ACAO_H, 7, corPainel);
+  tft.drawRoundRect(BOTAO_VOLTAR_X, BOTAO_ACAO_Y,
+                    BOTAO_VOLTAR_W, BOTAO_ACAO_H, 7,
+                    placaAtual.length() > 0 ? corErro : corBotaoBorda);
+  textoCentralizadoEm(placaAtual.length() > 0 ? "APAGAR" : "VOLTAR",
+                      BOTAO_VOLTAR_X, BOTAO_ACAO_Y,
+                      BOTAO_VOLTAR_W, BOTAO_ACAO_H,
+                      placaAtual.length() > 0 ? corErro : corTextoFraco,
+                      FONTE_MEDIA);
+
+  tft.fillRoundRect(BOTAO_CANCELAR_X, BOTAO_ACAO_Y,
+                    BOTAO_CANCELAR_W, BOTAO_ACAO_H, 7, corPainel);
+  tft.drawRoundRect(BOTAO_CANCELAR_X, BOTAO_ACAO_Y,
+                    BOTAO_CANCELAR_W, BOTAO_ACAO_H, 7, corBotaoBorda);
+  textoCentralizadoEm("CANCELAR", BOTAO_CANCELAR_X, BOTAO_ACAO_Y,
+                      BOTAO_CANCELAR_W, BOTAO_ACAO_H,
+                      corTextoFraco, FONTE_MEDIA);
+}
+
+void desenharGradeLetras() {
+  for (int linha = 0; linha < 3; linha++) {
+    int quantidade = LETRAS_POR_LINHA[linha];
+    int largura = quantidade * LETRA_W + (quantidade - 1) * LETRA_GAP;
+    int offsetX = (TELA_W - largura) / 2;
+    for (int coluna = 0; coluna < quantidade; coluna++) {
+      int x = offsetX + coluna * (LETRA_W + LETRA_GAP);
+      int y = LETRA_ROW_Y[linha];
+      tft.fillRoundRect(x, y, LETRA_W, LETRA_H, 5, corBotao);
+      tft.drawRoundRect(x, y, LETRA_W, LETRA_H, 5, corBotaoBorda);
+      textoCentralizadoEm(String(LINHAS_LETRAS[linha][coluna]),
+                          x, y, LETRA_W, LETRA_H, corTexto, FONTE_MEDIA);
+    }
+  }
+}
+
+void desenharGradeNumeros() {
+  for (int linha = 0; linha < 2; linha++) {
+    int quantidade = 5;
+    int largura = quantidade * NUMERO_W + (quantidade - 1) * NUMERO_GAP;
+    int offsetX = (TELA_W - largura) / 2;
+    for (int coluna = 0; coluna < quantidade; coluna++) {
+      int x = offsetX + coluna * (NUMERO_W + NUMERO_GAP);
+      int y = NUMERO_ROW_Y[linha];
+      tft.fillRoundRect(x, y, NUMERO_W, NUMERO_H, 6, corBotao);
+      tft.drawRoundRect(x, y, NUMERO_W, NUMERO_H, 6, corBotaoBorda);
+      textoCentralizadoEm(String(LINHAS_NUMEROS[linha][coluna]),
+                          x, y, NUMERO_W, NUMERO_H, corTexto, FONTE_GRANDE);
+    }
+  }
+}
+
+void desenharEscolhaFormato() {
+  centralizarTexto("QUAL E O MODELO DA PLACA?", 76, corTexto, FONTE_PEQUENA);
+
+  tft.fillRoundRect(12, 98, 142, 72, 8, corPainel);
+  tft.drawRoundRect(12, 98, 142, 72, 8, corDestaque);
+  textoCentralizadoEm("ANTIGA", 12, 102, 142, 28, corDestaque, FONTE_GRANDE);
+  textoCentralizadoEm("5a: NUMERO", 12, 137, 142, 22,
+                      corTextoFraco, FONTE_PEQUENA);
+
+  tft.fillRoundRect(166, 98, 142, 72, 8, corPainel);
+  tft.drawRoundRect(166, 98, 142, 72, 8, corSucesso);
+  textoCentralizadoEm("MERCOSUL", 166, 102, 142, 28, corSucesso, FONTE_GRANDE);
+  textoCentralizadoEm("5a: LETRA", 166, 137, 142, 22,
+                      corTextoFraco, FONTE_PEQUENA);
+}
+
+void desenharConfirmacaoTeclado(bool placaValida) {
+  centralizarTexto(placaValida ? "CONFIRME A PLACA" : "CORRIJA A PLACA",
+                   82, placaValida ? corTexto : corErro, FONTE_GRANDE);
+
+  tft.fillRoundRect(12, 122, 142, 60, 8, corPainel);
+  tft.drawRoundRect(12, 122, 142, 60, 8, corBotaoBorda);
+  textoCentralizadoEm("CORRIGIR", 12, 122, 142, 60,
+                      corTextoFraco, FONTE_MEDIA);
+
+  tft.fillRoundRect(166, 122, 142, 60, 8,
+                    placaValida ? corSucesso : corPainel);
+  tft.drawRoundRect(166, 122, 142, 60, 8,
+                    placaValida ? corSucesso : corBotaoBorda);
+  textoCentralizadoEm("CONFIRMAR", 166, 122, 142, 60,
+                      placaValida ? corFundo : corTextoFraco, FONTE_MEDIA);
+
+  tft.fillRoundRect(70, 194, 180, 40, 7, corPainel);
+  tft.drawRoundRect(70, 194, 180, 40, 7, corBotaoBorda);
+  textoCentralizadoEm("CANCELAR", 70, 194, 180, 40,
+                      corTextoFraco, FONTE_MEDIA);
+}
+
+void desenharTeclado(String placaAtual, FormatoPlaca formato) {
+  ModoTecladoInterno modo = obterModoTeclado(placaAtual, formato);
+  if (modo == MODO_TECLADO_LETRAS) desenharGradeLetras();
+  else if (modo == MODO_TECLADO_NUMEROS) desenharGradeNumeros();
+  else if (modo == MODO_TECLADO_ESCOLHER_FORMATO) desenharEscolhaFormato();
+  else {
+    desenharConfirmacaoTeclado(placaProntaParaConfirmar(placaAtual, formato));
+    return;
+  }
+  desenharAcoesTeclado(placaAtual);
+}
+
+void desenharTelaTeclado(String placaAtual, FormatoPlaca formato) {
   tft.fillScreen(corFundo);
   desenharCabecalho();
   atualizarCaixaPlaca(placaAtual);
-  desenharTeclado();
+  desenharTeclado(placaAtual, formato);
+  bloquearToqueAtualAteSoltar();
 }
 
-// Retorna: caractere digitado, '\b' (apagar), '\n' (confirmar), 27 (cancelar), ou 0
-char verificarToqueTeclado() {
-  if (!ts.touched()) return 0;
-  unsigned long agora = millis();
-  if (agora - ultimoToqueMillis < TOQUE_COOLDOWN_MS) return 0;
-
+EventoTeclado verificarToqueTeclado(String placaAtual, FormatoPlaca formato) {
   int x, y;
-  lerToqueTela(x, y);
+  if (!lerNovoToque(x, y)) return criarEventoTeclado(TECLADO_NENHUMA);
 
-  if (y >= BOTAO_ACAO_Y && y <= BOTAO_ACAO_Y + BOTAO_ACAO_H) {
-    if (toqueDentro(x, y, 14, BOTAO_ACAO_Y, 84, BOTAO_ACAO_H))  { ultimoToqueMillis = agora; return '\b'; }
-    if (toqueDentro(x, y, 110, BOTAO_ACAO_Y, 100, BOTAO_ACAO_H)) { ultimoToqueMillis = agora; return '\n'; }
-    if (toqueDentro(x, y, 222, BOTAO_ACAO_Y, 84, BOTAO_ACAO_H))  { ultimoToqueMillis = agora; return 27; }
-    return 0;
+  ModoTecladoInterno modo = obterModoTeclado(placaAtual, formato);
+  if (modo == MODO_TECLADO_CONFIRMAR) {
+    if (toqueDentro(x, y, 12, 122, 142, 60)) {
+      return criarEventoTeclado(TECLADO_APAGAR);
+    }
+    if (toqueDentro(x, y, 166, 122, 142, 60) &&
+        placaProntaParaConfirmar(placaAtual, formato)) {
+      return criarEventoTeclado(TECLADO_CONFIRMAR);
+    }
+    if (toqueDentro(x, y, 70, 194, 180, 40)) {
+      return criarEventoTeclado(TECLADO_CANCELAR);
+    }
+    return criarEventoTeclado(TECLADO_NENHUMA);
   }
 
-  for (int linha = 0; linha < 4; linha++) {
-    int rowY = TECLA_ROW_Y[linha];
-    if (y >= rowY && y <= rowY + TECLA_H) {
-      int offsetX = offsetXLinha(linha);
-      int col = (x - offsetX) / TECLA_PITCH;
-      if ((x - offsetX) >= 0 && col >= 0 && col < TECLA_NUM_CHARS[linha]) {
-        ultimoToqueMillis = agora;
-        return LINHAS_TECLADO[linha][col];
+  if (toqueDentro(x, y, BOTAO_VOLTAR_X, BOTAO_ACAO_Y,
+                  BOTAO_VOLTAR_W, BOTAO_ACAO_H)) {
+    return criarEventoTeclado(placaAtual.length() > 0
+      ? TECLADO_APAGAR : TECLADO_CANCELAR);
+  }
+  if (toqueDentro(x, y, BOTAO_CANCELAR_X, BOTAO_ACAO_Y,
+                  BOTAO_CANCELAR_W, BOTAO_ACAO_H)) {
+    return criarEventoTeclado(TECLADO_CANCELAR);
+  }
+
+  if (modo == MODO_TECLADO_ESCOLHER_FORMATO) {
+    if (toqueDentro(x, y, 12, 98, 142, 72)) {
+      return criarEventoTeclado(TECLADO_FORMATO_ANTIGA);
+    }
+    if (toqueDentro(x, y, 166, 98, 142, 72)) {
+      return criarEventoTeclado(TECLADO_FORMATO_MERCOSUL);
+    }
+    return criarEventoTeclado(TECLADO_NENHUMA);
+  }
+
+  if (modo == MODO_TECLADO_LETRAS) {
+    for (int linha = 0; linha < 3; linha++) {
+      int quantidade = LETRAS_POR_LINHA[linha];
+      int largura = quantidade * LETRA_W + (quantidade - 1) * LETRA_GAP;
+      int offsetX = (TELA_W - largura) / 2;
+      int alturaAlvo = LETRA_H + (linha < 2 ? LETRA_GAP : 0);
+      if (y >= LETRA_ROW_Y[linha] && y < LETRA_ROW_Y[linha] + alturaAlvo &&
+          x >= offsetX && x < offsetX + largura) {
+        int coluna = (x - offsetX) / (LETRA_W + LETRA_GAP);
+        if (coluna >= 0 && coluna < quantidade) {
+          return criarEventoTeclado(TECLADO_CARACTERE,
+                                    LINHAS_LETRAS[linha][coluna]);
+        }
+      }
+    }
+    return criarEventoTeclado(TECLADO_NENHUMA);
+  }
+
+  for (int linha = 0; linha < 2; linha++) {
+    int quantidade = 5;
+    int largura = quantidade * NUMERO_W + (quantidade - 1) * NUMERO_GAP;
+    int offsetX = (TELA_W - largura) / 2;
+    int alturaAlvo = linha == 0
+      ? NUMERO_ROW_Y[1] - NUMERO_ROW_Y[0]
+      : NUMERO_H;
+    if (y >= NUMERO_ROW_Y[linha] && y < NUMERO_ROW_Y[linha] + alturaAlvo &&
+        x >= offsetX && x < offsetX + largura) {
+      int coluna = (x - offsetX) / (NUMERO_W + NUMERO_GAP);
+      if (coluna >= 0 && coluna < quantidade) {
+        return criarEventoTeclado(TECLADO_CARACTERE,
+                                  LINHAS_NUMEROS[linha][coluna]);
       }
     }
   }
-  return 0;
+  return criarEventoTeclado(TECLADO_NENHUMA);
 }
 
 // -------------------------------------------------------------------------
@@ -549,6 +1178,7 @@ void desenharTelaProcessando(String mensagem) {
   desenharIconeCarregando(160, 92, 26);   // termina em y=118
   centralizarTexto(mensagem, 136, corTexto, FONTE_GRANDE);          // 136..153
   centralizarTexto("Aguarde um instante", 172, corTextoFraco, FONTE_PEQUENA); // 172..185
+  bloquearToqueAtualAteSoltar();
 }
 
 // -------------------------------------------------------------------------
@@ -600,6 +1230,7 @@ void desenharTelaResultado(TipoResultado tipo, String linha1, String linha2, Str
   if (linha3.length() > 0) {
     centralizarTexto(linha3, 178, corTextoFraco, FONTE_MEDIA);
   }
+  bloquearToqueAtualAteSoltar();
 }
 
 // -------------------------------------------------------------------------
@@ -622,26 +1253,132 @@ void desenharTelaConfirmarCadastro(String placa) {
 
   tft.fillRoundRect(CONF_BTN_X_SIM, CONF_BTN_Y, CONF_BTN_W, CONF_BTN_H, 8, corSucesso);
   textoCentralizadoEm("SIM", CONF_BTN_X_SIM, CONF_BTN_Y, CONF_BTN_W, CONF_BTN_H, corFundo, FONTE_GRANDE);
+  bloquearToqueAtualAteSoltar();
 }
 
 // 1 = SIM, 0 = NAO, -1 = nada
 int verificarToqueConfirmacao() {
-  if (!ts.touched()) return -1;
-  unsigned long agora = millis();
-  if (agora - ultimoToqueMillis < TOQUE_COOLDOWN_MS) return -1;
-
   int x, y;
-  lerToqueTela(x, y);
+  if (!lerNovoToque(x, y)) return -1;
 
   if (toqueDentro(x, y, CONF_BTN_X_SIM, CONF_BTN_Y, CONF_BTN_W, CONF_BTN_H)) {
-    ultimoToqueMillis = agora;
     return 1;
   }
   if (toqueDentro(x, y, CONF_BTN_X_NAO, CONF_BTN_Y, CONF_BTN_W, CONF_BTN_H)) {
-    ultimoToqueMillis = agora;
     return 0;
   }
   return -1;
+}
+
+// -------------------------------------------------------------------------
+// MANUTENCAO LOCAL — acesso discreto pelo status do cabecalho
+// -------------------------------------------------------------------------
+static unsigned long statusPressionadoDesde = 0;
+static bool pressaoLongaStatusDisparada = false;
+
+bool verificarPressaoLongaStatus() {
+  atualizarEstadoToque();
+
+  bool sobreCabecalho = toqueFisicoPresente && toqueEstavelAtivo &&
+    toqueDentro(ultimoToqueX, ultimoToqueY, TELA_W - 90, 0, 90, HEADER_H + 8);
+
+  if (!sobreCabecalho) {
+    statusPressionadoDesde = 0;
+    if (!toqueFisicoPresente) pressaoLongaStatusDisparada = false;
+    return false;
+  }
+
+  if (statusPressionadoDesde == 0) statusPressionadoDesde = millis();
+  if (!pressaoLongaStatusDisparada &&
+      millis() - statusPressionadoDesde >= 3000) {
+    pressaoLongaStatusDisparada = true;
+    eventoToqueDisponivel = false;
+    return true;
+  }
+  return false;
+}
+
+void desenharTelaConfiguracoes() {
+  tft.fillScreen(corFundo);
+  desenharCabecalho();
+  centralizarTexto("CONFIGURACOES", 42, corTexto, FONTE_GRANDE);
+
+  tft.fillRoundRect(20, 76, 280, 46, 8, corPainel);
+  tft.drawRoundRect(20, 76, 280, 46, 8, corDestaque);
+  textoCentralizadoEm("TROCAR WIFI", 20, 76, 280, 46,
+                      corDestaque, FONTE_GRANDE);
+
+  tft.fillRoundRect(20, 134, 280, 46, 8, corPainel);
+  tft.drawRoundRect(20, 134, 280, 46, 8, corBotaoBorda);
+  textoCentralizadoEm("RECALIBRAR TOUCH", 20, 134, 280, 46,
+                      corTexto, FONTE_MEDIA);
+
+  tft.fillRoundRect(70, 194, 180, 38, 7, corPainel);
+  tft.drawRoundRect(70, 194, 180, 38, 7, corBotaoBorda);
+  textoCentralizadoEm("VOLTAR", 70, 194, 180, 38,
+                      corTextoFraco, FONTE_MEDIA);
+  bloquearToqueAtualAteSoltar();
+}
+
+int verificarToqueConfiguracoes() {
+  int x, y;
+  if (!lerNovoToque(x, y)) return 0;
+  if (toqueDentro(x, y, 20, 76, 280, 46)) return 1;
+  if (toqueDentro(x, y, 20, 134, 280, 46)) return 2;
+  if (toqueDentro(x, y, 70, 194, 180, 38)) return 3;
+  return 0;
+}
+
+String limitarTextoUI(String texto, int maximo) {
+  if ((int)texto.length() <= maximo) return texto;
+  if (maximo <= 3) return texto.substring(0, maximo);
+  return texto.substring(0, maximo - 3) + "...";
+}
+
+void desenharBotaoCancelarPortal() {
+  tft.fillRoundRect(60, 198, 200, 36, 7, corPainel);
+  tft.drawRoundRect(60, 198, 200, 36, 7, corBotaoBorda);
+  textoCentralizadoEm("CANCELAR", 60, 198, 200, 36,
+                      corTextoFraco, FONTE_MEDIA);
+}
+
+void desenharTelaPortalWifi(String ap, String senha, String ip, String mensagem) {
+  tft.fillScreen(corFundo);
+  desenharCabecalho();
+  centralizarTexto("CONFIGURAR WIFI", 38, corDestaque, FONTE_GRANDE);
+  centralizarTexto("1. Conecte o celular na rede", 68,
+                   corTextoFraco, FONTE_PEQUENA);
+  centralizarTexto(limitarTextoUI(ap, 26), 88, corTexto, FONTE_MEDIA);
+  centralizarTexto("Senha: " + limitarTextoUI(senha, 20), 110,
+                   corTexto, FONTE_PEQUENA);
+  centralizarTexto("2. Abra no navegador", 134,
+                   corTextoFraco, FONTE_PEQUENA);
+  centralizarTexto("http://" + limitarTextoUI(ip, 20), 154,
+                   corDestaque, FONTE_MEDIA);
+  if (mensagem.length() > 0) {
+    centralizarTexto(limitarTextoUI(mensagem, 34), 176,
+                     corAlerta, FONTE_PEQUENA);
+  }
+  desenharBotaoCancelarPortal();
+  bloquearToqueAtualAteSoltar();
+}
+
+void desenharTelaTestandoWifi(String ssid) {
+  tft.fillScreen(corFundo);
+  desenharCabecalho();
+  desenharIconeCarregando(160, 88, 24);
+  centralizarTexto("TESTANDO A REDE", 126, corTexto, FONTE_GRANDE);
+  centralizarTexto(limitarTextoUI(ssid, 28), 154, corDestaque, FONTE_MEDIA);
+  centralizarTexto("Aguarde alguns segundos", 176,
+                   corTextoFraco, FONTE_PEQUENA);
+  desenharBotaoCancelarPortal();
+  bloquearToqueAtualAteSoltar();
+}
+
+bool verificarToqueCancelarPortalWifi() {
+  int x, y;
+  if (!lerNovoToque(x, y)) return false;
+  return toqueDentro(x, y, 60, 198, 200, 36);
 }
 
 #endif

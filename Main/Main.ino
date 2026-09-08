@@ -6,6 +6,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <time.h>
+#include <math.h>
 #include <Firebase_ESP_Client.h>
 #include <addons/TokenHelper.h>
 #include <ESP32Servo.h>
@@ -13,6 +14,7 @@
 #include "Credenciais.h"
 #include "Sensores.ino"
 #include "DisplayUI.ino"
+#include "ConfiguracaoWiFi.ino"
 
 // ==========================================
 // MULTI-ESTACIONAMENTO
@@ -45,12 +47,21 @@ bool horaSincronizada  = false;
 bool firebaseConfigurado = false;
 unsigned long ultimaTentativaWifi = 0;
 unsigned long ultimaTentativaHora = 0;
+bool ntpIniciado = false;
 
 // Heartbeat: o totem grava "estou vivo" no Firestore periodicamente, pro
 // painel web conseguir mostrar se o dispositivo esta online ou fora do ar.
 const unsigned long HEARTBEAT_INTERVALO_MS = 60000;
+const unsigned long HEARTBEAT_RETRY_MS = 10000;
 unsigned long ultimoHeartbeat = 0;
+unsigned long ultimaTentativaHeartbeat = 0;
 bool heartbeatJaEnviado = false;
+
+// Um HC-SR04 por vez, com intervalo entre disparos. Isso evita eco cruzado e
+// mantém a latência da interface baixa mesmo quando um sensor não responde.
+const unsigned long SENSOR_INTERVALO_MS = 60;
+unsigned long ultimaLeituraSensor = 0;
+int proximoSensor = 0;
 
 FirebaseData fbdo;
 FirebaseAuth auth;
@@ -89,17 +100,22 @@ EstadoTela estadoAtual = TELA_INICIAL;
 String placaPendente = "";
 
 String placaDigitada = "";
+FormatoPlaca formatoPlaca = FORMATO_NAO_ESCOLHIDO;
+unsigned long ultimaInteracao = 0;
+const unsigned long TEMPO_INATIVIDADE_MS = 60000;
 unsigned long resultadoDesde = 0;
-const unsigned long TEMPO_TELA_RESULTADO_MS = 4000;
+const unsigned long TEMPO_TELA_RESULTADO_MS = 5500;
 // O motorista declara na tela inicial se veio entrar ou sair. Antes o totem
 // adivinhava pelo estado do veiculo; agora a intenção é explícita, o que evita
 // abrir a catraca por engano quando alguém digita a placa errada.
 Operacao operacaoEscolhida = OP_NENHUMA;
 
 bool estadoAnteriorVaga[NUM_VAGAS] = {false, false, false, false};
+bool vagaJaSincronizada[NUM_VAGAS] = {false, false, false, false};
+bool validadeAnteriorVaga[NUM_VAGAS] = {false, false, false, false};
+uint8_t leiturasIniciais[NUM_VAGAS] = {0, 0, 0, 0};
 
 // Declarações
-bool conectarWiFi(unsigned long timeoutMs);
 void gerenciarConexao();
 bool sincronizarHora();
 void configurarFirebase();
@@ -107,13 +123,19 @@ long obterTimestampAtual();
 void abrirCatraca();
 bool placaValida(String placa);
 void processarPlacaDigitada(String placa);
-bool atualizarOcupacaoFirestore(int indiceVaga, bool ocupada);
-void atualizarPlacaNaVagaFirestore(int indiceVaga, String placa);
-void enviarHeartbeat();
-void sincronizarConfiguracao();
+bool atualizarOcupacaoFirestore(int indiceVaga, bool ocupada, bool leituraValida);
+bool enviarHeartbeat();
+bool sincronizarConfiguracao();
 bool cadastrarVeiculoNoTotem(String placa);
-void registrarEntrada(String placa, String caminho);
+void registrarEntrada(String placa, String caminho, String revisaoVeiculo);
 void imprimirStatus();
+void abrirCentralConfiguracoes();
+void executarTrocaWifi();
+void fecharCatracaAgora();
+bool reconciliarReservas();
+String revisaoVaga[NUM_VAGAS];
+bool documentoVagaExiste[NUM_VAGAS] = {};
+bool reservasReconciliadas = false;
 
 void setup() {
   Serial.begin(115200);
@@ -124,11 +146,11 @@ void setup() {
   Serial.println("[CATRACA] Servo inicializado e fechado.");
 
   initSensores();
+  carregarConfiguracaoWifi();
 
   // WiFi/Firebase primeiro (tela ainda apagada) - evita somar o pico de
   // corrente do WiFi conectando com o consumo do backlight
-  WiFi.setTxPower(WIFI_POWER_8_5dBm);
-  bool wifiOk = conectarWiFi(WIFI_TIMEOUT_MS);
+  bool wifiOk = conectarWifiConfigurado(WIFI_TIMEOUT_MS);
   if (wifiOk) {
     // A hora precisa vir ANTES do Firebase: além de a cobrança depender de
     // timestamps corretos, o handshake HTTPS do Firebase valida a validade
@@ -146,6 +168,14 @@ void setup() {
 
   initUI();
 
+  // Se nenhuma credencial conhecida conectou, o próprio totem cria uma rede
+  // temporária e mostra na tela como configurá-la pelo celular. O usuário
+  // ainda pode cancelar e usar a tela em modo offline.
+  if (!wifiOk) {
+    Serial.println("[WIFI] Abrindo configuracao local porque nenhuma rede conectou.");
+    executarTrocaWifi();
+  }
+
   // Busca vagas e tarifa do painel antes de liberar o uso do totem.
   sincronizarConfiguracao();
 
@@ -155,70 +185,124 @@ void setup() {
 }
 
 void loop() {
-  // ----- WiFi/Hora/Firebase em segundo plano, com reconexao de verdade -----
-  gerenciarConexao();
-
-  // ----- Reservas de vaga expiram sozinhas se o carro nunca chegar -----
-  atualizarReservasVaga();
-
-  // ----- Sensores das 4 vagas - só envia ao Firebase quando MUDA -----
-  // Só marca como "sincronizado" se a escrita no Firestore realmente deu
-  // certo; se falhar, tenta de novo na proxima volta do loop sozinho.
-  for (int i = 0; i < vagasAtivas; i++) {
-    bool ocupadaAgora = verificarVagaOcupada(i);
-    if (ocupadaAgora != estadoAnteriorVaga[i]) {
-      if (atualizarOcupacaoFirestore(i, ocupadaAgora)) {
-        estadoAnteriorVaga[i] = ocupadaAgora;
-      }
-    }
-  }
-
-  // ----- Heartbeat pro painel web saber que o totem esta online -----
-  // Na mesma passada lemos a configuração do painel (número de vagas), para
-  // o totem acompanhar o que o operador ajustou no site.
-  if (!heartbeatJaEnviado || (millis() - ultimoHeartbeat >= HEARTBEAT_INTERVALO_MS)) {
-    if (firebaseConfigurado && Firebase.ready()) {
-      ultimoHeartbeat = millis();
-      heartbeatJaEnviado = true;
-      sincronizarConfiguracao();
-      enviarHeartbeat();
-    }
-  }
-
-  // ----- Catraca fecha sozinha depois do tempo configurado -----
+  // A catraca tem prioridade sobre qualquer chamada remota bloqueante.
   if (catracaAberta && (millis() - catracaAbertaDesde >= TEMPO_CATRACA_ABERTA_MS)) {
     catraca.write(ANGULO_FECHADO);
     catracaAberta = false;
     Serial.println("[CATRACA] Fechada automaticamente.");
   }
 
+  // Enquanto a catraca está aberta, pausamos I/O remoto e sensores. Assim
+  // nenhuma chamada TLS/Firestore atrasa o fechamento físico do acesso.
+  if (!catracaAberta) {
+    // ----- WiFi/Hora/Firebase em segundo plano, com reconexao de verdade -----
+    if (estadoAtual == TELA_INICIAL) gerenciarConexao();
+
+    // ----- Sensores escalonados: uma vaga por vez -----
+    unsigned long agoraSensores = millis();
+    if (agoraSensores - ultimaLeituraSensor >= SENSOR_INTERVALO_MS) {
+      ultimaLeituraSensor = agoraSensores;
+      if (proximoSensor >= vagasAtivas) proximoSensor = 0;
+      int i = proximoSensor++;
+      bool ocupadaAgora = verificarVagaOcupada(i);
+      if (leiturasIniciais[i] < 3) leiturasIniciais[i]++;
+      bool valida = leituraVagaValida(i);
+      // I/O remoto somente na tela inicial; digitar não deve esperar TLS.
+      if (estadoAtual == TELA_INICIAL && !ts.touched() && leiturasIniciais[i] >= 3
+          && (!vagaJaSincronizada[i] || valida != validadeAnteriorVaga[i]
+              || ocupadaAgora != estadoAnteriorVaga[i])) {
+        if (atualizarOcupacaoFirestore(i, ocupadaAgora, valida)) {
+          estadoAnteriorVaga[i] = ocupadaAgora;
+          validadeAnteriorVaga[i] = valida;
+          vagaJaSincronizada[i] = true;
+          heartbeatJaEnviado = false;
+        }
+      }
+    }
+
+    // ----- Heartbeat pro painel web saber que o totem esta online -----
+    bool heartbeatVencido = !heartbeatJaEnviado
+      || (millis() - ultimoHeartbeat >= HEARTBEAT_INTERVALO_MS);
+    bool podeTentarHeartbeat = ultimaTentativaHeartbeat == 0
+      || millis() - ultimaTentativaHeartbeat >= HEARTBEAT_RETRY_MS;
+    bool sensoresInicializados = true;
+    for (int i = 0; i < vagasAtivas; i++) {
+      if (leiturasIniciais[i] < 3) sensoresInicializados = false;
+    }
+    if (heartbeatVencido && podeTentarHeartbeat && sensoresInicializados
+        && estadoAtual == TELA_INICIAL && !ts.touched()
+        && firebaseConfigurado && Firebase.ready()) {
+      ultimaTentativaHeartbeat = millis();
+      sincronizarConfiguracao();
+      if (!reservasReconciliadas) reservasReconciliadas = reconciliarReservas();
+      if (enviarHeartbeat()) {
+        ultimoHeartbeat = millis();
+        heartbeatJaEnviado = true;
+      }
+    }
+  }
+
+  // ----- Reservas persistem até saída/reconciliação; o prazo só gera aviso -----
+  atualizarReservasVaga();
+
   // ----- Relogio/wifi do cabecalho (leve, só a área pequena, 1x/segundo) -----
   atualizarRelogioCabecalho();
+
+  if ((estadoAtual == TELA_TECLADO || estadoAtual == TELA_CONFIRMAR_CADASTRO)
+      && millis() - ultimaInteracao >= TEMPO_INATIVIDADE_MS) {
+    placaDigitada = "";
+    placaPendente = "";
+    operacaoEscolhida = OP_NENHUMA;
+    estadoAtual = TELA_INICIAL;
+    desenharTelaInicial();
+  }
 
   // ----- Máquina de estados da tela -----
   switch (estadoAtual) {
     case TELA_INICIAL: {
+      if (catracaAberta) break;
+      // A tela continua mostrando apenas ENTRADA e SAIDA. As opções técnicas
+      // ficam protegidas atrás de um gesto intencional no status do Wi-Fi.
+      if (verificarPressaoLongaStatus()) {
+        abrirCentralConfiguracoes();
+        estadoAtual = TELA_INICIAL;
+        desenharTelaInicial();
+        break;
+      }
+
       Operacao escolha = verificarToqueTelaInicial();
       if (escolha != OP_NENHUMA) {
         operacaoEscolhida = escolha;
         placaDigitada = "";
+        formatoPlaca = FORMATO_NAO_ESCOLHIDO;
         estadoAtual = TELA_TECLADO;
-        desenharTelaTeclado(placaDigitada);
+        ultimaInteracao = millis();
+        desenharTelaTeclado(placaDigitada, formatoPlaca);
       }
       break;
     }
 
     case TELA_TECLADO: {
-      char tecla = verificarToqueTeclado();
-      if (tecla == 27) { // CANCELAR
+      EventoTeclado evento = verificarToqueTeclado(placaDigitada, formatoPlaca);
+      if (evento.acao != TECLADO_NENHUMA) ultimaInteracao = millis();
+      if (evento.acao == TECLADO_CANCELAR) {
         estadoAtual = TELA_INICIAL;
         desenharTelaInicial();
-      } else if (tecla == '\b') { // APAGAR
+      } else if (evento.acao == TECLADO_APAGAR) {
         if (placaDigitada.length() > 0) {
           placaDigitada.remove(placaDigitada.length() - 1);
-          atualizarCaixaPlaca(placaDigitada);
+          if (placaDigitada.length() <= 4) {
+            formatoPlaca = FORMATO_NAO_ESCOLHIDO;
+          }
+          desenharTelaTeclado(placaDigitada, formatoPlaca);
         }
-      } else if (tecla == '\n') { // OK
+      } else if (evento.acao == TECLADO_FORMATO_ANTIGA) {
+        formatoPlaca = FORMATO_ANTIGA;
+        desenharTelaTeclado(placaDigitada, formatoPlaca);
+      } else if (evento.acao == TECLADO_FORMATO_MERCOSUL) {
+        formatoPlaca = FORMATO_MERCOSUL;
+        desenharTelaTeclado(placaDigitada, formatoPlaca);
+      } else if (evento.acao == TECLADO_CONFIRMAR) {
         if (placaValida(placaDigitada)) {
           estadoAtual = TELA_PROCESSANDO;
           desenharTelaProcessando("Consultando placa...");
@@ -229,10 +313,10 @@ void loop() {
           resultadoDesde = millis();
           estadoAtual = TELA_RESULTADO;
         }
-      } else if (tecla != 0) {
+      } else if (evento.acao == TECLADO_CARACTERE) {
         if (placaDigitada.length() < 7) {
-          placaDigitada += tecla;
-          atualizarCaixaPlaca(placaDigitada);
+          placaDigitada += evento.caractere;
+          desenharTelaTeclado(placaDigitada, formatoPlaca);
         }
       }
       break;
@@ -249,8 +333,7 @@ void loop() {
         // Cadastra a placa aqui mesmo e segue direto para a entrada
         desenharTelaProcessando("Cadastrando placa...");
         if (cadastrarVeiculoNoTotem(placaPendente)) {
-          String caminho = "veiculos/" + placaPendente;
-          registrarEntrada(placaPendente, caminho);
+          processarPlacaDigitada(placaPendente);
         } else {
           desenharTelaResultado(RESULTADO_ERRO, "NAO FOI POSSIVEL",
                                 "Tente novamente", "Procure o balcao");
@@ -275,8 +358,16 @@ void loop() {
   // ----- Comandos seriais manuais (debug / demonstração) -----
   if (Serial.available() > 0) {
     char c = Serial.read();
-    if (c == 'A' || c == 'a') abrirCatraca();
-    else if (c == 'S' || c == 's') imprimirStatus();
+    if (c == 'S' || c == 's') imprimirStatus();
+    else if ((c == 'W' || c == 'w') && estadoAtual == TELA_INICIAL && !catracaAberta) {
+      executarTrocaWifi();
+      desenharTelaInicial();
+    }
+    else if ((c == 'C' || c == 'c') && estadoAtual == TELA_INICIAL && !catracaAberta) {
+      fecharCatracaAgora();
+      executarCalibracaoTouch(true);
+      desenharTelaInicial();
+    }
   }
 
   delay(15);
@@ -292,33 +383,60 @@ void abrirCatraca() {
   Serial.println("[CATRACA] Aberta.");
 }
 
+void fecharCatracaAgora() {
+  if (!catracaAberta) return;
+  catraca.write(ANGULO_FECHADO);
+  catracaAberta = false;
+  Serial.println("[CATRACA] Fechada antes de entrar no modo de configuracao.");
+}
+
+// As telas de manutenção são bloqueantes de propósito: enquanto alguém troca
+// a rede ou calibra o painel, o totem deixa de aceitar operações de veículos.
+// Elas só podem ser abertas a partir da tela inicial e com a catraca fechada.
+void executarTrocaWifi() {
+  fecharCatracaAgora();
+  ResultadoConfiguracaoWifi resultado = executarPortalConfiguracaoWifi(true);
+
+  if (resultado == WIFI_CONFIG_SUCESSO) {
+    desenharTelaResultado(RESULTADO_SUCESSO, "WI-FI CONFIGURADO",
+                          obterSsidWifiConfigurado(), "Reiniciando o totem");
+    Serial.println("[WIFI] Nova rede validada. Reiniciando para recompor NTP e Firebase.");
+    delay(2200);
+    ESP.restart();
+  }
+
+  if (resultado == WIFI_CONFIG_EXPIRADA) {
+    desenharTelaResultado(RESULTADO_ALERTA, "TEMPO ESGOTADO",
+                          "Wi-Fi nao alterado", "Tente novamente");
+    delay(1800);
+  }
+}
+
+void abrirCentralConfiguracoes() {
+  fecharCatracaAgora();
+  desenharTelaConfiguracoes();
+
+  unsigned long inicio = millis();
+  while (millis() - inicio < TEMPO_INATIVIDADE_MS) {
+    int acao = verificarToqueConfiguracoes();
+    if (acao == 1) {
+      executarTrocaWifi();
+      inicio = millis();
+      desenharTelaConfiguracoes();
+    } else if (acao == 2) {
+      executarCalibracaoTouch(true);
+      inicio = millis();
+      desenharTelaConfiguracoes();
+    } else if (acao == 3) {
+      return;
+    }
+    delay(15);
+  }
+}
+
 // ==========================================
 // WIFI / FIREBASE / NTP
 // ==========================================
-
-// Tentativa inicial e BLOQUEANTE de conectar, usada só no setup() - decide
-// se o sistema já sobe online ou entra em modo offline. As tentativas
-// seguintes (se a conexão cair depois) são feitas em segundo plano por
-// gerenciarConexao(), sem travar a tela.
-bool conectarWiFi(unsigned long timeoutMs) {
-  Serial.print("A ligar ao Wi-Fi");
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-
-  unsigned long inicio = millis();
-  while (WiFi.status() != WL_CONNECTED) {
-    if (millis() - inicio > timeoutMs) {
-      // Cancela a tentativa pendente. Sem isso, a próxima chamada a
-      // WiFi.begin() pode falhar com "sta is connecting, cannot set config".
-      WiFi.disconnect(false, false);
-      Serial.println("\n[WIFI] Tentativa inicial expirou.");
-      return false;
-    }
-    Serial.print(".");
-    delay(300);
-  }
-  Serial.println("\nWiFi Conectado!");
-  return true;
-}
 
 // Máquina de reconexão não-bloqueante: cuida de WiFi -> hora -> Firebase,
 // nessa ordem, e funciona tanto na primeira conexão quanto depois de uma
@@ -332,8 +450,7 @@ void gerenciarConexao() {
       Serial.println("[WIFI] Desconectado - tentando (re)conectar em segundo plano...");
       // Uma tentativa anterior pode ainda estar pendente. Cancela-a antes de
       // configurar a nova, para o ESP32 aceitar a troca de credenciais/rede.
-      WiFi.disconnect(false, false);
-      WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+      iniciarReconexaoWifiConfigurado();
     }
     return;
   }
@@ -367,22 +484,14 @@ void configurarFirebase() {
   Serial.println("Firebase iniciado; aguardando token seguro do dispositivo.");
 }
 
-// Retorna true se a hora foi sincronizada com sucesso. Cada tentativa de
-// leitura tem um timeout curto (500ms) para o pior caso ficar em ~10s, e
-// nao em quase 2 minutos como no calculo original (5s de timeout default
-// da getLocalTime() + 300ms de delay, vezes 20 tentativas).
+// O cliente SNTP do core trabalha em segundo plano. Nunca esperar dez
+// segundos dentro do loop: uma rede sem NTP não pode travar o teclado.
 bool sincronizarHora() {
-  configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
-  Serial.print("Sincronizando hora via NTP");
-  struct tm timeinfo;
-  int tentativas = 0;
-  while (!getLocalTime(&timeinfo, 500) && tentativas < 20) {
-    Serial.print(".");
-    tentativas++;
+  if (!ntpIniciado) {
+    configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER, "time.google.com");
+    ntpIniciado = true;
   }
-  bool ok = tentativas < 20;
-  Serial.println(ok ? "\nHora sincronizada!" : "\n[NTP] Falhou ao sincronizar - tentando de novo em breve.");
-  return ok;
+  return obterTimestampAtual() >= 1704067200L;
 }
 
 long obterTimestampAtual() {
@@ -416,12 +525,15 @@ bool placaValida(String placa) {
 // ==========================================
 // FIRESTORE - VAGAS
 // ==========================================
-bool atualizarOcupacaoFirestore(int indiceVaga, bool ocupada) {
+bool atualizarOcupacaoFirestore(int indiceVaga, bool ocupada, bool leituraValida) {
   if (!firebaseConfigurado || !Firebase.ready()) return false;
   String caminho = String(CAMINHO_ESTACIONAMENTO) + "/vagas/" + String(indiceVaga + 1);
   FirebaseJson conteudo;
-  conteudo.set("fields/ocupada/booleanValue", ocupada);
-  bool ok = Firebase.Firestore.patchDocument(&fbdo, PROJECT_ID, "", caminho.c_str(), conteudo.raw(), "ocupada");
+  // Mantém o contrato booleano do painel. Sem leitura, indisponível por
+  // segurança; o campo adicional permite diagnosticar o sensor no banco.
+  conteudo.set("fields/ocupada/booleanValue", !leituraValida || ocupada);
+  conteudo.set("fields/leituraValida/booleanValue", leituraValida);
+  bool ok = Firebase.Firestore.patchDocument(&fbdo, PROJECT_ID, "", caminho.c_str(), conteudo.raw(), "ocupada,leituraValida");
   if (!ok) {
     Serial.print("[FIRESTORE] Falha ao atualizar ocupacao da vaga ");
     Serial.print(indiceVaga + 1);
@@ -430,34 +542,33 @@ bool atualizarOcupacaoFirestore(int indiceVaga, bool ocupada) {
   return ok;
 }
 
-void atualizarPlacaNaVagaFirestore(int indiceVaga, String placa) {
-  if (!firebaseConfigurado || !Firebase.ready()) return;
-  String caminho = String(CAMINHO_ESTACIONAMENTO) + "/vagas/" + String(indiceVaga + 1);
-  FirebaseJson conteudo;
-  conteudo.set("fields/placa/stringValue", placa);
-  if (!Firebase.Firestore.patchDocument(&fbdo, PROJECT_ID, "", caminho.c_str(), conteudo.raw(), "placa")) {
-    Serial.println("[FIRESTORE] Aviso: falha ao gravar a placa na vaga (nao critico).");
-  }
-}
-
 // Grava "estou vivo" + resumo direto no documento do estacionamento. O
 // painel web considera o totem online se a ultima atualizacao tiver menos
 // de ~2,5 minutos.
-void enviarHeartbeat() {
+bool enviarHeartbeat() {
   FirebaseJson conteudo;
   conteudo.set("fields/ultimaAtualizacao/integerValue", String(obterTimestampAtual()));
-  conteudo.set("fields/vagasLivres/integerValue", String(contarVagasLivres()));
+  conteudo.set("fields/vagasLivres/integerValue", String(reservasReconciliadas ? contarVagasLivres() : 0));
   // Quantos sensores existem de fato na placa. O painel usa isso para avisar
   // o operador caso ele configure mais vagas do que o totem consegue ler.
   conteudo.set("fields/vagasSuportadasTotem/integerValue", String(MAX_VAGAS));
   conteudo.set("fields/vagasEmOperacao/integerValue", String(vagasAtivas));
   conteudo.set("fields/tarifaAplicadaTotem/doubleValue", tarifaPorHora);
 
-  if (!Firebase.Firestore.patchDocument(
+  bool ok = Firebase.Firestore.patchDocument(
           &fbdo, PROJECT_ID, "", CAMINHO_ESTACIONAMENTO, conteudo.raw(),
-          "ultimaAtualizacao,vagasLivres,vagasSuportadasTotem,vagasEmOperacao,tarifaAplicadaTotem")) {
+          "ultimaAtualizacao,vagasLivres,vagasSuportadasTotem,vagasEmOperacao,tarifaAplicadaTotem", "", "true");
+  if (!ok) {
     Serial.println("[FIRESTORE] Aviso: falha ao enviar heartbeat.");
   }
+  if (!ok) return false;
+  // Atualiza só a projeção pública já criada pelo operador, nunca dados de
+  // cadastro ou credenciais. A ausência do catálogo não interrompe o totem.
+  String catalogo = String("catalogoEstacionamentos/") + ESTACIONAMENTO_ID;
+  bool publicou = Firebase.Firestore.patchDocument(&fbdo, PROJECT_ID, "", catalogo.c_str(),
+    conteudo.raw(), "ultimaAtualizacao,vagasLivres,vagasEmOperacao", "", "true");
+  if (!publicou) Serial.println("[CATALOGO] Sem atualizacao; confira regras e cadastro do estacionamento.");
+  return publicou || fbdo.httpCode() == 404;
 }
 
 // ==========================================
@@ -465,20 +576,21 @@ void enviarHeartbeat() {
 // ==========================================
 // Lê numVagas e tarifaHora do documento do estacionamento. O operador edita
 // no painel e o equipamento se ajusta sem precisar regravar o firmware.
-void sincronizarConfiguracao() {
-  if (!firebaseConfigurado || !Firebase.ready()) return;
+bool sincronizarConfiguracao() {
+  if (!firebaseConfigurado || !Firebase.ready()) return false;
 
   if (!Firebase.Firestore.getDocument(&fbdo, PROJECT_ID, "",
                                       CAMINHO_ESTACIONAMENTO, "numVagas,tarifaHora")) {
-    return;   // sem rede ou documento ainda não existe: mantém o valor atual
+    return false;
   }
 
   FirebaseJson resposta;
   FirebaseJsonData campo;
   resposta.setJsonData(fbdo.payload().c_str());
 
+  int desejadas = 0;
   if (resposta.get(campo, "fields/numVagas/integerValue") && campo.success) {
-    int desejadas = campo.to<String>().toInt();
+    desejadas = campo.to<String>().toInt();
     if (desejadas > 0 && definirVagasAtivas(desejadas)) {
       Serial.print("[CONFIG] Vagas monitoradas: ");
       Serial.println(vagasAtivas);
@@ -504,6 +616,7 @@ void sincronizarConfiguracao() {
     Serial.print("[CONFIG] Tarifa sincronizada: R$ ");
     Serial.println(tarifaPorHora, 2);
   }
+  return desejadas > 0 && isfinite(novaTarifa) && novaTarifa >= 0 && novaTarifa <= 10000;
 }
 
 // ==========================================
@@ -540,58 +653,130 @@ bool cadastrarVeiculoNoTotem(String placa) {
 // ==========================================
 // ENTRADA (usada tanto pelo fluxo normal quanto após o auto-cadastro)
 // ==========================================
-void registrarEntrada(String placa, String caminho) {
-  int indiceVagaLivre = encontrarVagaLivre();
-  if (indiceVagaLivre == -1) {
-    desenharTelaResultado(RESULTADO_ALERTA, "LOTADO", "Nenhuma vaga livre", "Volte mais tarde");
+// Escritas de uma operação são confirmadas em um único commit. A versão lida
+// é uma trava otimista: recarga/estadia concorrente cancela o lote inteiro.
+void adicionarEscrita(std::vector<firebase_firestore_document_write_t>& escritas,
+                      String caminho, FirebaseJson& dados, String campos,
+                      String revisao, bool existe) {
+  firebase_firestore_document_write_t escrita;
+  escrita.type = firebase_firestore_document_write_type_update;
+  escrita.update_document_path = caminho.c_str();
+  escrita.update_document_content = dados.raw();
+  escrita.update_masks = campos.c_str();
+  if (revisao.length()) escrita.current_document.update_time = revisao.c_str();
+  else escrita.current_document.exists = existe ? "true" : "false";
+  escritas.push_back(escrita);
+}
+
+void registrarEntrada(String placa, String caminho, String revisaoVeiculo) {
+  if (!sincronizarConfiguracao() || !estadoReservasPronto() ||
+      !(reservasReconciliadas = reconciliarReservas())) {
+    desenharTelaResultado(RESULTADO_ERRO, "ENTRADA INDISPONIVEL",
+                          "Confira rede e memoria", "Procure o responsavel");
     resultadoDesde = millis();
     estadoAtual = TELA_RESULTADO;
     return;
   }
-
-  // Reserva a vaga JA, antes de escrever no Firestore: fecha a corrida
-  // onde duas placas digitadas em sequencia rapida poderiam receber o
-  // mesmo indice de vaga (o sensor ainda nao teria detectado o primeiro
-  // carro fisicamente estacionado).
-  reservarVaga(indiceVagaLivre);
-
-  // Atualiza a tarifa antes de abrir a conta e a congela nesta entrada. Uma
-  // mudança de preço no painel não deve alterar retroativamente uma estadia.
-  sincronizarConfiguracao();
-  long agora = obterTimestampAtual();
-  int numeroVaga = indiceVagaLivre + 1;
-
-  FirebaseJson conteudo;
-  conteudo.set("fields/vagaAtual/integerValue", String(numeroVaga));
-  conteudo.set("fields/horaEntrada/integerValue", String(agora));
-  conteudo.set("fields/estacionamentoId/stringValue", ESTACIONAMENTO_ID);
-  conteudo.set("fields/tarifaHoraEntrada/doubleValue", tarifaPorHora);
-  bool ok = Firebase.Firestore.patchDocument(&fbdo, PROJECT_ID, "", caminho.c_str(), conteudo.raw(), "vagaAtual,horaEntrada,estacionamentoId,tarifaHoraEntrada");
-
+  int indice = encontrarVagaLivre();
+  if (indice < 0) {
+    desenharTelaResultado(RESULTADO_ALERTA, "SEM VAGA DISPONIVEL",
+                          "Vagas ocupadas ou", "sensores sem leitura");
+    resultadoDesde = millis();
+    estadoAtual = TELA_RESULTADO;
+    return;
+  }
+  // Persistir ANTES da rede: se a resposta do commit se perder, manter
+  // bloqueada até consultar a fonte remota. Nunca abrir por suposição.
+  if (!reservarVaga(indice, placa)) {
+    desenharTelaResultado(RESULTADO_ERRO, "MEMORIA INDISPONIVEL",
+                          "Entrada nao registrada", "Procure o responsavel");
+    resultadoDesde = millis();
+    estadoAtual = TELA_RESULTADO;
+    return;
+  }
+  FirebaseJson veiculo, vaga;
+  veiculo.set("fields/vagaAtual/integerValue", String(indice + 1));
+  veiculo.set("fields/horaEntrada/integerValue", String(obterTimestampAtual()));
+  veiculo.set("fields/estacionamentoId/stringValue", ESTACIONAMENTO_ID);
+  veiculo.set("fields/tarifaHoraEntrada/doubleValue", tarifaPorHora);
+  vaga.set("fields/placa/stringValue", placa);
+  std::vector<firebase_firestore_document_write_t> escritas;
+  adicionarEscrita(escritas, caminho, veiculo,
+    "vagaAtual,horaEntrada,estacionamentoId,tarifaHoraEntrada", revisaoVeiculo, true);
+  adicionarEscrita(escritas, String(CAMINHO_ESTACIONAMENTO) + "/vagas/" + String(indice + 1),
+    vaga, "placa", revisaoVaga[indice], documentoVagaExiste[indice]);
+  bool ok = Firebase.Firestore.commitDocument(&fbdo, PROJECT_ID, "", escritas, "");
+  heartbeatJaEnviado = false;
   if (!ok) {
-    // A escrita que abre a "conta" do veiculo falhou: libera a reserva e
-    // NAO abre a catraca, senao o carro entra sem nada registrado.
-    liberarReservaVaga(indiceVagaLivre);
-    Serial.println("[FIRESTORE] Falha ao registrar entrada - catraca nao sera aberta.");
-    desenharTelaResultado(RESULTADO_ERRO, "ERRO NO SERVIDOR", "Nao foi possivel registrar", "Tente novamente");
-    resultadoDesde = millis();
-    estadoAtual = TELA_RESULTADO;
-    return;
+    reservasReconciliadas = false;
+    desenharTelaResultado(RESULTADO_ERRO, "REGISTRO NAO CONFIRMADO",
+                          "Catraca nao liberada", "Tente de novo ou busque ajuda");
+  } else {
+    abrirCatraca();
+    desenharTelaResultado(RESULTADO_SUCESSO, "BEM-VINDO!", "VAGA " + String(indice + 1), placa);
   }
-
-  atualizarPlacaNaVagaFirestore(indiceVagaLivre, placa);
-
-  abrirCatraca();
-  desenharTelaResultado(RESULTADO_SUCESSO, "BEM-VINDO!", "VAGA " + String(numeroVaga), placa);
   resultadoDesde = millis();
   estadoAtual = TELA_RESULTADO;
+}
+
+bool reconciliarReservas() {
+  if (!estadoReservasPronto() || !firebaseConfigurado || !Firebase.ready()) return false;
+  for (int i = 0; i < NUM_VAGAS; i++) {
+    // Importa também associações anteriores à instalação desta versão.
+    String caminhoVaga = String(CAMINHO_ESTACIONAMENTO) + "/vagas/" + String(i + 1);
+    bool existe = Firebase.Firestore.getDocument(&fbdo, PROJECT_ID, "", caminhoVaga.c_str(), "placa");
+    if (!existe && fbdo.httpCode() != 404) return false;
+    documentoVagaExiste[i] = existe;
+    revisaoVaga[i] = "";
+    String remota = "";
+    FirebaseJson documento;
+    FirebaseJsonData campo;
+    if (existe) {
+      documento.setJsonData(fbdo.payload());
+      if (!documento.get(campo, "updateTime")) return false;
+      revisaoVaga[i] = campo.to<String>();
+      if (documento.get(campo, "fields/placa/stringValue")) remota = campo.to<String>();
+    }
+    String local = obterPlacaReservada(i);
+    // Conferir local primeiro; uma falha nunca elimina uma reserva.
+    String candidatas[2] = {local, remota};
+    for (int n = 0; n < 2; n++) {
+      String placa = candidatas[n];
+      if (placa.length() == 0 || (n == 1 && placa == local)) continue;
+      if (!placaValida(placa)) return false;
+      String caminho = "veiculos/" + placa;
+      bool achou = Firebase.Firestore.getDocument(&fbdo, PROJECT_ID, "", caminho.c_str(),
+                                                  "vagaAtual,estacionamentoId");
+      if (!achou && fbdo.httpCode() != 404) return false;
+      bool abertaAqui = false;
+      if (achou) {
+        documento.setJsonData(fbdo.payload());
+        FirebaseJsonData numero, estacionamento;
+        if (!documento.get(numero, "fields/vagaAtual/integerValue")) return false;
+        int vagaAtual = numero.to<int>();
+        if (vagaAtual < 0 || vagaAtual > NUM_VAGAS) return false;
+        if (vagaAtual > 0) {
+          if (!documento.get(estacionamento, "fields/estacionamentoId/stringValue")) return false;
+          abertaAqui = estacionamento.to<String>() == ESTACIONAMENTO_ID;
+          if (abertaAqui && vagaAtual != i + 1) return false;
+        }
+      }
+      if (abertaAqui) {
+        if (!reservarVaga(i, placa)) return false;
+      } else if (placa == obterPlacaReservada(i) && !liberarReservaVaga(i)) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 // ==========================================
 // LÓGICA PRINCIPAL: ENTRADA / SAÍDA POR PLACA
 // ==========================================
 void processarPlacaDigitada(String placa) {
-  if (!firebaseConfigurado || !Firebase.ready()) {
+  if (!placaValida(placa) || operacaoEscolhida == OP_NENHUMA || !horaSincronizada ||
+      WiFi.status() != WL_CONNECTED || !firebaseConfigurado || !Firebase.ready()) {
     desenharTelaResultado(RESULTADO_ERRO, "SEM CONEXAO", "Tente novamente", "Verifique o WiFi");
     resultadoDesde = millis();
     estadoAtual = TELA_RESULTADO;
@@ -621,6 +806,7 @@ void processarPlacaDigitada(String placa) {
       placaPendente = placa;
       desenharTelaConfirmarCadastro(placa);
       estadoAtual = TELA_CONFIRMAR_CADASTRO;
+      ultimaInteracao = millis();
       return;
     } else {
       Serial.print("[FIRESTORE] Erro de comunicacao (codigo ");
@@ -638,10 +824,13 @@ void processarPlacaDigitada(String placa) {
   FirebaseJsonData resultado;
 
   bool ativo = false;
-  int vagaAtual = 0;
+  int vagaAtual = -1;
   long horaEntrada = 0;
-  double saldo = 0;
+  double saldo = NAN;
   double tarifaHoraEntrada = -1.0;
+  String estacionamentoAtual = "";
+  String revisaoVeiculo = "";
+  if (json.get(resultado, "updateTime")) revisaoVeiculo = resultado.to<String>();
 
   if (json.get(resultado, "fields/ativo/booleanValue"))       ativo = resultado.to<bool>();
   if (json.get(resultado, "fields/vagaAtual/integerValue"))   vagaAtual = resultado.to<int>();
@@ -655,6 +844,15 @@ void processarPlacaDigitada(String placa) {
     tarifaHoraEntrada = resultado.to<double>();
   else if (json.get(resultado, "fields/tarifaHoraEntrada/integerValue"))
     tarifaHoraEntrada = resultado.to<double>();
+  if (json.get(resultado, "fields/estacionamentoId/stringValue"))
+    estacionamentoAtual = resultado.to<String>();
+
+  if (revisaoVeiculo.length() == 0 || vagaAtual < 0 || vagaAtual > NUM_VAGAS || !isfinite(saldo)) {
+    desenharTelaResultado(RESULTADO_ERRO, "CADASTRO INCONSISTENTE", "Operacao nao realizada", "Procure o responsavel");
+    resultadoDesde = millis();
+    estadoAtual = TELA_RESULTADO;
+    return;
+  }
 
   if (!ativo) {
     desenharTelaResultado(RESULTADO_ERRO, "CADASTRO INATIVO", "Placa: " + placa, "Procure o balcao");
@@ -682,26 +880,37 @@ void processarPlacaDigitada(String placa) {
     return;
   }
 
+  // Uma saída só pode ser concluída pelo mesmo estacionamento que abriu a
+  // estadia. As regras do Firestore também bloqueiam isso, mas a validação
+  // local oferece uma mensagem útil em vez de um erro genérico do servidor.
+  if (operacaoEscolhida == OP_SAIDA && estacionamentoAtual != ESTACIONAMENTO_ID) {
+    desenharTelaResultado(RESULTADO_ALERTA, "ENTRADA EM OUTRO LOCAL",
+                          "Use o estacionamento", "onde voce entrou");
+    resultadoDesde = millis();
+    estadoAtual = TELA_RESULTADO;
+    return;
+  }
+
   if (vagaAtual == 0) {
     // ----- ENTRADA -----
-    registrarEntrada(placa, caminho);
+    registrarEntrada(placa, caminho, revisaoVeiculo);
 
   } else {
     // ----- SAÍDA -----
     long agora = obterTimestampAtual();
-    long duracaoSegundos = 0;
-    if (horaEntrada > 0 && agora > horaEntrada) {
-      duracaoSegundos = agora - horaEntrada;
-    } else {
-      Serial.println("[COBRANCA] Timestamp de entrada invalido - cobranca zerada por seguranca.");
+    if (horaEntrada < 1704067200L || agora < horaEntrada ||
+        !isfinite(tarifaHoraEntrada) || tarifaHoraEntrada < 0 || tarifaHoraEntrada > 10000) {
+      desenharTelaResultado(RESULTADO_ERRO, "ESTADIA INCONSISTENTE",
+                            "Confira horario e tarifa", "Procure o responsavel");
+      resultadoDesde = millis();
+      estadoAtual = TELA_RESULTADO;
+      return;
     }
-    // Registros antigos podem não ter a tarifa congelada. Nesse caso usa a
-    // configuração atual como fallback, sem impedir a saída.
-    if (tarifaHoraEntrada < 0.0) sincronizarConfiguracao();
-    double tarifaAplicada = tarifaHoraEntrada >= 0.0
-                               ? tarifaHoraEntrada
-                               : tarifaPorHora;
-    double valorCobrado = (duracaoSegundos / 3600.0) * tarifaAplicada;
+    long duracaoSegundos = agora - horaEntrada;
+    double tarifaAplicada = tarifaHoraEntrada;
+    double valorCobrado = round((duracaoSegundos / 3600.0) * tarifaAplicada * 100.0) / 100.0;
+    // Preserva frações de centavo legadas: arredondar o saldo para cima
+    // criaria crédito em uma estadia gratuita.
     double novoSaldo = saldo - valorCobrado;
 
     FirebaseJson conteudo;
@@ -710,22 +919,8 @@ void processarPlacaDigitada(String placa) {
     conteudo.set("fields/estacionamentoId/stringValue", "");
     conteudo.set("fields/saldo/doubleValue", novoSaldo);
     conteudo.set("fields/tarifaHoraEntrada/doubleValue", 0.0);
-    bool ok = Firebase.Firestore.patchDocument(&fbdo, PROJECT_ID, "", caminho.c_str(), conteudo.raw(), "vagaAtual,horaEntrada,estacionamentoId,saldo,tarifaHoraEntrada");
-
-    if (!ok) {
-      // Nao fecha a conta do veiculo no banco: nao abre a catraca e deixa
-      // o motorista tentar de novo, em vez de liberar a saida sem cobrar.
-      Serial.println("[FIRESTORE] Falha ao registrar saida - catraca nao sera aberta.");
-      desenharTelaResultado(RESULTADO_ERRO, "ERRO NO SERVIDOR", "Nao foi possivel registrar", "Tente novamente");
-      resultadoDesde = millis();
-      estadoAtual = TELA_RESULTADO;
-      return;
-    }
-
-    int indiceVaga = vagaAtual - 1;
-    atualizarPlacaNaVagaFirestore(indiceVaga, "");
-
-    String idHistorico = placa + "_" + String((unsigned long)agora);
+    // ID da estadia, não da tentativa: uma repetição não cria outro recibo.
+    String idHistorico = placa + "_" + String((unsigned long)horaEntrada);
     String caminhoHistorico = "historico/" + idHistorico;
     FirebaseJson historico;
     historico.set("fields/placa/stringValue", placa);
@@ -736,15 +931,46 @@ void processarPlacaDigitada(String placa) {
     historico.set("fields/valorCobrado/doubleValue", valorCobrado);
     historico.set("fields/tarifaHora/doubleValue", tarifaAplicada);
     historico.set("fields/estacionamentoId/stringValue", ESTACIONAMENTO_ID);
-    if (!Firebase.Firestore.createDocument(&fbdo, PROJECT_ID, "", caminhoHistorico.c_str(), historico.raw())) {
-      Serial.println("[FIRESTORE] Aviso: falha ao gravar historico (a saida ja foi liberada normalmente).");
+    String caminhoVaga = String(CAMINHO_ESTACIONAMENTO) + "/vagas/" + String(vagaAtual);
+    if (!Firebase.Firestore.getDocument(&fbdo, PROJECT_ID, "", caminhoVaga.c_str(), "placa")) {
+      desenharTelaResultado(RESULTADO_ERRO, "VAGA NAO CONFIRMADA", "Saida nao registrada", "Procure o responsavel");
+      resultadoDesde = millis();
+      estadoAtual = TELA_RESULTADO;
+      return;
     }
+    FirebaseJson vagaAtualizada, vagaRemota;
+    FirebaseJsonData revisao, placaVaga;
+    vagaRemota.setJsonData(fbdo.payload());
+    if (!vagaRemota.get(revisao, "updateTime") ||
+        !vagaRemota.get(placaVaga, "fields/placa/stringValue") || placaVaga.to<String>() != placa) {
+      desenharTelaResultado(RESULTADO_ERRO, "VAGA INCONSISTENTE", "Saida nao registrada", "Procure o responsavel");
+      resultadoDesde = millis();
+      estadoAtual = TELA_RESULTADO;
+      return;
+    }
+    vagaAtualizada.set("fields/placa/stringValue", "");
+    std::vector<firebase_firestore_document_write_t> escritas;
+    adicionarEscrita(escritas, caminho, conteudo,
+      "vagaAtual,horaEntrada,estacionamentoId,saldo,tarifaHoraEntrada", revisaoVeiculo, true);
+    adicionarEscrita(escritas, caminhoVaga, vagaAtualizada, "placa", revisao.to<String>(), true);
+    adicionarEscrita(escritas, caminhoHistorico, historico, "", "", false);
+    bool ok = Firebase.Firestore.commitDocument(&fbdo, PROJECT_ID, "", escritas, "");
+    if (!ok) {
+      // Inclusive timeout com resultado desconhecido: nunca repetir um débito
+      // ou abrir a catraca sem confirmação. A nova tentativa relê o servidor.
+      desenharTelaResultado(RESULTADO_ERRO, "SAIDA NAO CONFIRMADA", "Tente de novo ou", "procure o responsavel");
+      resultadoDesde = millis();
+      estadoAtual = TELA_RESULTADO;
+      return;
+    }
+    liberarReservaVaga(vagaAtual - 1);
+    heartbeatJaEnviado = false;
 
     abrirCatraca();
     char bufValor[16];
     snprintf(bufValor, sizeof(bufValor), "R$ %.2f", valorCobrado);
     int minutos = duracaoSegundos / 60;
-    desenharTelaResultado(RESULTADO_SUCESSO, "ATE LOGO!", String(bufValor), String(minutos) + " min  ·  " + placa);
+    desenharTelaResultado(RESULTADO_SUCESSO, "ATE LOGO!", String(bufValor), String(minutos) + " min  |  " + placa);
     resultadoDesde = millis();
     estadoAtual = TELA_RESULTADO;
   }
@@ -761,6 +987,10 @@ void imprimirStatus() {
   Serial.println(horaSincronizada ? "sim" : "nao");
   Serial.print("Firebase configurado: ");
   Serial.println(firebaseConfigurado ? "sim" : "nao");
+  Serial.print("Reservas persistidas: ");
+  Serial.println(estadoReservasPronto() ? "integras" : "FALHA - entradas bloqueadas");
+  Serial.print("Reservas reconciliadas: ");
+  Serial.println(reservasReconciliadas ? "sim" : "aguardando servidor");
   Serial.print("Tarifa sincronizada: R$ ");
   Serial.println(tarifaPorHora, 2);
   Serial.print("Vagas livres (disponiveis para nova entrada): ");
@@ -769,7 +999,7 @@ void imprimirStatus() {
     Serial.print("  Vaga ");
     Serial.print(i + 1);
     Serial.print(": ");
-    Serial.println(obterEstadoVaga(i) ? "ocupada" : "livre");
+    Serial.println(!leituraVagaValida(i) ? "SEM LEITURA" : obterEstadoVaga(i) ? "ocupada" : "livre");
   }
   Serial.println("=============================");
 }

@@ -1,0 +1,51 @@
+name: Verificação ESP e Firebase
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Main/**'
+      - 'firestore.rules'
+      - 'firebase.test.json'
+      - '.github/workflows/firebase-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'Main/**'
+      - 'firestore.rules'
+      - 'firebase.test.json'
+      - '.github/workflows/firebase-ci.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  firestore-tests:
+    name: Contratos e isolamento no emulador
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: Main/tests
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v5
+      - name: Preparar Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Main/tests/package-lock.json
+      - name: Preparar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Instalar dependências de teste
+        run: npm ci --ignore-scripts
+      - name: Validar regras e operações sem produção
+        run: npm test
