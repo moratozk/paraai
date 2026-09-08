@@ -8,7 +8,9 @@
 //   cp Credenciais.example.h Credenciais.h        (Linux/Mac)
 //
 // Onde encontrar cada valor:
-//   WIFI_SSID / WIFI_PASSWORD -> rede Wi-Fi 2.4GHz que o ESP32 vai usar
+//   WIFI_SSID / WIFI_PASSWORD -> rede Wi-Fi 2.4GHz de contingência. Depois
+//                    da primeira gravação, ela pode ser escolhida/trocada
+//                    pelo portal local exibido na tela, sem recompilar.
 //   API_KEY      -> Firebase Console > Configurações do projeto > Geral
 //                    > "Chave da API da Web"
 //   PROJECT_ID   -> Firebase Console > Configurações do projeto > Geral
@@ -24,7 +26,10 @@
 #ifndef CREDENCIAIS_H
 #define CREDENCIAIS_H
 
-#define WIFI_SSID     "NOME_DA_SUA_REDE"
+// Fallback usado se ainda não houver uma rede validada na memória do ESP32.
+// Se ele não conseguir conectar, o totem abre automaticamente a rede de
+// configuração temporária e mostra as instruções na própria tela.
+#define WIFI_SSID     "NOME_DA_SUA_REDE_2G"
 #define WIFI_PASSWORD "SENHA_DA_SUA_REDE"
 
 #define API_KEY      "SUA_API_KEY_DO_FIREBASE"
