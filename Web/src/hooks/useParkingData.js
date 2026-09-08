@@ -123,6 +123,36 @@ export function useEstacionamentoPublico(estId) {
   };
 }
 
+export function useEstacionamentosAdmin() {
+  const [estado, setEstado] = useState({ itens: [], loading: true, erro: "" });
+
+  useEffect(() => {
+    const unsub = onSnapshot(
+      collection(db, "estacionamentos"),
+      (snap) => {
+        const itens = snap.docs.map((item) => ({ id: item.id, ...item.data() }));
+        itens.sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || "")));
+        setEstado({ itens, loading: false, erro: "" });
+      },
+      (err) => {
+        console.error("[admin-estacionamentos] erro no listener:", err);
+        setEstado({
+          itens: [],
+          loading: false,
+          erro: "Não foi possível carregar os estacionamentos.",
+        });
+      }
+    );
+    return unsub;
+  }, []);
+
+  return {
+    estacionamentos: estado.itens,
+    loading: estado.loading,
+    erro: estado.erro,
+  };
+}
+
 // Estado seguro das vagas exibidas no mapa do motorista. A projeção pública
 // contém somente ocupada/reservada; placas continuam restritas ao operador.
 export function useVagasPublicas(estId, numVagas = TOTAL_VAGAS) {

@@ -94,6 +94,7 @@ export default function MarketplaceEstacionamentos() {
 
   const resultados = useMemo(() => {
     const filtrados = preparados.filter((item) => {
+      if (item.ativo === false) return false;
       if (termo && !item.pesquisavel.includes(termo)) return false;
       if (filtro === "com-vagas" && !item.disponivel) return false;
       if (filtro === "ate-dez" && item.tarifaHora > 10) return false;
@@ -110,11 +111,13 @@ export default function MarketplaceEstacionamentos() {
     });
   }, [preparados, termo, filtro, ordem]);
 
-  if (userData?.role === "operador") {
+  if (["operador", "admin"].includes(userData?.role)) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const disponiveisAgora = preparados.filter((item) => item.disponivel).length;
+  const disponiveisAgora = preparados.filter(
+    (item) => item.ativo !== false && item.disponivel
+  ).length;
 
   return (
     <main className="page container marketplace-page">

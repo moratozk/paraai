@@ -71,7 +71,7 @@ const PARA_QUEM = [
       "Mude o preço quando quiser",
       "Histórico de tudo que entrou e saiu",
     ],
-    acao: { texto: "Cadastrar estacionamento", href: "/cadastro" },
+    acao: { texto: "Acesso administrativo", href: "/login?perfil=admin" },
     foto: "photo-1486406146926-c627a92ad1ab",
     alt: "Fachada de edifício com linhas geométricas",
   },
@@ -284,11 +284,11 @@ export default function Home() {
             sem ninguém na guarita
           </h2>
           <p>
-            Crie a conta, cadastre seu estacionamento e comece a usar hoje.
+            A administração central cadastra e gerencia os estacionamentos da rede.
           </p>
           <div className="chamada-acoes">
-            <Link to="/cadastro" className="btn btn-primary btn-lg">
-              Criar conta
+            <Link to="/login?perfil=admin" className="btn btn-primary btn-lg">
+              Acesso administrativo
             </Link>
             <Link to="/login" className="btn btn-outline btn-lg">
               Já tenho conta

@@ -20,6 +20,8 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
   const [processando, setProcessando] = useState(false);
   const [erroPagamento, setErroPagamento] = useState("");
   const [resultado, setResultado] = useState(null);
+  const tarifaMinuto =
+    Number(estacionamento.tarifaMinuto) || TARIFA_MINUTO_FATEC;
 
   const metade = Math.ceil(vagas.length / 2);
 
@@ -77,6 +79,7 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
         estacionamentoId: estacionamento.id,
         vaga: vagaSelecionada,
         modoPagamento,
+        tarifaMinuto,
       });
       setResultado(iniciado);
       setEtapa("sucesso");
@@ -168,7 +171,7 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
               </div>
               <div>
                 <span>Tarifa por minuto</span>
-                <strong>{formatarMoeda(TARIFA_MINUTO_FATEC)}</strong>
+                <strong>{formatarMoeda(tarifaMinuto)}</strong>
               </div>
               <div>
                 <span>Saldo na carteira</span>
@@ -180,7 +183,7 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
               <strong>Você não precisa escolher o tempo.</strong>
               <p>
                 O cronômetro começa ao confirmar. Cada minuto iniciado acrescenta
-                {` ${formatarMoeda(TARIFA_MINUTO_FATEC)}`} e o total é fechado ao
+                {` ${formatarMoeda(tarifaMinuto)}`} e o total é fechado ao
                 encerrar a permanência.
               </p>
             </div>
@@ -201,7 +204,7 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
                     Debita o primeiro minuto agora e o restante ao encerrar.
                   </small>
                 </span>
-                <b>{formatarMoeda(TARIFA_MINUTO_FATEC)}</b>
+                <b>{formatarMoeda(tarifaMinuto)}</b>
               </label>
               <label className={modoPagamento === "depois" ? "selecionada" : ""}>
                 <input
@@ -249,7 +252,7 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
               {resultado?.valorAntecipado > 0
                 ? `${formatarMoeda(resultado.valorAntecipado)} foi descontado da carteira. `
                 : "Nenhum valor foi descontado agora. "}
-              O total continuará aumentando em {formatarMoeda(TARIFA_MINUTO_FATEC)} por minuto.
+              O total continuará aumentando em {formatarMoeda(tarifaMinuto)} por minuto.
             </p>
             <div className="checkout-sucesso-acoes">
               {rota && (

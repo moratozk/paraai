@@ -35,12 +35,10 @@ assistentes.
 
 ## Os dois papéis
 
-**Dono de estacionamento (operador)** — cadastra os dados e o número de vagas,
-recebe um `ESTACIONAMENTO_ID` e configura esse ID no totem. Depois define e
-altera a tarifa diretamente no painel. Também acompanha valores recebidos
-(hoje / 7 dias / 30
-dias / total), quantidade de acessos, ocupação vaga a vaga ao vivo, status do
-totem e a tabela de movimentações.
+**Administrador do sistema** — usa um painel central para cadastrar, editar,
+publicar ou ocultar todos os estacionamentos da rede. Contas administrativas
+são promovidas pelo Firebase Console/Admin SDK e nunca pelo cadastro público.
+As contas antigas de operador continuam compatíveis com o próprio pátio.
 
 **Motorista** — cadastra a placa (padrão antigo ABC1234 ou Mercosul ABC1D23),
 recarrega a carteira e usa qualquer estacionamento da rede: digita a placa no
@@ -101,11 +99,14 @@ não mudar retroativamente durante uma estadia.
    *Firestore*. Publique as regras de [`firestore.rules`](firestore.rules).
 2. **Painel** — siga [Web/README.md](Web/README.md): `npm install`, copie
    `.env.example` → `.env`, preencha e `npm run dev`.
-3. **Cadastre o estacionamento** no painel ("Tenho um estacionamento") e copie
-   o ID exibido em *Perfil > Meu estacionamento* (formato `EST-XXXXXX`).
-4. Em **Perfil > Segurança do totem**, gere uma credencial exclusiva do
+3. **Promova uma conta administrativa** alterando no Firebase Console o campo
+   `users/{UID}.role` para `admin`. Essa operação não é exposta no site.
+4. **Cadastre o estacionamento** no painel administrativo e copie o ID exibido
+   no cartão do local (formato `EST-XXXXXX`).
+5. Em uma conta de operador existente, **Perfil > Segurança do totem** gera
+   uma credencial exclusiva do
    equipamento.
-5. **Firmware** — siga [Main/README.md](Main/README.md): copie
+6. **Firmware** — siga [Main/README.md](Main/README.md): copie
    `Credenciais.example.h` → `Credenciais.h`, preencha WiFi, chaves,
    `TOTEM_EMAIL`, `TOTEM_PASSWORD` e `ESTACIONAMENTO_ID`; selecione a partição
    **Huge APP** e grave no ESP32.

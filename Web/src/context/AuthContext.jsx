@@ -40,8 +40,12 @@ export function AuthProvider({ children }) {
   // escritas do próprio cadastro (ver comentário no auto-reparo abaixo).
   const cadastroEmAndamento = useRef(false);
 
-  // role: "motorista" (padrão) ou "operador" (dono de estacionamento)
+  // O cadastro público cria apenas motoristas. Papéis privilegiados são
+  // provisionados fora do cliente e nunca aceitos neste método.
   async function register(name, email, password, role = "motorista", telefone = "") {
+    if (role !== "motorista") {
+      throw new Error("Contas administrativas não podem ser criadas pelo cadastro público.");
+    }
     cadastroEmAndamento.current = true;
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, password);

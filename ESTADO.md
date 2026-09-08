@@ -70,6 +70,8 @@ na Arduino IDE e gravar.
   chegou a `ready` e o heartbeat real confirmou 4 sensores e tarifa de R$ 8,50
 
 **Painel**
+- Painel administrativo central para cadastrar, editar, publicar e ocultar
+  estacionamentos de toda a rede, com resumo de locais e capacidade
 - Faturamento por período, ocupação vaga a vaga, histórico de acessos
 - Mapa visual e interativo do pátio em tempo real, com corredor, entrada,
   saída e vagas reservadas para PCD, idosos e gestantes
@@ -85,12 +87,15 @@ na Arduino IDE e gravar.
 
 **Site**
 - Home com fotos que acompanham a rolagem, sem dependência de animação
-- Cadastro em duas frentes: motorista e estacionamento
+- Cadastro público de motorista e acesso separado para administradores
 - Recuperação e redefinição de senha
 - Recarga de saldo (PIX/cartão simulados)
 - Tema claro e escuro, ambos com contraste conferido em WCAG AA
 - Papel da conta é definitivo: motorista não pode cadastrar estacionamento e
   operador não usa o fluxo de motorista; as regras do Firestore reforçam isso
+- A antiga opção pública “Tenho um estacionamento” foi substituída pelo acesso
+  administrativo. Contas `admin` são promovidas de forma controlada fora do
+  cliente web
 - Marketplace do motorista em `/estacionamentos`, com busca, filtros, tarifa,
   disponibilidade e rota; usa `catalogoEstacionamentos` para não expor dados
   operacionais ou credenciais dos pátios
@@ -152,10 +157,12 @@ quem entra quer estacionar, não conhecer o hardware.
 **Modo claro não usa branco puro.** Cansa a vista. A base é um cinza
 levemente quente; o contraste vem da hierarquia, não do brilho.
 
-**Motorista e operador são contas separadas.** O papel é escolhido no
-cadastro. Motorista não vê nem consegue criar estacionamento; um operador só
-vincula o próprio estacionamento inicial. Não oferecer conversão entre papéis
-no Perfil.
+**Motorista e administrador são contas separadas.** O cadastro público cria
+somente motoristas. Administradores usam `users/{uid}.role = "admin"`, são
+promovidos apenas pelo Firebase Console/Admin SDK e gerenciam a rede inteira.
+Contas `operador` antigas continuam funcionando para não quebrar instalações,
+mas não são mais oferecidas no cadastro público. Não permitir autopromoção de
+papel no cliente.
 
 **O marketplace usa uma projeção pública autenticada.** Motoristas leem
 `catalogoEstacionamentos`, nunca o documento operacional completo. Novos

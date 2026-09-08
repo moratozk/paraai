@@ -48,13 +48,18 @@ export async function iniciarEstadiaApp({
   estacionamentoId,
   vaga,
   modoPagamento,
+  tarifaMinuto = TARIFA_MINUTO_FATEC,
 }) {
   const numeroVaga = Number(vaga);
+  const tarifa = Number(tarifaMinuto);
   if (!uid || !placa || !estacionamentoId || !Number.isInteger(numeroVaga)) {
     throw new Error("Dados da vaga ou do motorista estão incompletos.");
   }
   if (!["agora", "depois"].includes(modoPagamento)) {
     throw new Error("Escolha quando deseja pagar.");
+  }
+  if (!Number.isFinite(tarifa) || tarifa <= 0) {
+    throw new Error("A tarifa por minuto deste estacionamento é inválida.");
   }
 
   const veiculoRef = doc(db, "veiculos", placa);
@@ -68,7 +73,7 @@ export async function iniciarEstadiaApp({
     String(numeroVaga)
   );
   const inicio = Math.floor(Date.now() / 1000);
-  const antecipado = modoPagamento === "agora" ? TARIFA_MINUTO_FATEC : 0;
+  const antecipado = modoPagamento === "agora" ? tarifa : 0;
 
   await runTransaction(db, async (transacao) => {
     const [veiculoSnap, estadiaSnap, vagaSnap] = await Promise.all([
@@ -91,7 +96,7 @@ export async function iniciarEstadiaApp({
     }
 
     const saldo = Number(veiculoSnap.data().saldo) || 0;
-    if (saldo < TARIFA_MINUTO_FATEC) {
+    if (saldo < tarifa) {
       throw new Error(
         "Saldo insuficiente. Recarregue ao menos o valor do primeiro minuto."
       );
@@ -105,7 +110,7 @@ export async function iniciarEstadiaApp({
       vagaId: String(numeroVaga),
       historicoId: historicoRef.id,
       inicio,
-      tarifaMinuto: TARIFA_MINUTO_FATEC,
+      tarifaMinuto: tarifa,
       modoPagamento,
       valorAntecipado: antecipado,
       status: "ativa",
@@ -120,7 +125,7 @@ export async function iniciarEstadiaApp({
       entrada: inicio,
       saida: 0,
       duracaoMinutos: 0,
-      tarifaMinuto: TARIFA_MINUTO_FATEC,
+      tarifaMinuto: tarifa,
       modoPagamento,
       valorAntecipado: antecipado,
       valorCobrado: antecipado,

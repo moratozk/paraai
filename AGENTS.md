@@ -8,7 +8,8 @@ repositório. Antes de alterar qualquer coisa, leia também `README.md` e
 
 O ParaAí é um TCC composto por:
 
-- `Web/`: painel React/Vite integrado ao Firebase.
+- `Web/`: painel React/Vite integrado ao Firebase, incluindo administração
+  central da rede.
 - `Main/`: firmware Arduino para ESP32, tela ILI9341, touch XPT2046, sensores e
   servo da catraca.
 - `firestore.rules`: regras de acesso do banco em produção.
@@ -35,8 +36,10 @@ componente não pode quebrar os outros.
   chaves, tokens, credenciais de totem ou arquivos de conta de serviço.
 - Use somente `Web/.env.example` e `Main/Credenciais.example.h` como modelos.
 - Não enfraqueça `firestore.rules`. Motoristas acessam apenas os próprios
-  dados, operadores apenas o próprio estacionamento e totens apenas as ações
-  necessárias do equipamento autorizado.
+  dados, operadores antigos apenas o próprio estacionamento, administradores
+  gerenciam a rede e totens executam somente as ações necessárias do
+  equipamento autorizado. Contas `admin` nunca podem ser criadas ou promovidas
+  pelo cliente web.
 - O Firebase App Check deve permanecer em modo de monitoramento enquanto o
   ESP32 não tiver uma integração compatível.
 - Não publique no Firebase nem grave o ESP32 sem solicitação explícita do

@@ -12,6 +12,13 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function adminDoSistema() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+          == 'admin';
+    }
+
     function estacionamentoExiste(estId) {
       return exists(/databases/$(database)/documents/estacionamentos/$(estId));
     }
@@ -167,7 +174,7 @@ service cloud.firestore {
 
     function catalogoSomenteComCamposPublicos(dados) {
       return dados.keys().hasOnly([
-          'nome', 'numVagas', 'tarifaHora', 'tarifaMinuto', 'cep', 'logradouro', 'numero',
+          'nome', 'numVagas', 'tarifaHora', 'tarifaMinuto', 'ativo', 'cep', 'logradouro', 'numero',
           'bairro', 'cidade', 'uf', 'ultimaAtualizacao', 'vagasLivres',
           'vagasEmOperacao', 'modoDisponibilidade', 'vagasLivresMapeadas',
           'ultimaAtualizacaoMapa', 'atualizadoEm'
@@ -177,6 +184,7 @@ service cloud.firestore {
         && dados.tarifaHora is number && dados.tarifaHora >= 0
         && (!('tarifaMinuto' in dados)
           || (dados.tarifaMinuto is number && dados.tarifaMinuto >= 0))
+        && (!('ativo' in dados) || dados.ativo is bool)
         && dados.cep is string
         && dados.logradouro is string
         && dados.numero is string
@@ -229,10 +237,10 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if signedIn() && request.auth.uid == uid;
       allow delete: if false;
-      // O papel é escolhido apenas na criação da conta. Isso impede que uma
-      // conta de motorista seja convertida pelo cliente em conta de operador.
+      // O cadastro público cria somente motoristas. Contas administrativas
+      // são promovidas fora do cliente, e operadores antigos são preservados.
       allow create: if signedIn() && request.auth.uid == uid
-        && request.resource.data.role in ['motorista', 'operador'];
+        && request.resource.data.role == 'motorista';
       allow update: if signedIn() && request.auth.uid == uid
         && (
           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
@@ -245,12 +253,15 @@ service cloud.firestore {
 
     match /estacionamentos/{estId} {
       // Motoristas leem a projeção segura em catalogoEstacionamentos.
-      allow read: if donoDoEstacionamento(estId)
+      allow read: if adminDoSistema()
+        || donoDoEstacionamento(estId)
         || totemDoEstacionamento(estId);
-      allow create: if signedIn()
-        && perfilDeOperador(request.auth.uid)
-        && request.resource.data.ownerUid == request.auth.uid;
-      allow update: if donoDoEstacionamento(estId)
+      allow create: if adminDoSistema()
+        || (signedIn()
+          && perfilDeOperador(request.auth.uid)
+          && request.resource.data.ownerUid == request.auth.uid);
+      allow update: if adminDoSistema()
+        || donoDoEstacionamento(estId)
         || (totemDoEstacionamento(estId)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'ultimaAtualizacao',
@@ -259,44 +270,48 @@ service cloud.firestore {
             'vagasEmOperacao',
             'tarifaAplicadaTotem'
           ]));
-      allow delete: if donoDoEstacionamento(estId);
+      allow delete: if adminDoSistema() || donoDoEstacionamento(estId);
 
       match /vagas/{vaga} {
-        allow read: if donoDoEstacionamento(estId)
+        allow read: if adminDoSistema()
+          || donoDoEstacionamento(estId)
           || totemDoEstacionamento(estId);
         // O dono pode operar o mapa durante a apresentação ou em contingência.
         // A validação mantém exatamente o mesmo formato usado pelo equipamento.
-        allow create: if (totemDoEstacionamento(estId)
+        allow create: if adminDoSistema()
+          || (totemDoEstacionamento(estId)
             && vagaDoTotemValida(request.resource.data))
           || (donoDoEstacionamento(estId)
             && vagaManualValida(request.resource.data));
-        allow update: if ((totemDoEstacionamento(estId)
+        allow update: if adminDoSistema()
+          || (((totemDoEstacionamento(estId)
               && vagaDoTotemValida(request.resource.data))
             || (donoDoEstacionamento(estId)
               && vagaManualValida(request.resource.data)))
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
               'ocupada', 'placa'
-            ]);
-        allow delete: if donoDoEstacionamento(estId);
+            ]));
+        allow delete: if adminDoSistema() || donoDoEstacionamento(estId);
       }
     }
 
     match /catalogoEstacionamentos/{estId} {
       allow read: if signedIn();
-      allow create: if signedIn()
-        && catalogoSomenteComCamposPublicos(request.resource.data)
-        && getAfter(/databases/$(database)/documents/estacionamentos/$(estId)).data.ownerUid
-          == request.auth.uid;
+      allow create: if catalogoSomenteComCamposPublicos(request.resource.data)
+        && (adminDoSistema()
+          || (signedIn()
+            && getAfter(/databases/$(database)/documents/estacionamentos/$(estId)).data.ownerUid
+              == request.auth.uid));
       allow update: if signedIn()
         && catalogoSomenteComCamposPublicos(request.resource.data)
-        && donoDoEstacionamento(estId);
-      allow delete: if donoDoEstacionamento(estId);
+        && (adminDoSistema() || donoDoEstacionamento(estId));
+      allow delete: if adminDoSistema() || donoDoEstacionamento(estId);
 
       // Projeção do mapa para motoristas: expõe somente livre/ocupada, nunca
       // placa, proprietário ou credencial operacional.
       match /vagas/{vaga} {
         allow read: if signedIn();
-        allow create, update: if donoDoEstacionamento(estId)
+        allow create, update: if (adminDoSistema() || donoDoEstacionamento(estId))
           && vagaPublicaValida(request.resource.data);
         allow update: if signedIn()
           && request.resource.data.diff(resource.data).affectedKeys()
@@ -324,7 +339,7 @@ service cloud.firestore {
               && getAfter(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.status
                 == 'finalizada')
           );
-        allow delete: if donoDoEstacionamento(estId);
+        allow delete: if adminDoSistema() || donoDoEstacionamento(estId);
       }
     }
 
@@ -348,7 +363,7 @@ service cloud.firestore {
             && request.resource.data.minutosCobrados is int
             && request.resource.data.minutosCobrados >= 1
             && request.resource.data.valorCobrado is number
-            && request.resource.data.valorCobrado >= 0.22
+            && request.resource.data.valorCobrado >= resource.data.tarifaMinuto
             && request.resource.data.valorDebitadoNaSaida is number
             && request.resource.data.valorDebitadoNaSaida >= 0
             && request.resource.data.finalizadoEm is timestamp)
@@ -387,12 +402,20 @@ service cloud.firestore {
         && dados.vagaId is string
         && dados.historicoId is string
         && dados.inicio is int && dados.inicio > 0
-        && dados.tarifaMinuto == 0.22
+        && dados.tarifaMinuto is number && dados.tarifaMinuto > 0
+        && ((('tarifaMinuto' in get(/databases/$(database)/documents/catalogoEstacionamentos/$(dados.estacionamentoId)).data)
+              && dados.tarifaMinuto
+                == get(/databases/$(database)/documents/catalogoEstacionamentos/$(dados.estacionamentoId)).data.tarifaMinuto)
+          || (!('tarifaMinuto' in get(/databases/$(database)/documents/catalogoEstacionamentos/$(dados.estacionamentoId)).data)
+              && dados.tarifaMinuto == 0.22))
         && dados.modoPagamento in ['agora', 'depois']
-        && ((dados.modoPagamento == 'agora' && dados.valorAntecipado == 0.22)
+        && ((dados.modoPagamento == 'agora' && dados.valorAntecipado == dados.tarifaMinuto)
           || (dados.modoPagamento == 'depois' && dados.valorAntecipado == 0))
         && dados.status == 'ativa'
         && dados.criadoEm is timestamp
+        && (!('ativo' in get(/databases/$(database)/documents/catalogoEstacionamentos/$(dados.estacionamentoId)).data)
+          || get(/databases/$(database)/documents/catalogoEstacionamentos/$(dados.estacionamentoId)).data.ativo
+            == true)
         && get(/databases/$(database)/documents/catalogoEstacionamentos/$(dados.estacionamentoId)/vagas/$(dados.vagaId)).data.ocupada
           == false
         && getAfter(/databases/$(database)/documents/catalogoEstacionamentos/$(dados.estacionamentoId)/vagas/$(dados.vagaId)).data.reservada
@@ -428,9 +451,11 @@ service cloud.firestore {
         && dados.entrada is int && dados.entrada > 0
         && dados.saida == 0
         && dados.duracaoMinutos == 0
-        && dados.tarifaMinuto == 0.22
+        && dados.tarifaMinuto is number && dados.tarifaMinuto > 0
+        && dados.tarifaMinuto
+          == getAfter(/databases/$(database)/documents/estadiasApp/$(uid)).data.tarifaMinuto
         && dados.modoPagamento in ['agora', 'depois']
-        && ((dados.modoPagamento == 'agora' && dados.valorAntecipado == 0.22)
+        && ((dados.modoPagamento == 'agora' && dados.valorAntecipado == dados.tarifaMinuto)
           || (dados.modoPagamento == 'depois' && dados.valorAntecipado == 0))
         && dados.valorCobrado == dados.valorAntecipado
         && dados.status == 'ativa'
@@ -448,19 +473,22 @@ service cloud.firestore {
     }
 
     match /totems/{totemUid} {
-      allow read: if signedIn()
-        && (request.auth.uid == totemUid
-          || donoDoEstacionamento(resource.data.estacionamentoId));
-      allow create: if signedIn()
-        && ((request.auth.uid == totemUid
-            && pareamentoValido(request.resource.data))
-          || donoDoEstacionamento(request.resource.data.estacionamentoId));
-      allow update: if signedIn()
-        && donoDoEstacionamento(resource.data.estacionamentoId)
-        && request.resource.data.estacionamentoId
-          == resource.data.estacionamentoId;
-      allow delete: if signedIn()
-        && donoDoEstacionamento(resource.data.estacionamentoId);
+      allow read: if adminDoSistema()
+        || (signedIn()
+          && (request.auth.uid == totemUid
+            || donoDoEstacionamento(resource.data.estacionamentoId)));
+      allow create: if adminDoSistema()
+        || (signedIn()
+          && ((request.auth.uid == totemUid
+              && pareamentoValido(request.resource.data))
+            || donoDoEstacionamento(request.resource.data.estacionamentoId)));
+      allow update: if adminDoSistema()
+        || (signedIn()
+          && donoDoEstacionamento(resource.data.estacionamentoId)
+          && request.resource.data.estacionamentoId
+            == resource.data.estacionamentoId);
+      allow delete: if adminDoSistema()
+        || (signedIn() && donoDoEstacionamento(resource.data.estacionamentoId));
     }
 
     match /veiculos/{placa} {
@@ -494,7 +522,8 @@ service cloud.firestore {
     }
 
     match /historico/{registro} {
-      allow read: if donoDoEstacionamento(resource.data.estacionamentoId)
+      allow read: if adminDoSistema()
+        || donoDoEstacionamento(resource.data.estacionamentoId)
         || donoDoVeiculo(resource.data.placa);
       allow create: if (totemCadastrado()
           && request.resource.data.estacionamentoId
@@ -519,7 +548,7 @@ service cloud.firestore {
         && request.resource.data.duracaoMinutos is int
         && request.resource.data.duracaoMinutos >= 1
         && request.resource.data.valorCobrado is number
-        && request.resource.data.valorCobrado >= 0.22
+        && request.resource.data.valorCobrado >= resource.data.tarifaMinuto
         && request.resource.data.valorDebitadoNaSaida is number
         && request.resource.data.valorDebitadoNaSaida >= 0
         && request.resource.data.finalizadoEm is timestamp
