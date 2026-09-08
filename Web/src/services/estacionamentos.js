@@ -6,8 +6,11 @@
 // =========================================================================
 
 import {
+  collection,
+  deleteField,
   doc,
   getDoc,
+  getDocs,
   setDoc,
   serverTimestamp,
   writeBatch,
@@ -41,9 +44,28 @@ function dadosPublicos(estacionamento) {
     uf: estacionamento.uf || "",
   };
 
+  const tarifaMinuto = Number(estacionamento.tarifaMinuto);
+  if (Number.isFinite(tarifaMinuto) && tarifaMinuto >= 0) {
+    dados.tarifaMinuto = tarifaMinuto;
+  }
+  if (typeof estacionamento.ativo === "boolean") {
+    dados.ativo = estacionamento.ativo;
+  }
+
   for (const campo of ["ultimaAtualizacao", "vagasLivres", "vagasEmOperacao"]) {
     const valor = Number(estacionamento[campo]);
     if (Number.isFinite(valor) && valor >= 0) dados[campo] = valor;
+  }
+
+  if (estacionamento.modoDisponibilidade === "mapa") {
+    dados.modoDisponibilidade = "mapa";
+    const vagasLivresMapeadas = Number(estacionamento.vagasLivresMapeadas);
+    if (Number.isFinite(vagasLivresMapeadas) && vagasLivresMapeadas >= 0) {
+      dados.vagasLivresMapeadas = vagasLivresMapeadas;
+    }
+    if (estacionamento.ultimaAtualizacaoMapa) {
+      dados.ultimaAtualizacaoMapa = estacionamento.ultimaAtualizacaoMapa;
+    }
   }
 
   return dados;
@@ -157,4 +179,186 @@ export function sincronizarCatalogo(estacionamento) {
     { ...dadosPublicos(estacionamento), atualizadoEm: serverTimestamp() },
     { merge: true }
   );
+}
+
+export async function criarEstacionamentoAdmin({
+  uid,
+  nome,
+  numVagas,
+  tarifaHora = TARIFA_PADRAO,
+  tarifaMinuto = "",
+  cep = "",
+  logradouro = "",
+  numero = "",
+  bairro = "",
+  cidade = "",
+  uf = "",
+}) {
+  const perfil = await getDoc(doc(db, "users", uid));
+  if (!perfil.exists() || perfil.data().role !== "admin") {
+    throw new Error("Apenas administradores podem cadastrar estacionamentos.");
+  }
+
+  const vagas = Number(numVagas);
+  const hora = Number(tarifaHora);
+  const minuto = tarifaMinuto === "" ? null : Number(tarifaMinuto);
+  if (!String(nome || "").trim()) throw new Error("Informe o nome.");
+  if (!Number.isInteger(vagas) || vagas < 1 || vagas > 200) {
+    throw new Error("Número de vagas deve ser de 1 a 200.");
+  }
+  if (!Number.isFinite(hora) || hora < 0) throw new Error("Tarifa por hora inválida.");
+  if (minuto !== null && (!Number.isFinite(minuto) || minuto < 0)) {
+    throw new Error("Tarifa por minuto inválida.");
+  }
+
+  let id = gerarIdEstacionamento();
+  while ((await getDoc(doc(db, "estacionamentos", id))).exists()) {
+    id = gerarIdEstacionamento();
+  }
+
+  const estacionamento = {
+    nome: String(nome).trim(),
+    numVagas: vagas,
+    tarifaHora: hora,
+    ...(minuto !== null && { tarifaMinuto: minuto }),
+    cep,
+    logradouro,
+    numero,
+    bairro,
+    cidade,
+    uf,
+    ativo: true,
+    ownerUid: uid,
+    criadoPorAdmin: uid,
+    criadoEm: serverTimestamp(),
+  };
+  const batch = writeBatch(db);
+  batch.set(doc(db, "estacionamentos", id), estacionamento);
+  batch.set(doc(db, "catalogoEstacionamentos", id), dadosPublicos(estacionamento));
+  await batch.commit();
+  return id;
+}
+
+export async function atualizarEstacionamentoAdmin(estId, campos) {
+  if (!estId) throw new Error("Estacionamento inválido.");
+  const atualSnap = await getDoc(doc(db, "estacionamentos", estId));
+  if (!atualSnap.exists()) throw new Error("Estacionamento não encontrado.");
+
+  const dados = { atualizadoEm: serverTimestamp() };
+  const texto = ["nome", "cep", "logradouro", "numero", "bairro", "cidade", "uf"];
+  for (const campo of texto) {
+    if (campos[campo] !== undefined) dados[campo] = String(campos[campo]).trim();
+  }
+  if (campos.nome !== undefined && !dados.nome) throw new Error("Informe o nome.");
+  if (campos.numVagas !== undefined) {
+    const vagas = Number(campos.numVagas);
+    if (!Number.isInteger(vagas) || vagas < 1 || vagas > 200) {
+      throw new Error("Número de vagas deve ser de 1 a 200.");
+    }
+    dados.numVagas = vagas;
+  }
+  if (campos.tarifaHora !== undefined) {
+    const tarifa = Number(campos.tarifaHora);
+    if (!Number.isFinite(tarifa) || tarifa < 0) throw new Error("Tarifa por hora inválida.");
+    dados.tarifaHora = tarifa;
+  }
+  let removerTarifaMinuto = false;
+  if (campos.tarifaMinuto !== undefined) {
+    if (campos.tarifaMinuto === "") {
+      dados.tarifaMinuto = deleteField();
+      removerTarifaMinuto = true;
+    } else {
+      const tarifa = Number(campos.tarifaMinuto);
+      if (!Number.isFinite(tarifa) || tarifa < 0) {
+        throw new Error("Tarifa por minuto inválida.");
+      }
+      dados.tarifaMinuto = tarifa;
+    }
+  }
+  if (campos.ativo !== undefined) dados.ativo = Boolean(campos.ativo);
+
+  const combinado = { ...atualSnap.data(), ...campos };
+  const dadosCatalogo = {
+    ...dadosPublicos(combinado),
+    atualizadoEm: serverTimestamp(),
+  };
+  if (removerTarifaMinuto) dadosCatalogo.tarifaMinuto = deleteField();
+
+  const batch = writeBatch(db);
+  batch.update(doc(db, "estacionamentos", estId), dados);
+  batch.set(doc(db, "catalogoEstacionamentos", estId), dadosCatalogo, {
+    merge: true,
+  });
+  await batch.commit();
+}
+
+// Publica a disponibilidade calculada pelo mapa manual. Documentos de vaga
+// ainda inexistentes representam vagas livres, como no painel do operador.
+// Os campos ficam separados do heartbeat para um totem com menos sensores não
+// sobrescrever a disponibilidade das 20 vagas mapeadas da demonstração.
+export async function publicarMapaVagas(estId) {
+  if (!estId) throw new Error("Estacionamento inválido.");
+
+  const estacionamentoRef = doc(db, "estacionamentos", estId);
+  const [estacionamentoSnap, vagasSnap] = await Promise.all([
+    getDoc(estacionamentoRef),
+    getDocs(collection(db, "estacionamentos", estId, "vagas")),
+  ]);
+
+  if (!estacionamentoSnap.exists()) {
+    throw new Error("Estacionamento não encontrado.");
+  }
+
+  const estacionamento = estacionamentoSnap.data();
+  const numVagas = Math.max(1, Number(estacionamento.numVagas) || 1);
+  const vagasOcupadas = new Set();
+  vagasSnap.forEach((vaga) => {
+    const numero = Number(vaga.id);
+    if (numero >= 1 && numero <= numVagas && vaga.data().ocupada === true) {
+      vagasOcupadas.add(numero);
+    }
+  });
+
+  const disponibilidade = {
+    modoDisponibilidade: "mapa",
+    vagasLivresMapeadas: Math.max(0, numVagas - vagasOcupadas.size),
+    ultimaAtualizacaoMapa: serverTimestamp(),
+  };
+  const batch = writeBatch(db);
+  batch.set(estacionamentoRef, disponibilidade, { merge: true });
+  batch.set(
+    doc(db, "catalogoEstacionamentos", estId),
+    {
+      ...dadosPublicos({ ...estacionamento, ...disponibilidade }),
+      ...disponibilidade,
+      atualizadoEm: serverTimestamp(),
+    },
+    { merge: true }
+  );
+  for (let numero = 1; numero <= numVagas; numero += 1) {
+    batch.set(
+      doc(db, "catalogoEstacionamentos", estId, "vagas", String(numero)),
+      { ocupada: vagasOcupadas.has(numero) },
+      { merge: true }
+    );
+  }
+  await batch.commit();
+
+  return disponibilidade.vagasLivresMapeadas;
+}
+
+// Controle manual usado na apresentação e em contingência quando o pátio não
+// está com os sensores ligados. A subcoleção já é observada por onSnapshot,
+// portanto todos os painéis abertos refletem a mudança imediatamente.
+export async function atualizarVagaManual({ estId, numero, ocupada, placa = "" }) {
+  const numeroVaga = Number(numero);
+  if (!estId || !Number.isInteger(numeroVaga) || numeroVaga < 1 || numeroVaga > 200) {
+    throw new Error("Vaga inválida.");
+  }
+
+  await setDoc(doc(db, "estacionamentos", estId, "vagas", String(numeroVaga)), {
+    ocupada: Boolean(ocupada),
+    placa: ocupada ? String(placa || "").trim().toUpperCase() : "",
+  });
+  return publicarMapaVagas(estId);
 }

@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import {
   useVeiculo,
   useHistoricoPlaca,
   useEstacionamentoPublico,
+  useEstadiaApp,
 } from "../hooks/useParkingData";
 import {
   formatarMoeda,
@@ -12,21 +14,34 @@ import {
   formatarDuracaoAoVivo,
 } from "../utils/format";
 import { VALOR_POR_HORA } from "../utils/constants";
+import {
+  calcularCobrancaEstadiaApp,
+  finalizarEstadiaApp,
+} from "../services/estadiasApp";
 import "./Pages.css";
 
 export default function PainelMotorista() {
   const { user, userData } = useAuth();
+  const toast = useToast();
   const firstName = (userData?.name || user?.displayName || "Motorista").split(" ")[0];
   const placa = userData?.placa || null;
 
   const { veiculo } = useVeiculo(placa);
   const { historico } = useHistoricoPlaca(placa);
+  const { estadia: estadiaApp } = useEstadiaApp(user?.uid);
+  const estadiaAppAtiva = estadiaApp?.status === "ativa";
+  const [finalizandoApp, setFinalizandoApp] = useState(false);
+  const [erroEstadiaApp, setErroEstadiaApp] = useState("");
 
   const estacionado = Number(veiculo?.vagaAtual) > 0;
   const horaEntrada = Number(veiculo?.horaEntrada) || 0;
 
   // Em qual estacionamento da rede o carro está agora
-  const estIdAtual = estacionado ? veiculo?.estacionamentoId || null : null;
+  const estIdAtual = estacionado
+    ? veiculo?.estacionamentoId || null
+    : estadiaAppAtiva
+      ? estadiaApp.estacionamentoId
+      : null;
   const { estacionamento: estAtual } = useEstacionamentoPublico(estIdAtual);
   // O totem congela a tarifa no momento da entrada para que uma alteração no
   // painel não mude o preço de quem já está estacionado.
@@ -42,14 +57,15 @@ export default function PainelMotorista() {
   // Cronômetro ao vivo enquanto o carro está estacionado
   const [agora, setAgora] = useState(() => Math.floor(Date.now() / 1000));
   useEffect(() => {
-    if (!estacionado) return undefined;
+    if (!estacionado && !estadiaAppAtiva) return undefined;
     const id = setInterval(() => setAgora(Math.floor(Date.now() / 1000)), 1000);
     return () => clearInterval(id);
-  }, [estacionado]);
+  }, [estacionado, estadiaAppAtiva]);
 
   const segundosEstacionado =
     estacionado && horaEntrada > 0 ? Math.max(0, agora - horaEntrada) : 0;
   const custoEstimado = (segundosEstacionado / 3600) * tarifaAtual;
+  const cobrancaEstadiaApp = calcularCobrancaEstadiaApp(estadiaApp, agora);
 
   const ultimosAcessos = historico.slice(0, 5);
   const totalGasto = historico.reduce(
@@ -61,12 +77,58 @@ export default function PainelMotorista() {
   // Alerta se o saldo não cobre nem 1 hora na tarifa vigente
   const saldoBaixo = Boolean(placa) && saldo < tarifaAtual;
 
+  async function encerrarEstadiaPeloApp() {
+    setFinalizandoApp(true);
+    setErroEstadiaApp("");
+    try {
+      const resumo = await finalizarEstadiaApp({ uid: user.uid, placa });
+      toast.sucesso(
+        `Permanência encerrada. Total cobrado: ${formatarMoeda(resumo.valorTotal)}.`
+      );
+    } catch (err) {
+      setErroEstadiaApp(err.message || "Não foi possível concluir o pagamento.");
+    } finally {
+      setFinalizandoApp(false);
+    }
+  }
+
   return (
     <div className="page container">
       <div className="page-header">
         <h1>Olá, {firstName} 👋</h1>
         <p>Seu carro na rede ParaAí, em tempo real.</p>
       </div>
+
+      {estadiaAppAtiva && (
+        <div className="card destaque-aviso estadia-app-ativa">
+          <div>
+            <span className="stat-label">Estacionamento pelo aplicativo</span>
+            <strong>
+              Vaga {estadiaApp.vaga} ·{" "}
+              {formatarDuracaoAoVivo(cobrancaEstadiaApp.segundos)}
+            </strong>
+            <span>
+              Total até agora: {formatarMoeda(cobrancaEstadiaApp.valorTotal)} ·{" "}
+              {formatarMoeda(cobrancaEstadiaApp.tarifaMinuto)}/min
+            </span>
+            <span>
+              Já descontado: {formatarMoeda(cobrancaEstadiaApp.valorDescontado)} ·{" "}
+              falta pagar: {formatarMoeda(cobrancaEstadiaApp.valorPendente)}
+            </span>
+            {erroEstadiaApp && <span className="error-text">{erroEstadiaApp}</span>}
+          </div>
+          <button
+            className="btn btn-primary btn-sm"
+            type="button"
+            disabled={finalizandoApp}
+            onClick={encerrarEstadiaPeloApp}
+          >
+            {finalizandoApp
+              ? "Finalizando…"
+              : `Encerrar e pagar ${formatarMoeda(cobrancaEstadiaApp.valorPendente)}`}
+          </button>
+        </div>
+      )}
 
       {saldoBaixo && (
         <div className="card destaque-aviso alerta-saldo">
@@ -91,7 +153,11 @@ export default function PainelMotorista() {
         <div className="card stat-card">
           <span className="stat-label">Situação</span>
           <span className="stat-value situacao">
-            {!placa ? "—" : estacionado ? "Estacionado" : "Na rua"}
+            {!placa
+              ? "—"
+              : estacionado || estadiaAppAtiva
+                ? "Estacionado"
+                : "Na rua"}
           </span>
         </div>
         <div className="card stat-card">
@@ -158,6 +224,25 @@ export default function PainelMotorista() {
                       <strong className="money">{formatarMoeda(custoEstimado)}</strong>
                     </div>
                   </>
+                ) : estadiaAppAtiva ? (
+                  <>
+                    <div className="info-row">
+                      <span className="label">Estacionado em</span>
+                      <strong>
+                        {estAtual?.nome ||
+                          estadiaApp.estacionamentoId ||
+                          "Estacionamento da rede"}
+                      </strong>
+                    </div>
+                    <div className="info-row">
+                      <span className="label">Vaga</span>
+                      <strong>Vaga {estadiaApp.vaga}</strong>
+                    </div>
+                    <div className="info-row">
+                      <span className="label">Situação</span>
+                      <span className="status-pill success">Estadia pelo aplicativo</span>
+                    </div>
+                  </>
                 ) : (
                   <div className="info-row">
                     <span className="label">Situação</span>
@@ -190,18 +275,34 @@ export default function PainelMotorista() {
               </p>
             ) : (
               <>
-                {ultimosAcessos.map((item) => (
-                  <div className="activity-item" key={item.id}>
-                    <div>
-                      <strong>Vaga {item.vaga}</strong>
-                      {item.estacionamentoId ? ` · ${item.estacionamentoId}` : ""}
-                      <div className="activity-time">{formatarDataHora(item.saida)}</div>
+                {ultimosAcessos.map((item) => {
+                  const cobranca =
+                    item.origem === "aplicativo"
+                      ? calcularCobrancaEstadiaApp(item, agora)
+                      : null;
+                  return (
+                    <div className="activity-item" key={item.id}>
+                      <div>
+                        <strong>Vaga {item.vaga}</strong>
+                        {item.estacionamentoId ? ` · ${item.estacionamentoId}` : ""}
+                        <div className="activity-time">
+                          {item.status === "ativa"
+                            ? formatarDuracaoAoVivo(cobranca.segundos)
+                            : formatarDataHora(item.saida)}
+                        </div>
+                      </div>
+                      <span
+                        className={`status-pill ${
+                          item.status === "ativa" ? "warning" : "success"
+                        }`}
+                      >
+                        {item.status === "ativa"
+                          ? `${formatarMoeda(cobranca.valorPendente)} a pagar`
+                          : formatarMoeda(item.valorCobrado)}
+                      </span>
                     </div>
-                    <span className="status-pill success">
-                      {formatarMoeda(item.valorCobrado)}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
                 <Link to="/historico" className="btn btn-outline btn-block" style={{ marginTop: 16 }}>
                   Ver histórico completo
                 </Link>

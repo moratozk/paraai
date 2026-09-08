@@ -1,7 +1,7 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **26/08/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **08/09/2026**.
 
 ---
 
@@ -70,7 +70,19 @@ na Arduino IDE e gravar.
   chegou a `ready` e o heartbeat real confirmou 4 sensores e tarifa de R$ 8,50
 
 **Painel**
+- Painel administrativo central para cadastrar, editar, publicar e ocultar
+  estacionamentos de toda a rede, com resumo de locais e capacidade
+- Cada cartão do painel administrativo abre uma central de monitoramento
+  dedicada. A tela combina sensores e reservas do aplicativo em tempo real,
+  diferencia vagas livres, ocupadas e reservadas, permite filtrar por estado
+  ou placa e mostra tempo e valor acumulado de estadias ativas para o guarda.
+  O mapa pode ocupar a tela inteira, com saída pelo botão ou pela tecla Esc
 - Faturamento por período, ocupação vaga a vaga, histórico de acessos
+- Mapa visual e interativo do pátio em tempo real, com corredor, entrada,
+  saída e vagas reservadas para PCD, idosos e gestantes
+- Controle manual seguro para ocupar, identificar por placa e liberar vagas
+  durante a apresentação mesmo sem os sensores físicos ligados
+- Atalho “Preparar demo FATEC” preenche o nome Estacionamento FATEC e 20 vagas
 - Status do totem em três estados: nunca conectou / offline / online
 - Avisa se o operador configurar mais vagas do que o totem tem sensores
 - Tarifa e número de vagas editáveis
@@ -80,15 +92,32 @@ na Arduino IDE e gravar.
 
 **Site**
 - Home com fotos que acompanham a rolagem, sem dependência de animação
-- Cadastro em duas frentes: motorista e estacionamento
+- Cadastro público de motorista e acesso separado para administradores
 - Recuperação e redefinição de senha
 - Recarga de saldo (PIX/cartão simulados)
 - Tema claro e escuro, ambos com contraste conferido em WCAG AA
 - Papel da conta é definitivo: motorista não pode cadastrar estacionamento e
   operador não usa o fluxo de motorista; as regras do Firestore reforçam isso
+- A antiga opção pública “Tenho um estacionamento” foi substituída pelo acesso
+  administrativo. Contas `admin` são promovidas de forma controlada fora do
+  cliente web
 - Marketplace do motorista em `/estacionamentos`, com busca, filtros, tarifa,
   disponibilidade e rota; usa `catalogoEstacionamentos` para não expor dados
   operacionais ou credenciais dos pátios
+- O mapa público abre um checkout depois da escolha da vaga. Na FATEC, a
+  tarifa demonstrativa é R$ 0,22 por minuto iniciado; o motorista pode
+  antecipar o primeiro minuto ou deixar o débito completo para o encerramento
+- Estadias iniciadas pelo aplicativo aparecem no painel do motorista com
+  cronômetro e total crescente, reservam a vaga escolhida e descontam o valor
+  final da carteira simulada ao encerrar
+- A compra da vaga cria imediatamente uma movimentação em `historico`, por
+  isso aparece em “Meus acessos” ainda em andamento. O horário de entrada
+  persistido alimenta o temporizador mesmo se a página for fechada; a tela
+  separa total acumulado, valor já descontado e saldo ainda a pagar
+- “Meus acessos” mantém a lista completa, identifica compras pelo aplicativo
+  e entradas pelo totem, permite filtrar as duas origens e mostra local, forma
+  de pagamento, situação, duração e total de cada utilização. A última estadia
+  criada antes desse histórico dedicado também é recuperada como legado
 
 ---
 
@@ -133,16 +162,43 @@ quem entra quer estacionar, não conhecer o hardware.
 **Modo claro não usa branco puro.** Cansa a vista. A base é um cinza
 levemente quente; o contraste vem da hierarquia, não do brilho.
 
-**Motorista e operador são contas separadas.** O papel é escolhido no
-cadastro. Motorista não vê nem consegue criar estacionamento; um operador só
-vincula o próprio estacionamento inicial. Não oferecer conversão entre papéis
-no Perfil.
+**Motorista e administrador são contas separadas.** O cadastro público cria
+somente motoristas. Administradores usam `users/{uid}.role = "admin"`, são
+promovidos apenas pelo Firebase Console/Admin SDK e gerenciam a rede inteira.
+Contas `operador` antigas continuam funcionando para não quebrar instalações,
+mas não são mais oferecidas no cadastro público. Não permitir autopromoção de
+papel no cliente.
 
 **O marketplace usa uma projeção pública autenticada.** Motoristas leem
 `catalogoEstacionamentos`, nunca o documento operacional completo. Novos
 estacionamentos criam a vitrine junto com o cadastro; os antigos são migrados
 quando o operador abre o painel. Sem leitura recente, a tela mostra “Sem
 leitura” em vez de inventar vagas disponíveis.
+
+**O mapa manual é uma contingência do operador.** Ele grava o mesmo documento
+`estacionamentos/{id}/vagas/{numero}` usado pelo totem e chega aos painéis por
+`onSnapshot`. Se os sensores estiverem ligados, a leitura física continua
+podendo atualizar esses documentos. As novas regras precisam ser publicadas
+depois que a alteração entrar em `main`.
+
+Quando o mapa manual está ativo, sua contagem de vagas livres também é
+publicada em `catalogoEstacionamentos`. Ela usa campos próprios, separados do
+heartbeat dos sensores, para que as 20 vagas mapeadas da FATEC continuem
+visíveis ao motorista e cada ocupação/liberação manual atualize a vitrine.
+O catálogo também recebe uma subcoleção `vagas` somente com o estado
+livre/ocupada/reservada, sem placas. Assim, motoristas podem abrir uma
+sobreposição dedicada do mapa da FATEC, escolher visualmente uma das 20
+posições e iniciar uma estadia pelo aplicativo. O documento
+`estadiasApp/{uid}` mantém no máximo uma estadia ativa por conta, sem reutilizar
+os campos de entrada física do totem. Enquanto ela está ativa, a mesma placa
+não pode abrir outra entrada no equipamento. Cada nova estadia também cria um
+documento próprio em `historico`, que muda de `ativa` para `finalizada` no
+encerramento e não é perdido quando a próxima compra começa.
+
+**Pagamento pelo aplicativo também é simulado.** “Pagar agora” antecipa um
+minuto (R$ 0,22) e cobra o restante ao encerrar; “Pagar depois” não desconta no
+início e cobra o total no fim. Todo minuto iniciado é cobrado, sem o motorista
+informar previamente a duração. Não apresentar esse fluxo como pagamento real.
 
 ---
 

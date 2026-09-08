@@ -123,6 +123,152 @@ export function useEstacionamentoPublico(estId) {
   };
 }
 
+export function useEstacionamentosAdmin() {
+  const [estado, setEstado] = useState({ itens: [], loading: true, erro: "" });
+
+  useEffect(() => {
+    const unsub = onSnapshot(
+      collection(db, "estacionamentos"),
+      (snap) => {
+        const itens = snap.docs.map((item) => ({ id: item.id, ...item.data() }));
+        itens.sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || "")));
+        setEstado({ itens, loading: false, erro: "" });
+      },
+      (err) => {
+        console.error("[admin-estacionamentos] erro no listener:", err);
+        setEstado({
+          itens: [],
+          loading: false,
+          erro: "Não foi possível carregar os estacionamentos.",
+        });
+      }
+    );
+    return unsub;
+  }, []);
+
+  return {
+    estacionamentos: estado.itens,
+    loading: estado.loading,
+    erro: estado.erro,
+  };
+}
+
+// Estado seguro das vagas exibidas no mapa do motorista. A projeção pública
+// contém somente ocupada/reservada; placas continuam restritas ao operador.
+export function useVagasPublicas(estId, numVagas = TOTAL_VAGAS) {
+  const [snapState, setSnapState] = useState({ id: null, docs: {}, erro: "" });
+
+  useEffect(() => {
+    if (!estId) return undefined;
+    return onSnapshot(
+      collection(db, "catalogoEstacionamentos", estId, "vagas"),
+      (snap) => {
+        const porId = {};
+        snap.forEach((vaga) => {
+          porId[vaga.id] = vaga.data();
+        });
+        setSnapState({ id: estId, docs: porId, erro: "" });
+      },
+      (err) => {
+        console.error("[vagas-publicas] erro no listener:", err);
+        setSnapState({
+          id: estId,
+          docs: {},
+          erro: "Não foi possível carregar as vagas agora.",
+        });
+      }
+    );
+  }, [estId]);
+
+  const atualizado = snapState.id === estId;
+  const total = Math.max(1, Number(numVagas) || TOTAL_VAGAS);
+  const vagas = useMemo(
+    () =>
+      Array.from({ length: total }, (_, indice) => {
+        const id = String(indice + 1);
+        return {
+          id,
+          numero: indice + 1,
+          ocupada: Boolean(
+            atualizado &&
+              (snapState.docs[id]?.ocupada || snapState.docs[id]?.reservada)
+          ),
+          ocupadaFisica: Boolean(atualizado && snapState.docs[id]?.ocupada),
+          reservada: Boolean(atualizado && snapState.docs[id]?.reservada),
+        };
+      }),
+    [atualizado, snapState.docs, total]
+  );
+
+  return {
+    vagas,
+    loading: Boolean(estId) && !atualizado,
+    erro: atualizado ? snapState.erro : "",
+  };
+}
+
+// Estadias iniciadas no aplicativo. Administradores usam esta leitura para
+// distinguir uma vaga reservada de uma ocupação informada pelo sensor.
+export function useEstadiasAppAdmin(estId) {
+  const [snapState, setSnapState] = useState({ id: null, itens: [], erro: "" });
+
+  useEffect(() => {
+    if (!estId) return undefined;
+    const q = query(
+      collection(db, "estadiasApp"),
+      where("estacionamentoId", "==", estId)
+    );
+    return onSnapshot(
+      q,
+      (snap) => {
+        const itens = snap.docs.map((item) => ({ id: item.id, ...item.data() }));
+        setSnapState({ id: estId, itens, erro: "" });
+      },
+      (err) => {
+        console.error("[admin-estadias-app] erro no listener:", err);
+        setSnapState({
+          id: estId,
+          itens: [],
+          erro: "Não foi possível carregar as reservas do aplicativo.",
+        });
+      }
+    );
+  }, [estId]);
+
+  const atualizado = snapState.id === estId;
+  return {
+    estadias: atualizado ? snapState.itens : [],
+    loading: Boolean(estId) && !atualizado,
+    erro: atualizado ? snapState.erro : "",
+  };
+}
+
+export function useEstadiaApp(uid) {
+  const [snapState, setSnapState] = useState({ uid: null, estadia: null });
+
+  useEffect(() => {
+    if (!uid) return undefined;
+    return onSnapshot(
+      doc(db, "estadiasApp", uid),
+      (snap) =>
+        setSnapState({
+          uid,
+          estadia: snap.exists() ? { id: snap.id, ...snap.data() } : null,
+        }),
+      (err) => {
+        console.error("[estadia-app] erro no listener:", err);
+        setSnapState({ uid, estadia: null });
+      }
+    );
+  }, [uid]);
+
+  const atualizado = snapState.uid === uid;
+  return {
+    estadia: atualizado ? snapState.estadia : null,
+    loading: Boolean(uid) && !atualizado,
+  };
+}
+
 // ---------------------------------------------------------------------
 // Vagas de um estacionamento - sempre retorna numVagas itens, mesmo que
 // o totem ainda não tenha criado algum documento (aparece como livre).
@@ -217,7 +363,11 @@ function useHistoricoPorCampo(campo, valor) {
       (snap) => {
         const itens = [];
         snap.forEach((d) => itens.push({ id: d.id, ...d.data() }));
-        itens.sort((a, b) => (Number(b.saida) || 0) - (Number(a.saida) || 0));
+        itens.sort(
+          (a, b) =>
+            (Number(b.saida) || Number(b.entrada) || 0) -
+            (Number(a.saida) || Number(a.entrada) || 0)
+        );
         setSnapState({ chave: valor, itens });
       },
       (err) => {

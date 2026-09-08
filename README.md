@@ -35,12 +35,12 @@ assistentes.
 
 ## Os dois papéis
 
-**Dono de estacionamento (operador)** — cadastra os dados e o número de vagas,
-recebe um `ESTACIONAMENTO_ID` e configura esse ID no totem. Depois define e
-altera a tarifa diretamente no painel. Também acompanha valores recebidos
-(hoje / 7 dias / 30
-dias / total), quantidade de acessos, ocupação vaga a vaga ao vivo, status do
-totem e a tabela de movimentações.
+**Administrador do sistema** — usa um painel central para cadastrar, editar,
+publicar ou ocultar todos os estacionamentos da rede. Cada local também possui
+uma central dedicada de vagas em tempo real, com ocupação, reservas, placas e
+detalhes da permanência para acompanhamento da equipe de segurança. Contas
+administrativas são promovidas pelo Firebase Console/Admin SDK e nunca pelo cadastro público.
+As contas antigas de operador continuam compatíveis com o próprio pátio.
 
 **Motorista** — cadastra a placa (padrão antigo ABC1234 ou Mercosul ABC1D23),
 recarrega a carteira e usa qualquer estacionamento da rede: digita a placa no
@@ -60,8 +60,15 @@ estacionamentos/{id}/vagas/{1..N}
   ocupada, placa                          -- sensor em tempo real
 
 catalogoEstacionamentos/{EST-XXXXXX}
-  nome, endereço, tarifaHora, numVagas,
+  nome, endereço, tarifaHora, tarifaMinuto?, numVagas,
   ultimaAtualizacao, vagasLivres          -- vitrine segura do motorista
+
+catalogoEstacionamentos/{id}/vagas/{1..N}
+  ocupada, reservada?                     -- mapa público, sem placa
+
+estadiasApp/{UID_MOTORISTA}
+  placa, estacionamentoId, vaga, inicio, tarifaMinuto,
+  modoPagamento, valorAntecipado, status  -- cobrança simulada pelo app
 
 veiculos/{PLACA}                          -- GLOBAL: carteira única na rede
   ativo, vagaAtual (0=fora), horaEntrada (Unix s), saldo,
@@ -71,6 +78,10 @@ veiculos/{PLACA}                          -- GLOBAL: carteira única na rede
 historico/{PLACA_timestamp}
   placa, vaga, entrada, saida, duracaoMinutos, valorCobrado, tarifaHora,
   estacionamentoId
+
+historico/{ID_GERADO_PELO_APP}
+  origem="aplicativo", ownerUid, placa, vaga, entrada, saida,
+  duracaoMinutos, tarifaMinuto, valorAntecipado, valorCobrado, status
 
 totems/{FIREBASE_AUTH_UID}
   estacionamentoId, nome, email, ativo       -- identidade do equipamento
@@ -90,11 +101,14 @@ não mudar retroativamente durante uma estadia.
    *Firestore*. Publique as regras de [`firestore.rules`](firestore.rules).
 2. **Painel** — siga [Web/README.md](Web/README.md): `npm install`, copie
    `.env.example` → `.env`, preencha e `npm run dev`.
-3. **Cadastre o estacionamento** no painel ("Tenho um estacionamento") e copie
-   o ID exibido em *Perfil > Meu estacionamento* (formato `EST-XXXXXX`).
-4. Em **Perfil > Segurança do totem**, gere uma credencial exclusiva do
+3. **Promova uma conta administrativa** alterando no Firebase Console o campo
+   `users/{UID}.role` para `admin`. Essa operação não é exposta no site.
+4. **Cadastre o estacionamento** no painel administrativo e copie o ID exibido
+   no cartão do local (formato `EST-XXXXXX`).
+5. Em uma conta de operador existente, **Perfil > Segurança do totem** gera
+   uma credencial exclusiva do
    equipamento.
-5. **Firmware** — siga [Main/README.md](Main/README.md): copie
+6. **Firmware** — siga [Main/README.md](Main/README.md): copie
    `Credenciais.example.h` → `Credenciais.h`, preencha WiFi, chaves,
    `TOTEM_EMAIL`, `TOTEM_PASSWORD` e `ESTACIONAMENTO_ID`; selecione a partição
    **Huge APP** e grave no ESP32.
@@ -106,5 +120,8 @@ não mudar retroativamente durante uma estadia.
   equipamentos autorizados às operações necessárias de entrada e saída.
 - A recarga de saldo é **simulada** (crédito direto no banco), sem gateway de
   pagamento.
+- A escolha e cobrança de vaga pelo aplicativo também são simuladas. O total
+  usa a tarifa por minuto do estacionamento e é debitado da carteira interna
+  quando o motorista encerra a permanência.
 - O hardware atual monitora até quatro sensores físicos. O painel aceita mais
   vagas, mas avisa quando a configuração ultrapassa os sensores instalados.

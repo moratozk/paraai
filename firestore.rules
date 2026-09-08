@@ -12,6 +12,13 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function adminDoSistema() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+          == 'admin';
+    }
+
     function estacionamentoExiste(estId) {
       return exists(/databases/$(database)/documents/estacionamentos/$(estId));
     }
@@ -102,6 +109,10 @@ service cloud.firestore {
     function totemPodeRegistrarEntrada() {
       return totemCadastrado()
         && resource.data.vagaAtual == 0
+        && (!('ownerUid' in resource.data)
+          || !exists(/databases/$(database)/documents/estadiasApp/$(resource.data.ownerUid))
+          || get(/databases/$(database)/documents/estadiasApp/$(resource.data.ownerUid)).data.status
+            != 'ativa')
         && (!('estacionamentoId' in resource.data)
           || resource.data.estacionamentoId == '')
         && request.resource.data.vagaAtual is int
@@ -163,13 +174,17 @@ service cloud.firestore {
 
     function catalogoSomenteComCamposPublicos(dados) {
       return dados.keys().hasOnly([
-          'nome', 'numVagas', 'tarifaHora', 'cep', 'logradouro', 'numero',
+          'nome', 'numVagas', 'tarifaHora', 'tarifaMinuto', 'ativo', 'cep', 'logradouro', 'numero',
           'bairro', 'cidade', 'uf', 'ultimaAtualizacao', 'vagasLivres',
-          'vagasEmOperacao', 'atualizadoEm'
+          'vagasEmOperacao', 'modoDisponibilidade', 'vagasLivresMapeadas',
+          'ultimaAtualizacaoMapa', 'atualizadoEm'
         ])
         && dados.nome is string
         && dados.numVagas is number && dados.numVagas > 0
         && dados.tarifaHora is number && dados.tarifaHora >= 0
+        && (!('tarifaMinuto' in dados)
+          || (dados.tarifaMinuto is number && dados.tarifaMinuto >= 0))
+        && (!('ativo' in dados) || dados.ativo is bool)
         && dados.cep is string
         && dados.logradouro is string
         && dados.numero is string
@@ -182,6 +197,14 @@ service cloud.firestore {
           || (dados.vagasLivres is number && dados.vagasLivres >= 0))
         && (!('vagasEmOperacao' in dados)
           || (dados.vagasEmOperacao is number && dados.vagasEmOperacao >= 0))
+        && (!('modoDisponibilidade' in dados)
+          || dados.modoDisponibilidade == 'mapa')
+        && (!('vagasLivresMapeadas' in dados)
+          || (dados.vagasLivresMapeadas is number
+            && dados.vagasLivresMapeadas >= 0
+            && dados.vagasLivresMapeadas <= dados.numVagas))
+        && (!('ultimaAtualizacaoMapa' in dados)
+          || dados.ultimaAtualizacaoMapa is timestamp)
         && (!('atualizadoEm' in dados) || dados.atualizadoEm is timestamp);
     }
 
@@ -192,13 +215,32 @@ service cloud.firestore {
           .hasOnly(['placa']);
     }
 
+    function vagaManualValida(dados) {
+      return dados.keys().hasOnly(['ocupada', 'placa'])
+        && dados.keys().hasAll(['ocupada', 'placa'])
+        && dados.ocupada is bool
+        && dados.placa is string
+        && dados.placa.size() <= 8
+        && (dados.ocupada || dados.placa == '');
+    }
+
+    // O firmware grava ocupação e placa em chamadas separadas. Essa forma
+    // aceita o documento parcial do equipamento sem afrouxar a escrita manual.
+    function vagaDoTotemValida(dados) {
+      return dados.keys().hasOnly(['ocupada', 'placa'])
+        && dados.keys().hasAny(['ocupada', 'placa'])
+        && (!('ocupada' in dados) || dados.ocupada is bool)
+        && (!('placa' in dados)
+          || (dados.placa is string && dados.placa.size() <= 8));
+    }
+
     match /users/{uid} {
       allow read: if signedIn() && request.auth.uid == uid;
       allow delete: if false;
-      // O papel é escolhido apenas na criação da conta. Isso impede que uma
-      // conta de motorista seja convertida pelo cliente em conta de operador.
+      // O cadastro público cria somente motoristas. Contas administrativas
+      // são promovidas fora do cliente, e operadores antigos são preservados.
       allow create: if signedIn() && request.auth.uid == uid
-        && request.resource.data.role in ['motorista', 'operador'];
+        && request.resource.data.role == 'motorista';
       allow update: if signedIn() && request.auth.uid == uid
         && (
           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
@@ -211,12 +253,15 @@ service cloud.firestore {
 
     match /estacionamentos/{estId} {
       // Motoristas leem a projeção segura em catalogoEstacionamentos.
-      allow read: if donoDoEstacionamento(estId)
+      allow read: if adminDoSistema()
+        || donoDoEstacionamento(estId)
         || totemDoEstacionamento(estId);
-      allow create: if signedIn()
-        && perfilDeOperador(request.auth.uid)
-        && request.resource.data.ownerUid == request.auth.uid;
-      allow update: if donoDoEstacionamento(estId)
+      allow create: if adminDoSistema()
+        || (signedIn()
+          && perfilDeOperador(request.auth.uid)
+          && request.resource.data.ownerUid == request.auth.uid);
+      allow update: if adminDoSistema()
+        || donoDoEstacionamento(estId)
         || (totemDoEstacionamento(estId)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'ultimaAtualizacao',
@@ -225,47 +270,228 @@ service cloud.firestore {
             'vagasEmOperacao',
             'tarifaAplicadaTotem'
           ]));
-      allow delete: if donoDoEstacionamento(estId);
+      allow delete: if adminDoSistema() || donoDoEstacionamento(estId);
 
       match /vagas/{vaga} {
-        allow read: if donoDoEstacionamento(estId)
+        allow read: if adminDoSistema()
+          || donoDoEstacionamento(estId)
           || totemDoEstacionamento(estId);
-        allow create: if totemDoEstacionamento(estId)
-          && request.resource.data.keys().hasOnly(['ocupada', 'placa']);
-        allow update: if totemDoEstacionamento(estId)
+        // O dono pode operar o mapa durante a apresentação ou em contingência.
+        // A validação mantém exatamente o mesmo formato usado pelo equipamento.
+        allow create: if adminDoSistema()
+          || (totemDoEstacionamento(estId)
+            && vagaDoTotemValida(request.resource.data))
+          || (donoDoEstacionamento(estId)
+            && vagaManualValida(request.resource.data));
+        allow update: if adminDoSistema()
+          || (((totemDoEstacionamento(estId)
+              && vagaDoTotemValida(request.resource.data))
+            || (donoDoEstacionamento(estId)
+              && vagaManualValida(request.resource.data)))
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'ocupada', 'placa'
-          ]);
-        allow delete: if donoDoEstacionamento(estId);
+              'ocupada', 'placa'
+            ]));
+        allow delete: if adminDoSistema() || donoDoEstacionamento(estId);
       }
     }
 
     match /catalogoEstacionamentos/{estId} {
       allow read: if signedIn();
-      allow create: if signedIn()
-        && catalogoSomenteComCamposPublicos(request.resource.data)
-        && getAfter(/databases/$(database)/documents/estacionamentos/$(estId)).data.ownerUid
-          == request.auth.uid;
+      allow create: if catalogoSomenteComCamposPublicos(request.resource.data)
+        && (adminDoSistema()
+          || (signedIn()
+            && getAfter(/databases/$(database)/documents/estacionamentos/$(estId)).data.ownerUid
+              == request.auth.uid));
       allow update: if signedIn()
         && catalogoSomenteComCamposPublicos(request.resource.data)
-        && donoDoEstacionamento(estId);
-      allow delete: if donoDoEstacionamento(estId);
+        && (adminDoSistema() || donoDoEstacionamento(estId));
+      allow delete: if adminDoSistema() || donoDoEstacionamento(estId);
+
+      // Projeção do mapa para motoristas: expõe somente livre/ocupada, nunca
+      // placa, proprietário ou credencial operacional.
+      match /vagas/{vaga} {
+        allow read: if signedIn();
+        allow create, update: if (adminDoSistema() || donoDoEstacionamento(estId))
+          && vagaPublicaValida(request.resource.data);
+        allow update: if signedIn()
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['reservada'])
+          && (
+            (request.resource.data.reservada == true
+              && resource.data.ocupada == false
+              && getAfter(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.ownerUid
+                == request.auth.uid
+              && getAfter(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.estacionamentoId
+                == estId
+              && getAfter(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.vagaId
+                == vaga
+              && getAfter(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.status
+                == 'ativa')
+            || (request.resource.data.reservada == false
+              && get(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.ownerUid
+                == request.auth.uid
+              && get(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.estacionamentoId
+                == estId
+              && get(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.vagaId
+                == vaga
+              && get(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.status
+                == 'ativa'
+              && getAfter(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.status
+                == 'finalizada')
+          );
+        allow delete: if adminDoSistema() || donoDoEstacionamento(estId);
+      }
+    }
+
+    match /estadiasApp/{uid} {
+      // A central administrativa cruza reservas ativas com o mapa de vagas.
+      // Motoristas continuam restritos ao próprio documento.
+      allow read: if adminDoSistema()
+        || (signedIn() && request.auth.uid == uid);
+      allow create: if signedIn() && request.auth.uid == uid
+        && estadiaAppNovaValida(uid, request.resource.data);
+      allow update: if signedIn() && request.auth.uid == uid
+        && (
+          (resource.data.status == 'finalizada'
+            && estadiaAppNovaValida(uid, request.resource.data))
+          || (resource.data.ownerUid == uid
+            && request.resource.data.ownerUid == uid
+            && resource.data.status == 'ativa'
+            && request.resource.data.status == 'finalizada'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'status', 'fim', 'minutosCobrados', 'valorCobrado',
+              'valorDebitadoNaSaida', 'finalizadoEm'
+            ])
+            && request.resource.data.fim is int
+            && request.resource.data.minutosCobrados is int
+            && request.resource.data.minutosCobrados >= 1
+            && request.resource.data.valorCobrado is number
+            && request.resource.data.valorCobrado >= resource.data.tarifaMinuto
+            && request.resource.data.valorDebitadoNaSaida is number
+            && request.resource.data.valorDebitadoNaSaida >= 0
+            && request.resource.data.finalizadoEm is timestamp)
+        );
+      allow delete: if false;
+    }
+
+    function vagaPublicaValida(dados) {
+      return dados.keys().hasOnly(['ocupada', 'reservada'])
+        && dados.keys().hasAll(['ocupada'])
+        && dados.ocupada is bool
+        && (!('reservada' in dados) || dados.reservada is bool);
+    }
+
+    function estadiaAppNovaValida(uid, dados) {
+      return dados.keys().hasOnly([
+          'ownerUid', 'placa', 'estacionamentoId', 'vaga', 'vagaId',
+          'historicoId', 'inicio', 'tarifaMinuto', 'modoPagamento',
+          'valorAntecipado', 'status', 'criadoEm'
+        ])
+        && dados.keys().hasAll([
+          'ownerUid', 'placa', 'estacionamentoId', 'vaga', 'vagaId',
+          'historicoId', 'inicio', 'tarifaMinuto', 'modoPagamento',
+          'valorAntecipado', 'status', 'criadoEm'
+        ])
+        && dados.ownerUid == uid
+        && dados.placa is string
+        && get(/databases/$(database)/documents/users/$(uid)).data.placa
+          == dados.placa
+        && get(/databases/$(database)/documents/veiculos/$(dados.placa)).data.ownerUid
+          == uid
+        && get(/databases/$(database)/documents/veiculos/$(dados.placa)).data.vagaAtual
+          == 0
+        && dados.estacionamentoId is string
+        && dados.vaga is int && dados.vaga > 0 && dados.vaga <= 200
+        && dados.vagaId is string
+        && dados.historicoId is string
+        && dados.inicio is int && dados.inicio > 0
+        && dados.tarifaMinuto is number && dados.tarifaMinuto > 0
+        && ((('tarifaMinuto' in get(/databases/$(database)/documents/catalogoEstacionamentos/$(dados.estacionamentoId)).data)
+              && dados.tarifaMinuto
+                == get(/databases/$(database)/documents/catalogoEstacionamentos/$(dados.estacionamentoId)).data.tarifaMinuto)
+          || (!('tarifaMinuto' in get(/databases/$(database)/documents/catalogoEstacionamentos/$(dados.estacionamentoId)).data)
+              && dados.tarifaMinuto == 0.22))
+        && dados.modoPagamento in ['agora', 'depois']
+        && ((dados.modoPagamento == 'agora' && dados.valorAntecipado == dados.tarifaMinuto)
+          || (dados.modoPagamento == 'depois' && dados.valorAntecipado == 0))
+        && dados.status == 'ativa'
+        && dados.criadoEm is timestamp
+        && (!('ativo' in get(/databases/$(database)/documents/catalogoEstacionamentos/$(dados.estacionamentoId)).data)
+          || get(/databases/$(database)/documents/catalogoEstacionamentos/$(dados.estacionamentoId)).data.ativo
+            == true)
+        && get(/databases/$(database)/documents/catalogoEstacionamentos/$(dados.estacionamentoId)/vagas/$(dados.vagaId)).data.ocupada
+          == false
+        && getAfter(/databases/$(database)/documents/catalogoEstacionamentos/$(dados.estacionamentoId)/vagas/$(dados.vagaId)).data.reservada
+          == true
+        && getAfter(/databases/$(database)/documents/historico/$(dados.historicoId)).data.ownerUid
+          == uid
+        && getAfter(/databases/$(database)/documents/historico/$(dados.historicoId)).data.status
+          == 'ativa';
+    }
+
+    function historicoAppNovoValido(uid, registro, dados) {
+      return dados.keys().hasOnly([
+          'origem', 'ownerUid', 'placa', 'estacionamentoId', 'vaga',
+          'entrada', 'saida', 'duracaoMinutos', 'tarifaMinuto',
+          'modoPagamento', 'valorAntecipado', 'valorCobrado', 'status',
+          'criadoEm'
+        ])
+        && dados.keys().hasAll([
+          'origem', 'ownerUid', 'placa', 'estacionamentoId', 'vaga',
+          'entrada', 'saida', 'duracaoMinutos', 'tarifaMinuto',
+          'modoPagamento', 'valorAntecipado', 'valorCobrado', 'status',
+          'criadoEm'
+        ])
+        && dados.origem == 'aplicativo'
+        && dados.ownerUid == uid
+        && dados.placa is string
+        && get(/databases/$(database)/documents/users/$(uid)).data.placa
+          == dados.placa
+        && get(/databases/$(database)/documents/veiculos/$(dados.placa)).data.ownerUid
+          == uid
+        && dados.estacionamentoId is string
+        && dados.vaga is int && dados.vaga > 0 && dados.vaga <= 200
+        && dados.entrada is int && dados.entrada > 0
+        && dados.saida == 0
+        && dados.duracaoMinutos == 0
+        && dados.tarifaMinuto is number && dados.tarifaMinuto > 0
+        && dados.tarifaMinuto
+          == getAfter(/databases/$(database)/documents/estadiasApp/$(uid)).data.tarifaMinuto
+        && dados.modoPagamento in ['agora', 'depois']
+        && ((dados.modoPagamento == 'agora' && dados.valorAntecipado == dados.tarifaMinuto)
+          || (dados.modoPagamento == 'depois' && dados.valorAntecipado == 0))
+        && dados.valorCobrado == dados.valorAntecipado
+        && dados.status == 'ativa'
+        && dados.criadoEm is timestamp
+        && getAfter(/databases/$(database)/documents/estadiasApp/$(uid)).data.historicoId
+          == registro
+        && getAfter(/databases/$(database)/documents/estadiasApp/$(uid)).data.placa
+          == dados.placa
+        && getAfter(/databases/$(database)/documents/estadiasApp/$(uid)).data.estacionamentoId
+          == dados.estacionamentoId
+        && getAfter(/databases/$(database)/documents/estadiasApp/$(uid)).data.vaga
+          == dados.vaga
+        && getAfter(/databases/$(database)/documents/estadiasApp/$(uid)).data.status
+          == 'ativa';
     }
 
     match /totems/{totemUid} {
-      allow read: if signedIn()
-        && (request.auth.uid == totemUid
-          || donoDoEstacionamento(resource.data.estacionamentoId));
-      allow create: if signedIn()
-        && ((request.auth.uid == totemUid
-            && pareamentoValido(request.resource.data))
-          || donoDoEstacionamento(request.resource.data.estacionamentoId));
-      allow update: if signedIn()
-        && donoDoEstacionamento(resource.data.estacionamentoId)
-        && request.resource.data.estacionamentoId
-          == resource.data.estacionamentoId;
-      allow delete: if signedIn()
-        && donoDoEstacionamento(resource.data.estacionamentoId);
+      allow read: if adminDoSistema()
+        || (signedIn()
+          && (request.auth.uid == totemUid
+            || donoDoEstacionamento(resource.data.estacionamentoId)));
+      allow create: if adminDoSistema()
+        || (signedIn()
+          && ((request.auth.uid == totemUid
+              && pareamentoValido(request.resource.data))
+            || donoDoEstacionamento(request.resource.data.estacionamentoId)));
+      allow update: if adminDoSistema()
+        || (signedIn()
+          && donoDoEstacionamento(resource.data.estacionamentoId)
+          && request.resource.data.estacionamentoId
+            == resource.data.estacionamentoId);
+      allow delete: if adminDoSistema()
+        || (signedIn() && donoDoEstacionamento(resource.data.estacionamentoId));
     }
 
     match /veiculos/{placa} {
@@ -299,12 +525,47 @@ service cloud.firestore {
     }
 
     match /historico/{registro} {
-      allow read: if donoDoEstacionamento(resource.data.estacionamentoId)
+      allow read: if adminDoSistema()
+        || donoDoEstacionamento(resource.data.estacionamentoId)
         || donoDoVeiculo(resource.data.placa);
-      allow create: if totemCadastrado()
-        && request.resource.data.estacionamentoId
-          == get(/databases/$(database)/documents/totems/$(request.auth.uid)).data.estacionamentoId;
-      allow update, delete: if false;
+      allow create: if (totemCadastrado()
+          && request.resource.data.estacionamentoId
+            == get(/databases/$(database)/documents/totems/$(request.auth.uid)).data.estacionamentoId)
+        || (signedIn()
+          && historicoAppNovoValido(
+            request.auth.uid,
+            registro,
+            request.resource.data
+          ));
+      allow update: if signedIn()
+        && resource.data.origem == 'aplicativo'
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == request.auth.uid
+        && resource.data.status == 'ativa'
+        && request.resource.data.status == 'finalizada'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'saida', 'duracaoMinutos', 'valorCobrado',
+          'valorDebitadoNaSaida', 'finalizadoEm'
+        ])
+        && request.resource.data.saida is int
+        && request.resource.data.duracaoMinutos is int
+        && request.resource.data.duracaoMinutos >= 1
+        && request.resource.data.valorCobrado is number
+        && request.resource.data.valorCobrado >= resource.data.tarifaMinuto
+        && request.resource.data.valorDebitadoNaSaida is number
+        && request.resource.data.valorDebitadoNaSaida >= 0
+        && request.resource.data.finalizadoEm is timestamp
+        && getAfter(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.historicoId
+          == registro
+        && getAfter(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.status
+          == 'finalizada'
+        && getAfter(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.fim
+          == request.resource.data.saida
+        && getAfter(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.minutosCobrados
+          == request.resource.data.duracaoMinutos
+        && getAfter(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.valorCobrado
+          == request.resource.data.valorCobrado;
+      allow delete: if false;
     }
 
     match /{document=**} {

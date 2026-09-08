@@ -117,6 +117,10 @@
 .marketplace-chamada-painel { justify-content: space-between; }
 .marketplace-chamada-painel > div { color: var(--text-secondary); line-height: 1.5; }
 .marketplace-chamada-painel strong { color: var(--text-primary); }
+.estadia-app-ativa { justify-content: space-between; }
+.estadia-app-ativa > div { display: grid; gap: 0.2rem; color: var(--text-secondary); }
+.estadia-app-ativa > div > strong { color: var(--text-primary); font-size: 1rem; }
+.estadia-app-ativa .stat-label { color: var(--accent-text); }
 
 /* ==========================================================================
    GRADES
@@ -435,6 +439,40 @@
 .history-table tbody tr { transition: background 0.15s; }
 .history-table tbody tr:hover { background: var(--bg-elevated); }
 .history-table tbody tr:last-child td { border-bottom: none; }
+.history-table-completa { min-width: 1040px; }
+.history-active-pill { margin-left: 0.45rem; vertical-align: middle; }
+.history-payment { display: grid; gap: 0.18rem; }
+.history-payment small {
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.history-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: var(--gap);
+}
+
+.history-filters button {
+  padding: 0.55rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.history-filters button:hover,
+.history-filters button.ativo {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
 
 /* ==========================================================================
    PLACA
@@ -962,7 +1000,10 @@
   .stats-grid { grid-template-columns: 1fr 1fr; }
   .fat-periodos { gap: 1rem; }
   .valores-grid { grid-template-columns: repeat(2, 1fr); }
-  .marketplace-chamada-painel { align-items: stretch; flex-direction: column; }
+  .marketplace-chamada-painel, .estadia-app-ativa {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }
 
 @media (max-width: 400px) {

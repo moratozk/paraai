@@ -1,18 +1,22 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { doc, getDoc } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { LogoMark } from "../components/Logo";
+import { db } from "../firebase/firebaseConfig";
 import "./Auth.css";
 
 export default function Login() {
+  const [searchParams] = useSearchParams();
+  const acessoAdmin = searchParams.get("perfil") === "admin";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [verSenha, setVerSenha] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const { login } = useAuth();
+  const { login, logout } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -22,8 +26,17 @@ export default function Login() {
     setLoading(true);
 
     try {
-      await login(email, password);
-      toast.sucesso("Bem-vindo de volta!");
+      const credencial = await login(email, password);
+      if (acessoAdmin) {
+        const perfil = await getDoc(doc(db, "users", credencial.user.uid));
+        if (perfil.data()?.role !== "admin") {
+          await logout();
+          setError("Esta conta não possui acesso administrativo.");
+          setLoading(false);
+          return;
+        }
+      }
+      toast.sucesso(acessoAdmin ? "Acesso administrativo liberado." : "Bem-vindo de volta!");
       navigate("/dashboard");
     } catch (err) {
       setError(mapAuthError(err.code));
@@ -38,7 +51,9 @@ export default function Login() {
           <LogoMark size={52} />
         </div>
         <h1 className="auth-title">Bem-vindo de volta</h1>
-        <p className="subtitle">Entre na sua conta ParaAí</p>
+        <p className="subtitle">
+          {acessoAdmin ? "Acesso restrito à administração do sistema" : "Entre na sua conta ParaAí"}
+        </p>
 
         {error && <p className="error-text">{error}</p>}
 
@@ -91,9 +106,15 @@ export default function Login() {
           </button>
         </form>
 
-        <p className="auth-footer">
-          Não tem conta? <Link to="/cadastro">Cadastre-se</Link>
-        </p>
+        {acessoAdmin ? (
+          <p className="auth-footer">
+            Contas administrativas são provisionadas de forma controlada.
+          </p>
+        ) : (
+          <p className="auth-footer">
+            Não tem conta? <Link to="/cadastro">Cadastre-se</Link>
+          </p>
+        )}
       </div>
     </div>
   );
