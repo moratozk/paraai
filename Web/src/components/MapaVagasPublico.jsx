@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { Link } from "react-router-dom";
 import { useVagasPublicas } from "../hooks/useParkingData";
 import { VAGAS_ESPECIAIS } from "../utils/mapaVagas";
 import { formatarMoeda } from "../utils/format";
@@ -256,9 +257,9 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
                   Abrir rota
                 </a>
               )}
-              <button className="btn btn-outline" type="button" onClick={onFechar}>
-                Acompanhar no painel
-              </button>
+              <Link className="btn btn-outline" to="/historico" onClick={onFechar}>
+                Acompanhar em Meus acessos
+              </Link>
             </div>
           </div>
         )}
