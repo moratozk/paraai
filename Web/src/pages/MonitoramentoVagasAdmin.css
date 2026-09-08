@@ -72,7 +72,18 @@
   gap: var(--gap);
   margin-bottom: var(--gap);
 }
-.monitor-mapa-card { min-width: 0; }
+.monitor-mapa-card { display: flex; min-width: 0; flex-direction: column; }
+.monitor-mapa-cabecalho {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.monitor-mapa-cabecalho h2 { margin: 0.15rem 0 0; }
+.monitor-mapa-acoes { display: flex; align-items: center; gap: 0.75rem; }
+.monitor-mapa-acoes > span { color: var(--text-muted); font-size: 0.68rem; font-weight: 700; }
+.monitor-mapa-acoes .btn { display: inline-flex; align-items: center; gap: 0.42rem; white-space: nowrap; }
 .monitor-legenda { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; color: var(--text-secondary); font-size: 0.7rem; }
 .monitor-legenda span { display: inline-flex; align-items: center; gap: 0.38rem; }
 .monitor-legenda i { width: 10px; height: 10px; border-radius: 50%; background: var(--border); }
@@ -119,6 +130,40 @@
 .monitor-corredor { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 72px; padding: 0 0.7rem; color: var(--text-muted); font-size: 0.65rem; font-weight: 900; letter-spacing: 0.08em; }
 .monitor-corredor b { color: var(--accent-text); }
 
+.monitor-mapa-card:fullscreen,
+.monitor-mapa-card.monitor-mapa-expandido {
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  max-height: none;
+  padding: clamp(1rem, 2.5vw, 2rem);
+  overflow: auto;
+  border: 0;
+  border-radius: 0;
+  background: var(--bg-primary);
+}
+.monitor-mapa-card.monitor-mapa-expandido {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+.monitor-mapa-card:fullscreen .monitor-mapa-scroll,
+.monitor-mapa-card.monitor-mapa-expandido .monitor-mapa-scroll {
+  display: grid;
+  flex: 1;
+  align-items: center;
+}
+.monitor-mapa-card:fullscreen .monitor-patio,
+.monitor-mapa-card.monitor-mapa-expandido .monitor-patio {
+  width: 100%;
+  min-width: 900px;
+  padding: clamp(1rem, 2.2vw, 2rem);
+}
+.monitor-mapa-card:fullscreen .monitor-vaga,
+.monitor-mapa-card.monitor-mapa-expandido .monitor-vaga {
+  min-height: clamp(118px, 16vh, 170px);
+}
+
 .monitor-detalhes { position: sticky; top: 92px; display: grid; gap: 1rem; }
 .monitor-detalhes-topo { display: flex; align-items: flex-end; justify-content: space-between; }
 .monitor-detalhes-topo span { color: var(--text-muted); font-size: 0.7rem; font-weight: 800; text-transform: uppercase; }
@@ -158,6 +203,8 @@
   .monitor-controles .segmented { width: 100%; overflow-x: auto; }
   .monitor-controles .segmented-op { flex: 1 0 auto; }
   .monitor-resultados { align-self: flex-end; }
+  .monitor-mapa-cabecalho { align-items: stretch; flex-direction: column; }
+  .monitor-mapa-acoes { justify-content: space-between; }
 }
 
 @media (max-width: 480px) {

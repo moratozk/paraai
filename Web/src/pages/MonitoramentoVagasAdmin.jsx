@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -64,6 +64,9 @@ export default function MonitoramentoVagasAdmin() {
   const [busca, setBusca] = useState("");
   const [vagaSelecionada, setVagaSelecionada] = useState(null);
   const [agora, setAgora] = useState(() => Math.floor(Date.now() / 1000));
+  const [telaCheiaNativa, setTelaCheiaNativa] = useState(false);
+  const [telaCheiaAlternativa, setTelaCheiaAlternativa] = useState(false);
+  const mapaRef = useRef(null);
 
   useEffect(() => {
     const timer = setInterval(
@@ -72,6 +75,28 @@ export default function MonitoramentoVagasAdmin() {
     );
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    function sincronizarTelaCheia() {
+      setTelaCheiaNativa(document.fullscreenElement === mapaRef.current);
+    }
+    document.addEventListener("fullscreenchange", sincronizarTelaCheia);
+    return () => document.removeEventListener("fullscreenchange", sincronizarTelaCheia);
+  }, []);
+
+  useEffect(() => {
+    if (!telaCheiaAlternativa) return undefined;
+    const overflowAnterior = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    function fecharComEsc(event) {
+      if (event.key === "Escape") setTelaCheiaAlternativa(false);
+    }
+    document.addEventListener("keydown", fecharComEsc);
+    return () => {
+      document.body.style.overflow = overflowAnterior;
+      document.removeEventListener("keydown", fecharComEsc);
+    };
+  }, [telaCheiaAlternativa]);
 
   const estadiasAtivas = useMemo(
     () => estadias.filter((estadia) => estadia.status === "ativa"),
@@ -141,6 +166,7 @@ export default function MonitoramentoVagasAdmin() {
   const selecionada = vagas.find((vaga) => vaga.id === vagaSelecionada) || null;
   const loading =
     loadingEstacionamento || loadingOperacional || loadingPublico || loadingEstadias;
+  const mapaEmTelaCheia = telaCheiaNativa || telaCheiaAlternativa;
 
   if (!admin) return <Navigate to="/dashboard" replace />;
 
@@ -183,6 +209,23 @@ export default function MonitoramentoVagasAdmin() {
         </span>
       </button>
     );
+  }
+
+  async function alternarTelaCheia() {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+      return;
+    }
+    if (telaCheiaAlternativa) {
+      setTelaCheiaAlternativa(false);
+      return;
+    }
+    try {
+      if (!mapaRef.current?.requestFullscreen) throw new Error("FULLSCREEN_UNAVAILABLE");
+      await mapaRef.current.requestFullscreen();
+    } catch {
+      setTelaCheiaAlternativa(true);
+    }
   }
 
   return (
@@ -268,7 +311,31 @@ export default function MonitoramentoVagasAdmin() {
         </div>
       ) : (
         <div className="monitor-conteudo">
-          <section className="card monitor-mapa-card" aria-label="Mapa das vagas">
+          <section
+            ref={mapaRef}
+            className={`card monitor-mapa-card ${
+              telaCheiaAlternativa ? "monitor-mapa-expandido" : ""
+            }`}
+            aria-label="Mapa das vagas"
+          >
+            <div className="monitor-mapa-cabecalho">
+              <div>
+                <span className="monitor-sobrelinha">Visão do pátio</span>
+                <h2>Mapa de vagas</h2>
+              </div>
+              <div className="monitor-mapa-acoes">
+                {mapaEmTelaCheia && <span>Pressione Esc para sair</span>}
+                <button
+                  className="btn btn-outline btn-sm"
+                  type="button"
+                  aria-pressed={mapaEmTelaCheia}
+                  onClick={alternarTelaCheia}
+                >
+                  <span aria-hidden="true">{mapaEmTelaCheia ? "↙" : "⛶"}</span>
+                  {mapaEmTelaCheia ? "Sair da tela cheia" : "Abrir em tela cheia"}
+                </button>
+              </div>
+            </div>
             <div className="monitor-legenda">
               <span><i className="livre" />Livre</span>
               <span><i className="ocupada" />Ocupada</span>

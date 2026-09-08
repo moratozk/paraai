@@ -75,7 +75,8 @@ na Arduino IDE e gravar.
 - Cada cartão do painel administrativo abre uma central de monitoramento
   dedicada. A tela combina sensores e reservas do aplicativo em tempo real,
   diferencia vagas livres, ocupadas e reservadas, permite filtrar por estado
-  ou placa e mostra tempo e valor acumulado de estadias ativas para o guarda
+  ou placa e mostra tempo e valor acumulado de estadias ativas para o guarda.
+  O mapa pode ocupar a tela inteira, com saída pelo botão ou pela tecla Esc
 - Faturamento por período, ocupação vaga a vaga, histórico de acessos
 - Mapa visual e interativo do pátio em tempo real, com corredor, entrada,
   saída e vagas reservadas para PCD, idosos e gestantes
