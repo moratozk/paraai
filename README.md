@@ -57,7 +57,7 @@ estacionamentos/{EST-XXXXXX}
   ultimaAtualizacao, vagasLivres, tarifaAplicadaTotem -- heartbeat (60s)
 
 estacionamentos/{id}/vagas/{1..N}
-  ocupada, placa                          -- sensor em tempo real
+  ocupada, placa, leituraValida            -- sensor + associação da estadia
 
 catalogoEstacionamentos/{EST-XXXXXX}
   nome, endereço, tarifaHora, numVagas,
@@ -68,7 +68,7 @@ veiculos/{PLACA}                          -- GLOBAL: carteira única na rede
   estacionamentoId (onde está agora, "" se fora), tarifaHoraEntrada,
   ownerUid, ownerNome, atualizadoEm       -- gravados pelo painel
 
-historico/{PLACA_timestamp}
+historico/{PLACA_horaEntrada}              -- novo firmware: ID da estadia
   placa, vaga, entrada, saida, duracaoMinutos, valorCobrado, tarifaHora,
   estacionamentoId
 
@@ -95,9 +95,15 @@ não mudar retroativamente durante uma estadia.
 4. Em **Perfil > Segurança do totem**, gere uma credencial exclusiva do
    equipamento.
 5. **Firmware** — siga [Main/README.md](Main/README.md): copie
-   `Credenciais.example.h` → `Credenciais.h`, preencha WiFi, chaves,
+   `Credenciais.example.h` → `Credenciais.h`, preencha WiFi de contingência, chaves,
    `TOTEM_EMAIL`, `TOTEM_PASSWORD` e `ESTACIONAMENTO_ID`; selecione a partição
    **Huge APP** e grave no ESP32.
+
+No novo firmware, Wi-Fi é configurável pelo celular e a calibração do touch
+fica salva no próprio ESP32. Regras e firmware devem ser instalados juntos
+em manutenção: a saída exige débito, vaga e recibo no mesmo commit. Consulte
+[o checklist de instalação e testes](Main/README.md#verificação-e-instalação-controlada)
+antes de autorizar publicação/gravação.
 
 ## Limitações conhecidas (transparência acadêmica)
 

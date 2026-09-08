@@ -1,7 +1,7 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **26/08/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **08/09/2026**.
 
 ---
 
@@ -17,7 +17,61 @@ O motorista digita a placa na tela do totem, a catraca abre, e na saída o
 valor sai da carteira digital dele. O dono do estacionamento acompanha
 faturamento e ocupação pelo painel.
 
-Projeto acadêmico (TCC). Branch atual: `main`.
+Projeto acadêmico (TCC). Revisão ESP/Firebase: `codex/touch-wifi-totem`.
+
+## Revisão de 08/09/2026 — somente ESP/Firebase
+
+- Site preservado. Alterações anteriores desta sessão em `Web/` foram
+  guardadas no stash `backup-web-fora-escopo-20260908`, sem entrar na entrega.
+- Teclado contextual com letras/números separados, escolha antiga/Mercosul,
+  confirmação final, antirrepetição e limpeza após 60s sem interação.
+- Calibração guiada de cinco pontos no firmware, salva em `Preferences`.
+  Recalibrar pelo status superior direito (3s), Serial `C` ou segurar a tela
+  no início. Não precisa mais trocar de sketch e copiar limites manualmente.
+- Novo módulo `Main/ConfiguracaoWiFi.ino`: portal temporário WPA2 pelo celular,
+  seleção de rede/SSID oculto, token de formulário, acesso só pelo AP local,
+  teste de conexão antes de salvar e encerramento em 10 minutos. Serial `W`
+  oferece acesso quando o touch precisa de manutenção.
+- Reservas persistem na NVS e são reconciliadas com veículo/vaga no Firestore.
+  Reinicialização, sensor livre e prazo de 2 minutos não encerram estadias.
+  Erro de memória ou estado contraditório bloqueia novas entradas.
+- Sensores lidos individualmente; falhas não são interpretadas como vaga
+  livre. `leituraValida` é diagnóstico adicional; `ocupada` continua booleano
+  para compatibilidade com o site e fica `true` quando o sensor está inválido.
+- Entrada atômica (veículo + vaga) e saída atômica (débito + vaga + recibo),
+  com precondições de revisão. Recibo `PLACA_horaEntrada`, exclusivo por estadia.
+- Regras exigem recibo junto ao débito, validam tarifa congelada, duração,
+  cobrança e liberação da vaga. Totem só altera disponibilidade no próprio
+  catálogo; não pode criar vitrine, mudar cadastro/preço ou operar outro pátio.
+- NTP não bloqueia o loop. I/O remoto não roda durante digitação ou abertura
+  da catraca; abertura manual pelo Serial `A` foi removida.
+- **21 testes passaram** no emulador local `demo-paraai`, incluindo isolamento,
+  revogação, atomicidade, adulteração, recarga concorrente e disputa de vaga.
+  Rodar: `cd Main/tests`, `npm ci`, `npm test` (Node 22+ e Java 21+).
+  O workflow `firebase-ci.yml` repete a suíte em PRs que alterem ESP/Firebase;
+  não usa secrets, não faz deploy e não substitui a compilação/hardware local.
+- Compilação para ESP32 Dev Module/Huge APP aprovada; validação física ainda
+  pendente. A inspeção visual automatizada do portal não pôde ser executada
+  porque a ferramenta de navegador não inicializou.
+- **Nada publicado no Firebase e nada gravado no ESP32 nesta revisão.**
+  App Check continua em monitoramento. A gravação física de agosto abaixo
+  corresponde à versão anterior, não a esta revisão.
+
+### Instalação e limitações desta revisão
+
+As novas regras recusam o débito isolado do firmware antigo. Implantar regras
+e firmware juntos em janela de manutenção, somente após autorização. Antes,
+conferir as estadias abertas: precisam de tarifa congelada e associação
+coerente entre `veiculos/{placa}` e `vagas/{n}.placa`. Inconsistências antigas
+exigem conferência do responsável; não apagar reservas/NVS como atalho.
+
+O portal usa HTTP dentro do AP protegido e pressupõe controle físico do
+equipamento; o gesto de manutenção não autentica um administrador. Não há
+flash criptografada nem proteção antiesmagamento no servo de demonstração.
+Não apresentar o protótipo como controlador certificado de barreira real.
+
+O simulador `Web/public/totem.html` permaneceu sem alterações e ainda reflete
+o teclado antigo. O checklist físico completo está em `Main/README.md`.
 
 ---
 
@@ -94,10 +148,9 @@ na Arduino IDE e gravar.
 
 ## O que falta
 
-1. **Calibrar o touch** — grave `CalibracaoTouch/CalibracaoTouch.ino`, toque
-   nas 4 miras, cole os `#define` que o Monitor Serial imprimir em
-   `Main/DisplayUI.ino` (linhas ~67-70). Sem isso o toque cai na tecla
-   vizinha: toca no "O" e registra "I".
+1. **Validar o touch no novo firmware** — a calibração agora é integrada e
+   persistente. Após autorização para gravar, completar cinco pontos e testar
+   os dois formatos de placa, confirmação, correção e toque mantido.
 
 2. **Testar o fluxo físico completo** — autenticação, heartbeat e sincronização
    já foram confirmados no ESP real. Ainda falta executar uma entrada e saída
