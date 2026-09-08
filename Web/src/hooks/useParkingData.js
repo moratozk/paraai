@@ -193,6 +193,8 @@ export function useVagasPublicas(estId, numVagas = TOTAL_VAGAS) {
             atualizado &&
               (snapState.docs[id]?.ocupada || snapState.docs[id]?.reservada)
           ),
+          ocupadaFisica: Boolean(atualizado && snapState.docs[id]?.ocupada),
+          reservada: Boolean(atualizado && snapState.docs[id]?.reservada),
         };
       }),
     [atualizado, snapState.docs, total]
@@ -200,6 +202,42 @@ export function useVagasPublicas(estId, numVagas = TOTAL_VAGAS) {
 
   return {
     vagas,
+    loading: Boolean(estId) && !atualizado,
+    erro: atualizado ? snapState.erro : "",
+  };
+}
+
+// Estadias iniciadas no aplicativo. Administradores usam esta leitura para
+// distinguir uma vaga reservada de uma ocupação informada pelo sensor.
+export function useEstadiasAppAdmin(estId) {
+  const [snapState, setSnapState] = useState({ id: null, itens: [], erro: "" });
+
+  useEffect(() => {
+    if (!estId) return undefined;
+    const q = query(
+      collection(db, "estadiasApp"),
+      where("estacionamentoId", "==", estId)
+    );
+    return onSnapshot(
+      q,
+      (snap) => {
+        const itens = snap.docs.map((item) => ({ id: item.id, ...item.data() }));
+        setSnapState({ id: estId, itens, erro: "" });
+      },
+      (err) => {
+        console.error("[admin-estadias-app] erro no listener:", err);
+        setSnapState({
+          id: estId,
+          itens: [],
+          erro: "Não foi possível carregar as reservas do aplicativo.",
+        });
+      }
+    );
+  }, [estId]);
+
+  const atualizado = snapState.id === estId;
+  return {
+    estadias: atualizado ? snapState.itens : [],
     loading: Boolean(estId) && !atualizado,
     erro: atualizado ? snapState.erro : "",
   };

@@ -122,7 +122,12 @@ export default function Navbar() {
               <Link
                 key={l.to}
                 to={l.to}
-                className={location.pathname === l.to ? "ativo" : ""}
+                className={
+                  location.pathname === l.to ||
+                  (admin && l.to === "/dashboard" && location.pathname.startsWith("/admin/"))
+                    ? "ativo"
+                    : ""
+                }
               >
                 {l.label}
               </Link>

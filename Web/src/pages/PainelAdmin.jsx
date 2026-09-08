@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useEstacionamentosAdmin } from "../hooks/useParkingData";
@@ -328,6 +329,12 @@ export default function PainelAdmin() {
                   "Endereço não informado"}
               </p>
               <div className="admin-estacionamento-acoes">
+                <Link
+                  className="btn btn-primary btn-sm"
+                  to={`/admin/estacionamentos/${item.id}/vagas`}
+                >
+                  Ver vagas ao vivo
+                </Link>
                 <button className="btn btn-outline btn-sm" type="button" onClick={() => abrirEdicao(item)}>
                   Editar
                 </button>

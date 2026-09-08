@@ -72,6 +72,10 @@ na Arduino IDE e gravar.
 **Painel**
 - Painel administrativo central para cadastrar, editar, publicar e ocultar
   estacionamentos de toda a rede, com resumo de locais e capacidade
+- Cada cartão do painel administrativo abre uma central de monitoramento
+  dedicada. A tela combina sensores e reservas do aplicativo em tempo real,
+  diferencia vagas livres, ocupadas e reservadas, permite filtrar por estado
+  ou placa e mostra tempo e valor acumulado de estadias ativas para o guarda
 - Faturamento por período, ocupação vaga a vaga, histórico de acessos
 - Mapa visual e interativo do pátio em tempo real, com corredor, entrada,
   saída e vagas reservadas para PCD, idosos e gestantes

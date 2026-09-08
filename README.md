@@ -36,8 +36,10 @@ assistentes.
 ## Os dois papéis
 
 **Administrador do sistema** — usa um painel central para cadastrar, editar,
-publicar ou ocultar todos os estacionamentos da rede. Contas administrativas
-são promovidas pelo Firebase Console/Admin SDK e nunca pelo cadastro público.
+publicar ou ocultar todos os estacionamentos da rede. Cada local também possui
+uma central dedicada de vagas em tempo real, com ocupação, reservas, placas e
+detalhes da permanência para acompanhamento da equipe de segurança. Contas
+administrativas são promovidas pelo Firebase Console/Admin SDK e nunca pelo cadastro público.
 As contas antigas de operador continuam compatíveis com o próprio pátio.
 
 **Motorista** — cadastra a placa (padrão antigo ABC1234 ou Mercosul ABC1D23),

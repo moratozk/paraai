@@ -344,7 +344,10 @@ service cloud.firestore {
     }
 
     match /estadiasApp/{uid} {
-      allow read: if signedIn() && request.auth.uid == uid;
+      // A central administrativa cruza reservas ativas com o mapa de vagas.
+      // Motoristas continuam restritos ao próprio documento.
+      allow read: if adminDoSistema()
+        || (signedIn() && request.auth.uid == uid);
       allow create: if signedIn() && request.auth.uid == uid
         && estadiaAppNovaValida(uid, request.resource.data);
       allow update: if signedIn() && request.auth.uid == uid
