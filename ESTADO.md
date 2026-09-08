@@ -104,6 +104,10 @@ na Arduino IDE e gravar.
   isso aparece em “Meus acessos” ainda em andamento. O horário de entrada
   persistido alimenta o temporizador mesmo se a página for fechada; a tela
   separa total acumulado, valor já descontado e saldo ainda a pagar
+- “Meus acessos” mantém a lista completa, identifica compras pelo aplicativo
+  e entradas pelo totem, permite filtrar as duas origens e mostra local, forma
+  de pagamento, situação, duração e total de cada utilização. A última estadia
+  criada antes desse histórico dedicado também é recuperada como legado
 
 ---
 
