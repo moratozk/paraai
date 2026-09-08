@@ -524,6 +524,117 @@
 
 .mapa-publico-rodape .btn { flex: 0 0 auto; }
 
+.checkout-vaga,
+.checkout-sucesso {
+  display: grid;
+  gap: 1.15rem;
+  padding: clamp(1.1rem, 3vw, 1.8rem);
+}
+
+.checkout-voltar {
+  justify-self: start;
+  border: 0;
+  background: transparent;
+  color: var(--accent-text);
+  font-weight: 800;
+}
+
+.checkout-resumo-topo {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.checkout-resumo-topo > div {
+  display: grid;
+  gap: 0.3rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+}
+
+.checkout-resumo-topo span {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.checkout-resumo-topo strong { color: var(--accent-text); font-size: 1.2rem; }
+
+.checkout-explicacao {
+  padding: 1rem;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+}
+
+.checkout-explicacao p {
+  margin-top: 0.3rem;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.checkout-opcoes {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0;
+  border: 0;
+}
+
+.checkout-opcoes legend {
+  margin-bottom: 0.55rem;
+  font-weight: 800;
+}
+
+.checkout-opcoes label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  cursor: pointer;
+}
+
+.checkout-opcoes label.selecionada {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.checkout-opcoes input { accent-color: var(--accent); }
+.checkout-opcoes label > span { display: grid; gap: 0.18rem; }
+.checkout-opcoes small { color: var(--text-muted); font-size: 0.72rem; }
+.checkout-opcoes label > b { color: var(--accent-text); font-size: 0.78rem; text-align: right; }
+.checkout-aviso { color: var(--danger); font-size: 0.78rem; }
+
+.checkout-sucesso {
+  justify-items: center;
+  align-content: center;
+  min-height: 430px;
+  text-align: center;
+}
+
+.checkout-sucesso > span {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: var(--success-soft);
+  color: var(--success);
+  font-size: 2.3rem;
+  font-weight: 900;
+}
+
+.checkout-sucesso h3 { font-size: 1.4rem; }
+.checkout-sucesso p { max-width: 55ch; color: var(--text-secondary); }
+.checkout-sucesso-acoes { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.7rem; }
+
 .marketplace-carregando,
 .marketplace-vazio {
   display: grid;
@@ -575,6 +686,10 @@
   .mapa-publico-vaga { min-height: 62px; }
   .mapa-publico-rodape { align-items: stretch; flex-direction: column; }
   .mapa-publico-rodape .btn { width: 100%; }
+  .checkout-resumo-topo { grid-template-columns: 1fr; }
+  .checkout-opcoes label { grid-template-columns: auto minmax(0, 1fr); }
+  .checkout-opcoes label > b { grid-column: 2; text-align: left; }
+  .checkout-sucesso-acoes { width: 100%; flex-direction: column; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,7 +1,7 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **07/09/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **08/09/2026**.
 
 ---
 
@@ -94,6 +94,12 @@ na Arduino IDE e gravar.
 - Marketplace do motorista em `/estacionamentos`, com busca, filtros, tarifa,
   disponibilidade e rota; usa `catalogoEstacionamentos` para não expor dados
   operacionais ou credenciais dos pátios
+- O mapa público abre um checkout depois da escolha da vaga. Na FATEC, a
+  tarifa demonstrativa é R$ 0,22 por minuto iniciado; o motorista pode
+  antecipar o primeiro minuto ou deixar o débito completo para o encerramento
+- Estadias iniciadas pelo aplicativo aparecem no painel do motorista com
+  cronômetro e total crescente, reservam a vaga escolhida e descontam o valor
+  final da carteira simulada ao encerrar
 
 ---
 
@@ -160,9 +166,17 @@ publicada em `catalogoEstacionamentos`. Ela usa campos próprios, separados do
 heartbeat dos sensores, para que as 20 vagas mapeadas da FATEC continuem
 visíveis ao motorista e cada ocupação/liberação manual atualize a vitrine.
 O catálogo também recebe uma subcoleção `vagas` somente com o estado
-livre/ocupada, sem placas. Assim, motoristas podem abrir uma sobreposição
-dedicada do mapa da FATEC, escolher visualmente uma das 20 posições e iniciar
-a rota; a entrada continua sendo confirmada pela placa no totem.
+livre/ocupada/reservada, sem placas. Assim, motoristas podem abrir uma
+sobreposição dedicada do mapa da FATEC, escolher visualmente uma das 20
+posições e iniciar uma estadia pelo aplicativo. O documento
+`estadiasApp/{uid}` mantém no máximo uma estadia ativa por conta, sem reutilizar
+os campos de entrada física do totem. Enquanto ela está ativa, a mesma placa
+não pode abrir outra entrada no equipamento.
+
+**Pagamento pelo aplicativo também é simulado.** “Pagar agora” antecipa um
+minuto (R$ 0,22) e cobra o restante ao encerrar; “Pagar depois” não desconta no
+início e cobra o total no fim. Todo minuto iniciado é cobrado, sem o motorista
+informar previamente a duração. Não apresentar esse fluxo como pagamento real.
 
 ---
 

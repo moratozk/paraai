@@ -60,8 +60,15 @@ estacionamentos/{id}/vagas/{1..N}
   ocupada, placa                          -- sensor em tempo real
 
 catalogoEstacionamentos/{EST-XXXXXX}
-  nome, endereço, tarifaHora, numVagas,
+  nome, endereço, tarifaHora, tarifaMinuto?, numVagas,
   ultimaAtualizacao, vagasLivres          -- vitrine segura do motorista
+
+catalogoEstacionamentos/{id}/vagas/{1..N}
+  ocupada, reservada?                     -- mapa público, sem placa
+
+estadiasApp/{UID_MOTORISTA}
+  placa, estacionamentoId, vaga, inicio, tarifaMinuto,
+  modoPagamento, valorAntecipado, status  -- cobrança simulada pelo app
 
 veiculos/{PLACA}                          -- GLOBAL: carteira única na rede
   ativo, vagaAtual (0=fora), horaEntrada (Unix s), saldo,
@@ -106,5 +113,8 @@ não mudar retroativamente durante uma estadia.
   equipamentos autorizados às operações necessárias de entrada e saída.
 - A recarga de saldo é **simulada** (crédito direto no banco), sem gateway de
   pagamento.
+- A escolha e cobrança de vaga pelo aplicativo também são simuladas. O total
+  usa a tarifa por minuto do estacionamento e é debitado da carteira interna
+  quando o motorista encerra a permanência.
 - O hardware atual monitora até quatro sensores físicos. O painel aceita mais
   vagas, mas avisa quando a configuração ultrapassa os sensores instalados.

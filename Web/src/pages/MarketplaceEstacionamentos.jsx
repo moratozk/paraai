@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { useCatalogoEstacionamentos } from "../hooks/useParkingData";
+import { useCatalogoEstacionamentos, useVeiculo } from "../hooks/useParkingData";
 import { montarEnderecoLinha } from "../services/cep";
 import { formatarMoeda } from "../utils/format";
 import { TOTEM_OFFLINE_APOS_SEGUNDOS } from "../utils/constants";
@@ -47,6 +47,7 @@ function prepararEstacionamento(item, agora) {
     leituraVagas >= 0;
   const vagasLivres = temLeitura ? leituraVagas : null;
   const tarifaHora = Number(item.tarifaHora);
+  const tarifaMinuto = Number(item.tarifaMinuto);
   const endereco = montarEnderecoLinha(item);
   const pesquisavel = normalizarBusca(
     [item.nome, item.bairro, item.cidade, item.uf, item.cep, endereco].join(" ")
@@ -60,13 +61,16 @@ function prepararEstacionamento(item, agora) {
     vagasLivres,
     disponivel: temLeitura && vagasLivres > 0,
     tarifaHora: Number.isFinite(tarifaHora) ? tarifaHora : 0,
+    tarifaMinuto: Number.isFinite(tarifaMinuto) ? tarifaMinuto : null,
     endereco,
     pesquisavel,
   };
 }
 
 export default function MarketplaceEstacionamentos() {
-  const { userData } = useAuth();
+  const { user, userData } = useAuth();
+  const placa = userData?.placa || "";
+  const { veiculo } = useVeiculo(placa);
   const { estacionamentos, loading, erro } = useCatalogoEstacionamentos();
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todos");
@@ -119,8 +123,8 @@ export default function MarketplaceEstacionamentos() {
           <span className="marketplace-sobrelinha">Rede ParaAí</span>
           <h1>Encontre onde parar</h1>
           <p>
-            Compare tarifa e vagas disponíveis antes de sair. Ao chegar, basta
-            digitar sua placa para iniciar o acesso.
+            Compare tarifas, abra o mapa e escolha uma vaga livre. O valor é
+            acompanhado por minuto no seu painel.
           </p>
         </div>
         <div className="marketplace-resumo" aria-label="Resumo da rede">
@@ -254,7 +258,10 @@ export default function MarketplaceEstacionamentos() {
                       <div>
                         <span>Tarifa</span>
                         <strong>
-                          {formatarMoeda(item.tarifaHora)}<small>/hora</small>
+                          {item.tarifaMinuto !== null
+                            ? formatarMoeda(item.tarifaMinuto)
+                            : formatarMoeda(item.tarifaHora)}
+                          <small>{item.tarifaMinuto !== null ? "/min" : "/hora"}</small>
                         </strong>
                       </div>
                       <div>
@@ -301,6 +308,11 @@ export default function MarketplaceEstacionamentos() {
                       <MapaVagasPublico
                         estacionamento={item}
                         rota={rota}
+                        motorista={{
+                          uid: user?.uid,
+                          placa,
+                          saldo: Number(veiculo?.saldo) || 0,
+                        }}
                         onFechar={() => setMapaAberto(null)}
                       />
                     )}

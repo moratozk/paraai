@@ -117,6 +117,10 @@
 .marketplace-chamada-painel { justify-content: space-between; }
 .marketplace-chamada-painel > div { color: var(--text-secondary); line-height: 1.5; }
 .marketplace-chamada-painel strong { color: var(--text-primary); }
+.estadia-app-ativa { justify-content: space-between; }
+.estadia-app-ativa > div { display: grid; gap: 0.2rem; color: var(--text-secondary); }
+.estadia-app-ativa > div > strong { color: var(--text-primary); font-size: 1rem; }
+.estadia-app-ativa .stat-label { color: var(--accent-text); }
 
 /* ==========================================================================
    GRADES
@@ -962,7 +966,10 @@
   .stats-grid { grid-template-columns: 1fr 1fr; }
   .fat-periodos { gap: 1rem; }
   .valores-grid { grid-template-columns: repeat(2, 1fr); }
-  .marketplace-chamada-painel { align-items: stretch; flex-direction: column; }
+  .marketplace-chamada-painel, .estadia-app-ativa {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }
 
 @media (max-width: 400px) {

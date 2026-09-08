@@ -218,7 +218,8 @@ export async function publicarMapaVagas(estId) {
   for (let numero = 1; numero <= numVagas; numero += 1) {
     batch.set(
       doc(db, "catalogoEstacionamentos", estId, "vagas", String(numero)),
-      { ocupada: vagasOcupadas.has(numero) }
+      { ocupada: vagasOcupadas.has(numero) },
+      { merge: true }
     );
   }
   await batch.commit();

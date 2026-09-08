@@ -124,7 +124,7 @@ export function useEstacionamentoPublico(estId) {
 }
 
 // Estado seguro das vagas exibidas no mapa do motorista. A projeção pública
-// contém somente ocupada/livre; placas continuam restritas ao operador.
+// contém somente ocupada/reservada; placas continuam restritas ao operador.
 export function useVagasPublicas(estId, numVagas = TOTAL_VAGAS) {
   const [snapState, setSnapState] = useState({ id: null, docs: {}, erro: "" });
 
@@ -159,7 +159,10 @@ export function useVagasPublicas(estId, numVagas = TOTAL_VAGAS) {
         return {
           id,
           numero: indice + 1,
-          ocupada: Boolean(atualizado && snapState.docs[id]?.ocupada),
+          ocupada: Boolean(
+            atualizado &&
+              (snapState.docs[id]?.ocupada || snapState.docs[id]?.reservada)
+          ),
         };
       }),
     [atualizado, snapState.docs, total]
@@ -169,6 +172,32 @@ export function useVagasPublicas(estId, numVagas = TOTAL_VAGAS) {
     vagas,
     loading: Boolean(estId) && !atualizado,
     erro: atualizado ? snapState.erro : "",
+  };
+}
+
+export function useEstadiaApp(uid) {
+  const [snapState, setSnapState] = useState({ uid: null, estadia: null });
+
+  useEffect(() => {
+    if (!uid) return undefined;
+    return onSnapshot(
+      doc(db, "estadiasApp", uid),
+      (snap) =>
+        setSnapState({
+          uid,
+          estadia: snap.exists() ? { id: snap.id, ...snap.data() } : null,
+        }),
+      (err) => {
+        console.error("[estadia-app] erro no listener:", err);
+        setSnapState({ uid, estadia: null });
+      }
+    );
+  }, [uid]);
+
+  const atualizado = snapState.uid === uid;
+  return {
+    estadia: atualizado ? snapState.estadia : null,
+    loading: Boolean(uid) && !atualizado,
   };
 }
 
