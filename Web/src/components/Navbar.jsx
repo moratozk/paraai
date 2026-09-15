@@ -89,12 +89,15 @@ export default function Navbar() {
   }
 
   const operador = userData?.role === "operador";
+  const admin = userData?.role === "admin";
   const nome = userData?.name || user?.displayName || "Usuário";
   const inicial = nome[0].toUpperCase();
 
   // Links de navegação principais (Perfil/Config saíram para o menu do avatar)
   const links = user
-    ? operador
+    ? admin
+      ? [{ to: "/dashboard", label: "Administração" }]
+      : operador
       ? [
           { to: "/dashboard", label: "Painel" },
           { to: "/historico", label: "Movimentações" },
@@ -119,7 +122,12 @@ export default function Navbar() {
               <Link
                 key={l.to}
                 to={l.to}
-                className={location.pathname === l.to ? "ativo" : ""}
+                className={
+                  location.pathname === l.to ||
+                  (admin && l.to === "/dashboard" && location.pathname.startsWith("/admin/"))
+                    ? "ativo"
+                    : ""
+                }
               >
                 {l.label}
               </Link>
@@ -164,7 +172,7 @@ export default function Navbar() {
                 <span className="user-bloco">
                   <span className="user-name">{nome}</span>
                   <span className="user-papel">
-                    {operador ? "Estacionamento" : "Motorista"}
+                    {admin ? "Administrador" : operador ? "Estacionamento" : "Motorista"}
                   </span>
                 </span>
                 <span className={`conta-seta ${contaAberta ? "girada" : ""}`}>
@@ -234,7 +242,7 @@ export default function Navbar() {
                 <div>
                   <strong>{nome}</strong>
                   <span className="user-papel">
-                    {operador ? "Estacionamento" : "Motorista"}
+                    {admin ? "Administrador" : operador ? "Estacionamento" : "Motorista"}
                   </span>
                 </div>
               </div>

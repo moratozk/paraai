@@ -1,0 +1,76 @@
+.admin-page { max-width: 1180px; }
+.admin-eyebrow,
+.admin-localidade {
+  color: var(--accent-text);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.stats-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+.admin-form { margin-bottom: var(--gap); }
+.admin-form h2 { margin-bottom: 0.25rem; }
+.admin-form .field > span {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--t-mini);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.admin-form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0 0.8rem;
+}
+.admin-span-2 { grid-column: span 2; }
+
+.admin-estacionamentos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--gap);
+}
+.admin-estacionamento { display: grid; gap: 1rem; }
+.admin-estacionamento-topo,
+.admin-estacionamento-acoes {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.admin-estacionamento-topo h2 { margin: 0.18rem 0 0.35rem; }
+.admin-estacionamento-dados {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+.admin-estacionamento-dados > div {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+}
+.admin-estacionamento-dados span {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+}
+.admin-estacionamento-dados strong { color: var(--text-primary); }
+.admin-endereco { color: var(--text-secondary); font-size: 0.82rem; }
+.admin-estacionamento-acoes { justify-content: flex-start; flex-wrap: wrap; }
+
+@media (max-width: 850px) {
+  .admin-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-estacionamentos { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 620px) {
+  .stats-grid.three,
+  .admin-form-grid { grid-template-columns: 1fr; }
+  .admin-span-2 { grid-column: span 1; }
+  .admin-estacionamento-topo { align-items: flex-start; flex-direction: column; }
+}

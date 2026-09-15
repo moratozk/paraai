@@ -219,9 +219,11 @@ export default function Perfil() {
       <div className="page-header">
         <h1>Perfil</h1>
         <p>
-          {role === "operador"
-            ? "Sua conta e seu estacionamento no ParaAí."
-            : "Sua conta e seu veículo no ParaAí."}
+          {role === "admin"
+            ? "Sua conta administrativa do sistema ParaAí."
+            : role === "operador"
+              ? "Sua conta e seu estacionamento no ParaAí."
+              : "Sua conta e seu veículo no ParaAí."}
         </p>
       </div>
 
@@ -230,7 +232,9 @@ export default function Perfil() {
           <div className="profile-avatar">{initials}</div>
           <h3>{name}</h3>
           <p>{email}</p>
-          {role === "operador" ? (
+          {role === "admin" ? (
+            <span className="status-pill warning">Administrador</span>
+          ) : role === "operador" ? (
             <span className="status-pill warning">Operador</span>
           ) : (
             placa && <span className="placa-tag">{placa}</span>
@@ -261,14 +265,31 @@ export default function Perfil() {
             <label>Tipo de conta</label>
             <input
               type="text"
-              value={role === "operador" ? "Dono de estacionamento" : "Motorista"}
+              value={
+                role === "admin"
+                  ? "Administrador do sistema"
+                  : role === "operador"
+                    ? "Dono de estacionamento"
+                    : "Motorista"
+              }
               disabled
             />
           </div>
         </div>
       </div>
 
-      {role === "operador" ? (
+      {role === "admin" ? (
+        <div className="card vehicle-card">
+          <h2>Administração da rede</h2>
+          <p className="muted-note" style={{ marginTop: 0 }}>
+            Esta conta gerencia todos os estacionamentos cadastrados, suas
+            tarifas, capacidade e publicação para os motoristas.
+          </p>
+          <Link to="/dashboard" className="btn btn-primary">
+            Abrir painel administrativo
+          </Link>
+        </div>
+      ) : role === "operador" ? (
         estId ? (
         <>
         <div className="card vehicle-card">

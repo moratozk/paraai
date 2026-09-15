@@ -193,6 +193,7 @@
 }
 /* o rótulo também muda de peso: o estado não é só a cor */
 .role-option.active .role-titulo { color: var(--accent-text); }
+.role-option-link { color: inherit; text-decoration: none; }
 
 .auth-check input { position: absolute; opacity: 0; pointer-events: none; }
 .auth-check label:has(input:checked) {
