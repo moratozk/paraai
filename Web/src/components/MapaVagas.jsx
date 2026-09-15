@@ -2,11 +2,12 @@ import { useState } from "react";
 import { useToast } from "../context/ToastContext";
 import { atualizarVagaManual } from "../services/estacionamentos";
 import { normalizarPlaca, placaValida } from "../utils/format";
-import { VAGAS_ESPECIAIS } from "../utils/mapaVagas";
+import { obterTipoVaga } from "../utils/mapaVagas";
 import "./MapaVagas.css";
 
 function Vaga({ vaga, selecionada, onSelecionar }) {
-  const especial = VAGAS_ESPECIAIS[vaga.numero];
+  const classificacao = obterTipoVaga(vaga.tipo, vaga.numero);
+  const especial = classificacao.tipo === "comum" ? null : classificacao;
   const descricao = vaga.ocupada
     ? `Vaga ${vaga.numero} ocupada${vaga.placa ? ` pela placa ${vaga.placa}` : ""}`
     : `Vaga ${vaga.numero} livre`;

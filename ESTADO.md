@@ -1,7 +1,7 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **08/09/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **15/09/2026**.
 
 ---
 
@@ -77,6 +77,10 @@ na Arduino IDE e gravar.
   diferencia vagas livres, ocupadas e reservadas, permite filtrar por estado
   ou placa e mostra tempo e valor acumulado de estadias ativas para o guarda.
   O mapa pode ocupar a tela inteira, com saída pelo botão ou pela tecla Esc
+- O administrador pode reclassificar cada vaga como comum, PCD, 60+ ou
+  gestante. A escolha é persistida nos mapas operacional e público; as vagas
+  especiais usam fundos azul, roxo e rosa, não apenas contornos, e os números
+  usam uma tipografia mais leve para facilitar a leitura à distância
 - Faturamento por período, ocupação vaga a vaga, histórico de acessos
 - Mapa visual e interativo do pátio em tempo real, com corredor, entrada,
   saída e vagas reservadas para PCD, idosos e gestantes
@@ -186,7 +190,9 @@ publicada em `catalogoEstacionamentos`. Ela usa campos próprios, separados do
 heartbeat dos sensores, para que as 20 vagas mapeadas da FATEC continuem
 visíveis ao motorista e cada ocupação/liberação manual atualize a vitrine.
 O catálogo também recebe uma subcoleção `vagas` somente com o estado
-livre/ocupada/reservada, sem placas. Assim, motoristas podem abrir uma
+livre/ocupada/reservada e o tipo da vaga, sem placas. Tipos explícitos definidos
+pelo administrador prevalecem sobre a distribuição padrão da FATEC. Assim,
+motoristas podem abrir uma
 sobreposição dedicada do mapa da FATEC, escolher visualmente uma das 20
 posições e iniciar uma estadia pelo aplicativo. O documento
 `estadiasApp/{uid}` mantém no máximo uma estadia ativa por conta, sem reutilizar

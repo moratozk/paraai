@@ -216,22 +216,28 @@ service cloud.firestore {
     }
 
     function vagaManualValida(dados) {
-      return dados.keys().hasOnly(['ocupada', 'placa'])
+      return dados.keys().hasOnly(['ocupada', 'placa', 'tipo'])
         && dados.keys().hasAll(['ocupada', 'placa'])
         && dados.ocupada is bool
         && dados.placa is string
         && dados.placa.size() <= 8
-        && (dados.ocupada || dados.placa == '');
+        && (dados.ocupada || dados.placa == '')
+        && (!('tipo' in dados)
+          || (dados.tipo is string
+            && dados.tipo in ['comum', 'pcd', 'idoso', 'gestante']));
     }
 
     // O firmware grava ocupação e placa em chamadas separadas. Essa forma
     // aceita o documento parcial do equipamento sem afrouxar a escrita manual.
     function vagaDoTotemValida(dados) {
-      return dados.keys().hasOnly(['ocupada', 'placa'])
+      return dados.keys().hasOnly(['ocupada', 'placa', 'tipo'])
         && dados.keys().hasAny(['ocupada', 'placa'])
         && (!('ocupada' in dados) || dados.ocupada is bool)
         && (!('placa' in dados)
-          || (dados.placa is string && dados.placa.size() <= 8));
+          || (dados.placa is string && dados.placa.size() <= 8))
+        && (!('tipo' in dados)
+          || (dados.tipo is string
+            && dados.tipo in ['comum', 'pcd', 'idoso', 'gestante']));
     }
 
     match /users/{uid} {
@@ -280,9 +286,11 @@ service cloud.firestore {
         // A validação mantém exatamente o mesmo formato usado pelo equipamento.
         allow create: if adminDoSistema()
           || (totemDoEstacionamento(estId)
-            && vagaDoTotemValida(request.resource.data))
+            && vagaDoTotemValida(request.resource.data)
+            && !('tipo' in request.resource.data))
           || (donoDoEstacionamento(estId)
-            && vagaManualValida(request.resource.data));
+            && vagaManualValida(request.resource.data)
+            && !('tipo' in request.resource.data));
         allow update: if adminDoSistema()
           || (((totemDoEstacionamento(estId)
               && vagaDoTotemValida(request.resource.data))
@@ -375,10 +383,13 @@ service cloud.firestore {
     }
 
     function vagaPublicaValida(dados) {
-      return dados.keys().hasOnly(['ocupada', 'reservada'])
+      return dados.keys().hasOnly(['ocupada', 'reservada', 'tipo'])
         && dados.keys().hasAll(['ocupada'])
         && dados.ocupada is bool
-        && (!('reservada' in dados) || dados.reservada is bool);
+        && (!('reservada' in dados) || dados.reservada is bool)
+        && (!('tipo' in dados)
+          || (dados.tipo is string
+            && dados.tipo in ['comum', 'pcd', 'idoso', 'gestante']));
     }
 
     function estadiaAppNovaValida(uid, dados) {

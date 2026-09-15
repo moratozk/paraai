@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useVagasPublicas } from "../hooks/useParkingData";
-import { VAGAS_ESPECIAIS } from "../utils/mapaVagas";
+import { obterTipoVaga } from "../utils/mapaVagas";
 import { formatarMoeda } from "../utils/format";
 import {
   iniciarEstadiaApp,
@@ -39,7 +39,8 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
   }, [onFechar]);
 
   function renderizarVaga(vaga) {
-    const especial = VAGAS_ESPECIAIS[vaga.numero];
+    const classificacao = obterTipoVaga(vaga.tipo, vaga.numero);
+    const especial = classificacao.tipo === "comum" ? null : classificacao;
     const selecionada = vagaSelecionada === vaga.numero;
     return (
       <button
@@ -132,7 +133,9 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
             <div className="mapa-publico-legenda" aria-label="Legenda das vagas">
               <span><i className="livre" />Livre</span>
               <span><i className="ocupada" />Ocupada</span>
-              <span><i className="especial" />Preferencial</span>
+              <span><i className="pcd" />PCD</span>
+              <span><i className="idoso" />60+</span>
+              <span><i className="gestante" />Gestante</span>
             </div>
 
             <div className="mapa-publico-patio">

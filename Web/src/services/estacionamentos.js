@@ -16,6 +16,7 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { db } from "../firebase/firebaseConfig";
+import { tipoVagaValido } from "../utils/mapaVagas";
 
 // Tarifa padrão usada até o dono definir a dele no painel.
 export const TARIFA_PADRAO = 5;
@@ -356,9 +357,55 @@ export async function atualizarVagaManual({ estId, numero, ocupada, placa = "" }
     throw new Error("Vaga inválida.");
   }
 
-  await setDoc(doc(db, "estacionamentos", estId, "vagas", String(numeroVaga)), {
-    ocupada: Boolean(ocupada),
-    placa: ocupada ? String(placa || "").trim().toUpperCase() : "",
-  });
+  await setDoc(
+    doc(db, "estacionamentos", estId, "vagas", String(numeroVaga)),
+    {
+      ocupada: Boolean(ocupada),
+      placa: ocupada ? String(placa || "").trim().toUpperCase() : "",
+    },
+    { merge: true }
+  );
   return publicarMapaVagas(estId);
+}
+
+// Classificação editável pelo administrador. O tipo fica no documento
+// operacional e na projeção pública, sem alterar ocupação, placa ou reserva.
+export async function atualizarTipoVagaAdmin({ estId, numero, tipo }) {
+  const numeroVaga = Number(numero);
+  if (!estId || !Number.isInteger(numeroVaga) || numeroVaga < 1 || numeroVaga > 200) {
+    throw new Error("Vaga inválida.");
+  }
+  if (!tipoVagaValido(tipo)) throw new Error("Tipo de vaga inválido.");
+
+  const vagaOperacionalRef = doc(
+    db,
+    "estacionamentos",
+    estId,
+    "vagas",
+    String(numeroVaga)
+  );
+  const vagaPublicaRef = doc(
+    db,
+    "catalogoEstacionamentos",
+    estId,
+    "vagas",
+    String(numeroVaga)
+  );
+  const [vagaOperacional, vagaPublica] = await Promise.all([
+    getDoc(vagaOperacionalRef),
+    getDoc(vagaPublicaRef),
+  ]);
+  const ocupada = Boolean(
+    (vagaOperacional.exists() && vagaOperacional.data().ocupada) ||
+      (vagaPublica.exists() && vagaPublica.data().ocupada)
+  );
+  const batch = writeBatch(db);
+  batch.set(vagaOperacionalRef, { tipo }, { merge: true });
+  batch.set(
+    vagaPublicaRef,
+    { ocupada, tipo },
+    { merge: true }
+  );
+  await batch.commit();
+  return tipo;
 }

@@ -447,7 +447,9 @@
   background: var(--bg-input);
 }
 .mapa-publico-legenda i.ocupada { background: var(--danger); }
-.mapa-publico-legenda i.especial { border-color: var(--accent); background: var(--accent-soft); }
+.mapa-publico-legenda i.pcd { border-color: #2878d0; background: #2878d0; }
+.mapa-publico-legenda i.idoso { border-color: #7a5bc7; background: #7a5bc7; }
+.mapa-publico-legenda i.gestante { border-color: #c24f87; background: #c24f87; }
 
 .mapa-publico-fileira {
   display: grid;
@@ -493,10 +495,33 @@
   opacity: 0.72;
 }
 
-.mapa-publico-vaga.pcd,
-.mapa-publico-vaga.idoso,
-.mapa-publico-vaga.gestante { border-color: var(--accent); }
-.mapa-publico-vaga span { font-size: 0.86rem; font-weight: 900; }
+.mapa-publico-vaga.pcd {
+  border-color: #2878d0;
+  background: color-mix(in srgb, #2878d0 24%, var(--bg-input));
+}
+.mapa-publico-vaga.idoso {
+  border-color: #7a5bc7;
+  background: color-mix(in srgb, #7a5bc7 24%, var(--bg-input));
+}
+.mapa-publico-vaga.gestante {
+  border-color: #c24f87;
+  background: color-mix(in srgb, #c24f87 24%, var(--bg-input));
+}
+.mapa-publico-vaga.ocupada.pcd,
+.mapa-publico-vaga.ocupada.idoso,
+.mapa-publico-vaga.ocupada.gestante { opacity: 0.8; filter: saturate(0.72); }
+.mapa-publico-vaga.pcd.selecionada,
+.mapa-publico-vaga.idoso.selecionada,
+.mapa-publico-vaga.gestante.selecionada {
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  transform: translateY(-2px);
+}
+.mapa-publico-vaga span {
+  font-family: var(--font-main);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
 .mapa-publico-vaga small { font-size: 0.58rem; }
 
 .mapa-publico-corredor {

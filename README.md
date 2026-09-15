@@ -57,14 +57,14 @@ estacionamentos/{EST-XXXXXX}
   ultimaAtualizacao, vagasLivres, tarifaAplicadaTotem -- heartbeat (60s)
 
 estacionamentos/{id}/vagas/{1..N}
-  ocupada, placa                          -- sensor em tempo real
+  ocupada, placa, tipo?                   -- sensor + classificação da vaga
 
 catalogoEstacionamentos/{EST-XXXXXX}
   nome, endereço, tarifaHora, tarifaMinuto?, numVagas,
   ultimaAtualizacao, vagasLivres          -- vitrine segura do motorista
 
 catalogoEstacionamentos/{id}/vagas/{1..N}
-  ocupada, reservada?                     -- mapa público, sem placa
+  ocupada, reservada?, tipo?              -- mapa público, sem placa
 
 estadiasApp/{UID_MOTORISTA}
   placa, estacionamentoId, vaga, inicio, tarifaMinuto,
@@ -87,7 +87,7 @@ totems/{FIREBASE_AUTH_UID}
   estacionamentoId, nome, email, ativo       -- identidade do equipamento
 
 users/{uid}
-  name, email, role ("motorista"|"operador"), placa?, estacionamentoId?
+  name, email, role ("motorista"|"operador"|"admin"), placa?, estacionamentoId?
 ```
 
 Convenções: timestamps em **segundos Unix**; placas em **maiúsculas, sem

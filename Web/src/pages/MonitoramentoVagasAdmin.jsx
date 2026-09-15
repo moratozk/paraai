@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import {
   useEstacionamento,
   useEstadiasAppAdmin,
@@ -12,7 +13,8 @@ import {
   formatarDuracaoAoVivo,
   formatarMoeda,
 } from "../utils/format";
-import { VAGAS_ESPECIAIS } from "../utils/mapaVagas";
+import { atualizarTipoVagaAdmin } from "../services/estacionamentos";
+import { obterTipoVaga, TIPOS_VAGA_EDITAVEIS } from "../utils/mapaVagas";
 import "./Pages.css";
 import "./MonitoramentoVagasAdmin.css";
 
@@ -42,6 +44,7 @@ function minutosIniciados(inicio, agora) {
 export default function MonitoramentoVagasAdmin() {
   const { estId: rotaEstId } = useParams();
   const { userData } = useAuth();
+  const toast = useToast();
   const admin = userData?.role === "admin";
   const estId = admin ? rotaEstId : null;
   const { estacionamento, online, loading: loadingEstacionamento } =
@@ -66,6 +69,9 @@ export default function MonitoramentoVagasAdmin() {
   const [agora, setAgora] = useState(() => Math.floor(Date.now() / 1000));
   const [telaCheiaNativa, setTelaCheiaNativa] = useState(false);
   const [telaCheiaAlternativa, setTelaCheiaAlternativa] = useState(false);
+  const [tipoEmEdicao, setTipoEmEdicao] = useState("comum");
+  const [salvandoTipo, setSalvandoTipo] = useState(false);
+  const [erroTipo, setErroTipo] = useState("");
   const mapaRef = useRef(null);
 
   useEffect(() => {
@@ -117,13 +123,18 @@ export default function MonitoramentoVagasAdmin() {
         const publica = vagasPublicas[indice] || {};
         const estadia = estadiasPorVaga.get(operacional.id) || null;
         const ocupada = Boolean(operacional.ocupada || publica.ocupadaFisica);
+        const classificacao = obterTipoVaga(
+          operacional.tipo || publica.tipo,
+          operacional.numero
+        );
         return {
           ...operacional,
           ocupada,
           reservada: !ocupada && Boolean(publica.reservada || estadia),
           placa: operacional.placa || estadia?.placa || "",
           estadia,
-          especial: VAGAS_ESPECIAIS[operacional.numero] || null,
+          tipo: classificacao.tipo,
+          especial: classificacao.tipo === "comum" ? null : classificacao,
         };
       }),
     [estadiasPorVaga, vagasOperacionais, vagasPublicas]
@@ -184,6 +195,34 @@ export default function MonitoramentoVagasAdmin() {
     );
   }
 
+  function selecionarVaga(vaga) {
+    setVagaSelecionada(vaga.id);
+    setTipoEmEdicao(vaga.tipo || "comum");
+    setErroTipo("");
+  }
+
+  async function salvarTipoVaga(event) {
+    event.preventDefault();
+    if (!selecionada) return;
+    setSalvandoTipo(true);
+    setErroTipo("");
+    try {
+      await atualizarTipoVagaAdmin({
+        estId,
+        numero: selecionada.numero,
+        tipo: tipoEmEdicao,
+      });
+      const classificacao = obterTipoVaga(tipoEmEdicao, selecionada.numero);
+      toast.sucesso(
+        `Vaga ${String(selecionada.numero).padStart(2, "0")} alterada para ${classificacao.rotulo}.`
+      );
+    } catch (err) {
+      setErroTipo(err.message || "Não foi possível alterar o tipo da vaga.");
+    } finally {
+      setSalvandoTipo(false);
+    }
+  }
+
   function renderizarVaga(vaga) {
     const status = statusDaVaga(vaga);
     return (
@@ -193,7 +232,7 @@ export default function MonitoramentoVagasAdmin() {
         className={`monitor-vaga ${status} ${vaga.especial ? `especial ${vaga.especial.tipo}` : ""} ${
           vaga.id === vagaSelecionada ? "selecionada" : ""
         } ${vaga.visivel ? "" : "fora-do-filtro"}`}
-        onClick={() => vaga.visivel && setVagaSelecionada(vaga.id)}
+        onClick={() => vaga.visivel && selecionarVaga(vaga)}
         disabled={!vaga.visivel}
         aria-label={`Vaga ${vaga.numero}, ${rotuloStatus(status)}${
           vaga.placa ? `, placa ${vaga.placa}` : ""
@@ -340,6 +379,9 @@ export default function MonitoramentoVagasAdmin() {
               <span><i className="livre" />Livre</span>
               <span><i className="ocupada" />Ocupada</span>
               <span><i className="reservada" />Reservada no app</span>
+              <span><i className="pcd" />PCD</span>
+              <span><i className="idoso" />60+</span>
+              <span><i className="gestante" />Gestante</span>
             </div>
             <div className="monitor-mapa-scroll">
               <div className="monitor-patio">
@@ -395,6 +437,43 @@ export default function MonitoramentoVagasAdmin() {
                     </>
                   )}
                 </dl>
+                <form className="monitor-tipo-editor" onSubmit={salvarTipoVaga}>
+                  <fieldset disabled={salvandoTipo}>
+                    <legend>Classificação da vaga</legend>
+                    <div className="monitor-tipos-grid">
+                      {TIPOS_VAGA_EDITAVEIS.map((tipo) => (
+                        <label
+                          key={tipo.tipo}
+                          className={`${tipo.tipo} ${
+                            tipoEmEdicao === tipo.tipo ? "selecionado" : ""
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name={`tipo-vaga-${selecionada.id}`}
+                            value={tipo.tipo}
+                            checked={tipoEmEdicao === tipo.tipo}
+                            onChange={() => {
+                              setTipoEmEdicao(tipo.tipo);
+                              setErroTipo("");
+                            }}
+                          />
+                          <span aria-hidden="true">{tipo.icone}</span>
+                          <strong>{tipo.rotulo}</strong>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                  {erroTipo && <p className="error-text">{erroTipo}</p>}
+                  <button
+                    className="btn btn-primary btn-sm btn-block"
+                    type="submit"
+                    disabled={salvandoTipo || tipoEmEdicao === selecionada.tipo}
+                  >
+                    {salvandoTipo ? "Salvando…" : "Salvar tipo da vaga"}
+                  </button>
+                  <p>A cor será atualizada nos mapas administrativo e público.</p>
+                </form>
                 <button className="btn btn-ghost btn-sm" type="button" onClick={() => setVagaSelecionada(null)}>
                   Fechar detalhes
                 </button>
@@ -430,7 +509,7 @@ export default function MonitoramentoVagasAdmin() {
               {vagas
                 .filter((vaga) => vaga.ocupada || vaga.reservada)
                 .map((vaga) => (
-                  <button type="button" key={vaga.id} onClick={() => setVagaSelecionada(vaga.id)}>
+                  <button type="button" key={vaga.id} onClick={() => selecionarVaga(vaga)}>
                     <strong>Vaga {String(vaga.numero).padStart(2, "0")}</strong>
                     <span className="placa-tag placa-tag-sm">{vaga.placa || "SEM PLACA"}</span>
                     <span>{vaga.reservada ? "Reserva no aplicativo" : "Ocupação detectada"}</span>

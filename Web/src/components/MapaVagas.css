@@ -87,13 +87,28 @@
   background: color-mix(in srgb, var(--danger) 11%, var(--bg-solid));
   border-color: color-mix(in srgb, var(--danger) 64%, var(--border));
 }
-.mapa-vaga.especial.pcd { box-shadow: inset 0 3px #3b82f6; }
-.mapa-vaga.especial.idoso { box-shadow: inset 0 3px #a78bfa; }
-.mapa-vaga.especial.gestante { box-shadow: inset 0 3px #ec4899; }
-.mapa-vaga.especial.selecionada { box-shadow: inset 0 3px currentColor, 0 0 0 3px var(--accent-soft); }
+.mapa-vaga.especial.pcd {
+  background: color-mix(in srgb, #2878d0 20%, var(--bg-solid));
+  border-color: #2878d0;
+}
+.mapa-vaga.especial.idoso {
+  background: color-mix(in srgb, #7a5bc7 20%, var(--bg-solid));
+  border-color: #7a5bc7;
+}
+.mapa-vaga.especial.gestante {
+  background: color-mix(in srgb, #c24f87 20%, var(--bg-solid));
+  border-color: #c24f87;
+}
+.mapa-vaga.especial.selecionada { box-shadow: 0 0 0 3px var(--accent-soft); }
 
 .mapa-vaga-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.25rem; }
-.mapa-vaga-topo strong { font-family: var(--font-display); font-size: 1.22rem; line-height: 1; }
+.mapa-vaga-topo strong {
+  font-family: var(--font-main);
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
 .mapa-vaga-tipo {
   display: inline-flex;
   align-items: center;

@@ -195,6 +195,7 @@ export function useVagasPublicas(estId, numVagas = TOTAL_VAGAS) {
           ),
           ocupadaFisica: Boolean(atualizado && snapState.docs[id]?.ocupada),
           reservada: Boolean(atualizado && snapState.docs[id]?.reservada),
+          tipo: (atualizado && snapState.docs[id]?.tipo) || "",
         };
       }),
     [atualizado, snapState.docs, total]
@@ -308,6 +309,7 @@ export function useVagas(estId, numVagas = TOTAL_VAGAS) {
           numero: i + 1,
           ocupada: Boolean(data.ocupada),
           placa: data.placa || "",
+          tipo: data.tipo || "",
         };
       }),
     [snapState, atualizado, total]
