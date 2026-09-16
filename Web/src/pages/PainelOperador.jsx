@@ -541,8 +541,8 @@ export default function PainelOperador() {
                   : "Nenhuma movimentação neste período."}
               </p>
             ) : (
-              <div className="tabela-wrap">
-                <table className="history-table">
+              <div className="tabela-wrap tabela-cards">
+                <table className="history-table responsive-table">
                   <thead>
                     <tr>
                       <th>Placa</th>
@@ -556,16 +556,16 @@ export default function PainelOperador() {
                   <tbody>
                     {movimentacoes.map((item) => (
                       <tr key={item.id}>
-                        <td>
+                        <td data-label="Placa">
                           <span className="placa-tag placa-tag-sm">
                             {item.placa}
                           </span>
                         </td>
-                        <td>{item.vaga}</td>
-                        <td>{formatarDataHora(item.entrada)}</td>
-                        <td>{formatarDataHora(item.saida)}</td>
-                        <td>{formatarDuracao(item.duracaoMinutos)}</td>
-                        <td className="money">
+                        <td data-label="Vaga">{item.vaga}</td>
+                        <td data-label="Entrada">{formatarDataHora(item.entrada)}</td>
+                        <td data-label="Saída">{formatarDataHora(item.saida)}</td>
+                        <td data-label="Duração">{formatarDuracao(item.duracaoMinutos)}</td>
+                        <td data-label="Valor" className="money">
                           {formatarMoeda(item.valorCobrado)}
                         </td>
                       </tr>
@@ -623,26 +623,30 @@ export default function PainelOperador() {
                 Os clientes aparecem aqui após o primeiro uso.
               </p>
             ) : (
-              <table className="history-table">
-                <thead>
-                  <tr>
-                    <th>Placa</th>
-                    <th>Usos</th>
-                    <th>Gasto</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {clientes.slice(0, 6).map((c) => (
-                    <tr key={c.placa}>
-                      <td>
-                        <span className="placa-tag placa-tag-sm">{c.placa}</span>
-                      </td>
-                      <td>{c.acessos}</td>
-                      <td className="money">{formatarMoeda(c.total)}</td>
+              <div className="tabela-wrap tabela-cards">
+                <table className="history-table responsive-table">
+                  <thead>
+                    <tr>
+                      <th>Placa</th>
+                      <th>Usos</th>
+                      <th>Gasto</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {clientes.slice(0, 6).map((c) => (
+                      <tr key={c.placa}>
+                        <td data-label="Placa">
+                          <span className="placa-tag placa-tag-sm">{c.placa}</span>
+                        </td>
+                        <td data-label="Usos">{c.acessos}</td>
+                        <td data-label="Gasto" className="money">
+                          {formatarMoeda(c.total)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
 

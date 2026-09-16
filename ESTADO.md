@@ -1,7 +1,7 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **26/08/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **16/09/2026**.
 
 ---
 
@@ -80,6 +80,9 @@ na Arduino IDE e gravar.
 
 **Site**
 - Home com fotos que acompanham a rolagem, sem dependência de animação
+- Layout responsivo revisado para celulares: navegação e modais roláveis,
+  formulários e ações sem compressão, cartões reorganizados e tabelas exibidas
+  como blocos legíveis em telas estreitas
 - Cadastro em duas frentes: motorista e estacionamento
 - Recuperação e redefinição de senha
 - Recarga de saldo (PIX/cartão simulados)

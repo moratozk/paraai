@@ -368,6 +368,32 @@
   .modal-recarga { padding: 24px 20px; }
 }
 
+@media (max-width: 380px) {
+  .modal-overlay {
+    align-items: flex-start;
+    padding: 8px;
+  }
+
+  .modal-recarga {
+    max-height: calc(100dvh - 16px);
+    padding: 20px 16px;
+  }
+
+  .recarga-passos {
+    gap: 4px;
+    padding-right: 36px;
+  }
+
+  .passo {
+    font-size: 0.58rem;
+    letter-spacing: 0.02em;
+  }
+
+  .passo-linha { min-width: 6px; }
+  .modal-acoes { flex-direction: column-reverse; }
+  .modal-acoes .btn { width: 100%; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .modal-overlay, .modal-recarga, .check-sucesso { animation: none; }
   .spinner-grande, .input-spinner { animation-duration: 2s; }

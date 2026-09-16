@@ -357,15 +357,41 @@
 }
 
 @media (max-width: 680px) {
-  .marketplace-hero { grid-template-columns: 1fr; align-items: start; }
+  .marketplace-hero {
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: 1.25rem;
+    padding: 1.25rem;
+  }
   .marketplace-resumo { align-items: flex-start; text-align: left; }
-  .marketplace-controles { grid-template-columns: 1fr; }
+  .marketplace-controles { grid-template-columns: minmax(0, 1fr); padding: 0.7rem; }
   .marketplace-busca,
   .marketplace-filtros,
   .marketplace-ordem { grid-column: 1; }
   .marketplace-filtros { width: 100%; }
   .marketplace-ordem { justify-content: space-between; }
+  .marketplace-ordem select { flex: 1; min-width: 0; }
   .marketplace-lista-topo { flex-direction: column; gap: 0.25rem; }
+}
+
+@media (max-width: 400px) {
+  .marketplace-card-titulo { flex-direction: column; }
+  .marketplace-status { align-self: flex-start; }
+  .marketplace-localidade {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 340px) {
+  .marketplace-card-dados { grid-template-columns: 1fr; }
+  .marketplace-card-dados > div + div {
+    padding-top: 0.6rem;
+    padding-left: 0;
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
