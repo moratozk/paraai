@@ -59,6 +59,13 @@
   margin-bottom: 1.1rem;
 }
 
+.page-header > *,
+.card,
+.card-head-row > *,
+.dashboard-col,
+.config-conteudo,
+.fat-hero > * { min-width: 0; }
+
 /* ==========================================================================
    ESTATÍSTICAS
    ========================================================================== */
@@ -102,6 +109,10 @@
 .stat-value.ok, .stat-value.success { color: var(--success); }
 .stat-value.danger { color: var(--danger); }
 .stat-value.cyan { color: var(--cyan); }
+.stat-value.situacao {
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  overflow-wrap: anywhere;
+}
 
 .money { font-variant-numeric: tabular-nums; }
 .mini { font-size: 0.78rem; color: var(--text-muted); }
@@ -401,6 +412,9 @@
    ========================================================================== */
 .tabela-wrap {
   overflow-x: auto;
+  max-width: 100%;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
 }
@@ -550,16 +564,19 @@
    VEÍCULO / PERFIL
    ========================================================================== */
 .vehicle-card {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+  display: block;
   padding: 1rem;
   border-radius: var(--radius-sm);
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-left: 3px solid var(--accent);
-  flex-wrap: wrap;
 }
+
+.vehicle-card > h2 { margin-bottom: 0.75rem; }
+.vehicle-card > form,
+.vehicle-card > .muted-note,
+.vehicle-card > .error-text,
+.vehicle-card > .success-text { width: 100%; }
 
 .totem-security-card {
   display: grid;
@@ -633,6 +650,8 @@
   font-size: 0.88rem;
 }
 .info-row:last-child { border-bottom: none; }
+.info-row > * { min-width: 0; }
+.info-row > :last-child { overflow-wrap: anywhere; }
 .info-row > span:first-child,
 .info-row > strong:first-child {
   font-family: var(--font-mono);
@@ -693,6 +712,8 @@
 
 .config-conteudo { display: grid; gap: var(--gap); }
 .config-rapida { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.config-rapida > form,
+.config-rapida > p { flex: 1 1 100%; min-width: 0; }
 .cartao-form { display: grid; gap: 0.2rem; }
 
 /* ==========================================================================
@@ -941,7 +962,10 @@
   .config-nav {
     position: static;
     grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    max-width: 100%;
     overflow-x: auto;
+    overscroll-behavior-inline: contain;
     padding-bottom: 0.3rem;
   }
   .config-nav button, .config-nav-item {
@@ -957,16 +981,135 @@
 }
 
 @media (max-width: 620px) {
+  .page { padding-top: 1.25rem; }
   .page-header { flex-direction: column; align-items: flex-start; }
-  .header-acoes { width: 100%; }
-  .stats-grid { grid-template-columns: 1fr 1fr; }
-  .fat-periodos { gap: 1rem; }
+  .page-header p { max-width: 100%; }
+
+  .header-acoes { width: 100%; align-items: stretch; }
+  .header-acoes .btn { flex: 1 1 160px; }
+
+  .card-head-row { align-items: flex-start; }
+  .card-head-row .input-busca { flex-basis: 100%; width: 100%; }
+
+  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat-card { padding: 1rem; }
+
+  .fat-hero { flex-direction: column; align-items: stretch; }
+  .fat-periodos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
+    width: 100%;
+    gap: 1rem;
+    padding: 0.85rem;
+  }
+  .fat-p { min-width: 0; }
+
+  .toolbar { align-items: stretch; }
+  .segmented {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+  }
+  .segmented button { padding: 0.55rem 0.25rem; }
+  .toolbar > .btn { flex: 1 1 100%; }
+
   .valores-grid { grid-template-columns: repeat(2, 1fr); }
-  .marketplace-chamada-painel { align-items: stretch; flex-direction: column; }
+  .destaque-aviso {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .destaque-aviso .btn { width: 100%; }
+
+  .chart-bars { height: 165px; gap: 0.25rem; }
+  .chart-bar-value {
+    max-width: 58px;
+    padding-inline: 0.25rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .vagas-grid,
+  .vagas-grid.mini {
+    grid-template-columns: repeat(auto-fill, minmax(min(92px, 100%), 1fr));
+  }
+
+  .activity-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+  .activity-item > div { min-width: 0; overflow-wrap: anywhere; }
+
+  .tabela-wrap.tabela-cards {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+  }
+  .history-table.responsive-table,
+  .history-table.responsive-table tbody,
+  .history-table.responsive-table tr,
+  .history-table.responsive-table td {
+    display: block;
+    width: 100%;
+  }
+  .history-table.responsive-table { min-width: 0; }
+  .history-table.responsive-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .history-table.responsive-table tbody {
+    display: grid;
+    gap: 0.75rem;
+  }
+  .history-table.responsive-table tr {
+    padding: 0.45rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+  }
+  .history-table.responsive-table td {
+    display: grid;
+    grid-template-columns: minmax(5.5rem, 0.8fr) minmax(0, 1.2fr);
+    gap: 0.75rem;
+    padding: 0.55rem 0;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+  .history-table.responsive-table td::before {
+    content: attr(data-label);
+    align-self: center;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-align: left;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .history-table.responsive-table td > .placa-tag { justify-self: end; }
 }
 
-@media (max-width: 400px) {
+@media (max-width: 480px) {
   .stats-grid { grid-template-columns: 1fr; }
+
+  .info-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .info-row > :last-child,
+  .info-row > span[style] { text-align: left !important; }
+
+  .totem-list-item { align-items: stretch; flex-direction: column; }
+  .totem-list-item .btn { width: 100%; }
+
+  .placa-form { flex-direction: column; }
+  .placa-form .field,
+  .placa-form .btn { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

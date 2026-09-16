@@ -372,13 +372,38 @@
    RESPONSIVO
    ========================================================================== */
 @media (max-width: 560px) {
+  .auth-page { padding-block: 1rem 2rem; }
+  .auth-card,
+  .auth-card-larga {
+    width: min(calc(100% - 1.5rem), 660px);
+    padding: 1.25rem;
+  }
+  .auth-logo { margin-bottom: 1.1rem; }
+  .auth-page .subtitle { margin-bottom: 1.3rem; }
   .auth-check { grid-template-columns: 1fr; }
   .cep-row { grid-template-columns: 1fr; }
   .acoes-etapa { flex-direction: column-reverse; }
+  .acoes-etapa .btn { width: 100%; }
   .etapas-trilha {
     width: min(100%, 220px);
     justify-content: space-between;
     margin-inline: auto;
   }
   .etapa-rotulo { display: none; }
+
+  .resumo-cadastro .endereco-linha,
+  .resumo-cadastro li,
+  .resumo-cadastro div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .resumo-cadastro strong,
+  .resumo-cadastro dd { overflow-wrap: anywhere; }
+}
+
+@media (max-width: 480px) {
+  .role-switch { grid-template-columns: 1fr; }
+  .role-option { min-height: 92px; }
 }

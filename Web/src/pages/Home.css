@@ -451,12 +451,24 @@
 }
 
 @media (max-width: 560px) {
+  .hero-conteudo {
+    padding-block: clamp(4.5rem, 11svh, 6.5rem) 3.5rem;
+  }
   .hero-titulo { line-height: 0.88; }
-  .hero-lema { padding-left: 0; letter-spacing: 0.1em; }
+  .hero-lema {
+    padding-left: 0;
+    letter-spacing: 0.08em;
+    overflow-wrap: anywhere;
+  }
   .hero-lema::before { display: none; }
   .hero-acoes .btn { width: 100%; }
+  .capitulo { padding-block: 2.75rem; }
+  .capitulo-media { aspect-ratio: 4 / 5; }
   .numeros-grade { grid-template-columns: 1fr; }
   .rodape-inner { flex-direction: column; align-items: flex-start; }
+  .rodape-links { width: 100%; }
+  .rodape-links a { padding-inline: 0; }
+  .rodape-base { flex-direction: column; gap: 0.45rem; }
   .chamada-acoes .btn { width: 100%; }
 }
 

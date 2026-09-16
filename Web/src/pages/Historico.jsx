@@ -85,34 +85,38 @@ export default function Historico() {
           </div>
 
           <div className="card">
-            <table className="history-table">
-              <thead>
-                <tr>
-                  {role === "operador" && <th>Placa</th>}
-                  <th>Vaga</th>
-                  <th>Entrada</th>
-                  <th>Saída</th>
-                  <th>Duração</th>
-                  <th>Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {historico.map((item) => (
-                  <tr key={item.id}>
-                    {role === "operador" && (
-                      <td>
-                        <span className="placa-tag placa-tag-sm">{item.placa}</span>
-                      </td>
-                    )}
-                    <td>Vaga {item.vaga}</td>
-                    <td>{formatarDataHora(item.entrada)}</td>
-                    <td>{formatarDataHora(item.saida)}</td>
-                    <td>{formatarDuracao(item.duracaoMinutos)}</td>
-                    <td className="money">{formatarMoeda(item.valorCobrado)}</td>
+            <div className="tabela-wrap tabela-cards">
+              <table className="history-table responsive-table">
+                <thead>
+                  <tr>
+                    {role === "operador" && <th>Placa</th>}
+                    <th>Vaga</th>
+                    <th>Entrada</th>
+                    <th>Saída</th>
+                    <th>Duração</th>
+                    <th>Valor</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {historico.map((item) => (
+                    <tr key={item.id}>
+                      {role === "operador" && (
+                        <td data-label="Placa">
+                          <span className="placa-tag placa-tag-sm">{item.placa}</span>
+                        </td>
+                      )}
+                      <td data-label="Vaga">Vaga {item.vaga}</td>
+                      <td data-label="Entrada">{formatarDataHora(item.entrada)}</td>
+                      <td data-label="Saída">{formatarDataHora(item.saida)}</td>
+                      <td data-label="Duração">{formatarDuracao(item.duracaoMinutos)}</td>
+                      <td data-label="Valor" className="money">
+                        {formatarMoeda(item.valorCobrado)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </>
       )}
