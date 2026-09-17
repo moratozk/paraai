@@ -1,7 +1,7 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **09/09/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **17/09/2026**.
 
 ---
 
@@ -55,8 +55,14 @@ Projeto acadêmico (TCC). Revisão atual: `codex/totem-atendimento`.
   compila DisplayUI.ino com Adafruit_GFX/fontes reais e periféricos simulados;
   verifica antirrepetição, transição de tela, confirmação, animação e mapeamento.
   Gera 13 frames SVG; inspeção visual realizada pelo navegador local.
-- CI executa testes Firestore + C++ e guarda frames para revisão. Compilação
-  ESP32 Dev Module/Huge APP em verificação; resultado final será registrado aqui.
+- CI executa testes Firestore + C++ e guarda frames para revisão. Adafruit GFX
+  1.12.6 é baixada do commit oficial fixado, sem depender do cache local ignorado.
+- Revalidação de 17/09/2026: 31 testes Firestore e as duas suítes C++ aprovados.
+  Compilação final ESP32 Dev Module/Huge APP, core 3.3.10, aprovada:
+  **1.390.844 bytes (44%) de programa; 53.440 bytes (16%) de RAM global**.
+- Código enviado em codex/totem-atendimento; revisão no [PR #7](https://github.com/moratozk/paraai/pull/7),
+  em rascunho, sem merge. Substitui a proposta com sensores do PR #5, que foi
+  preservado aberto para decisão dos autores; não unir as duas independentemente.
 - **Nada publicado no Firebase e nada gravado no ESP32.** Sem hardware
   conectado: calibração, responsividade sob TLS e montagem física pendentes.
   App Check continua em monitoramento. Ver checklist em Main/README.md.
