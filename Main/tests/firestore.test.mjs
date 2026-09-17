@@ -2,7 +2,7 @@ import { after, before, beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc, writeBatch, Timestamp, increment, setLogLevel } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, writeBatch, Timestamp, increment, deleteField, setLogLevel } from 'firebase/firestore';
 import { createMockUserToken } from '@firebase/util';
 
 // Nunca aceitar projeto/host de produção, nem carregar Credenciais.h/.env.
@@ -24,6 +24,7 @@ const saida = { vagaAtual: 0, horaEntrada: 0, estacionamentoId: '', tarifaHoraEn
 const recibo = { placa: 'ABC1D23', vaga: 1, entrada, saida: entrada + 3600,
   duracaoMinutos: 60, valorCobrado: 8.5, tarifaHora: 8.5, estacionamentoId: 'EST-A' };
 const disponibilidade = { ultimaAtualizacao: entrada, vagasLivres: 3, vagasEmOperacao: 4 };
+const vagaLogica = placa => ({ placa, ocupada: placa !== '', origemOcupacao: 'registro' });
 const db = uid => env.authenticatedContext(uid).firestore();
 const ref = (uid, path) => doc(db(uid), path);
 
@@ -74,13 +75,13 @@ test('isolamento: operador e totem não acessam outro pátio', async () => {
   await assertFails(getDoc(ref('totem-b', 'estacionamentos/EST-A/vagas/1')));
   await assertFails(updateDoc(ref('totem-b', 'veiculos/ABC1D23'), saida));
 });
-test('totem revogado não consulta veículo nem grava sensor', async () => {
+test('totem revogado não consulta veículo nem altera vaga', async () => {
   await assertFails(getDoc(ref('totem-revogado', 'veiculos/ABC1D23')));
   await assertFails(updateDoc(ref('totem-revogado', 'estacionamentos/EST-A/vagas/1'), { ocupada: false }));
 });
 test('heartbeat operacional e público permitido somente ao próprio totem', async () => {
   await assertSucceeds(updateDoc(ref('totem-a', 'estacionamentos/EST-A'), {
-    ...disponibilidade, vagasSuportadasTotem: 4, tarifaAplicadaTotem: 8.5
+    ...disponibilidade, modoTotem: 'atendimento', tarifaAplicadaTotem: 8.5
   }));
   await assertSucceeds(updateDoc(ref('totem-a', 'catalogoEstacionamentos/EST-A'), disponibilidade));
   await assertFails(updateDoc(ref('totem-b', 'catalogoEstacionamentos/EST-A'), disponibilidade));
@@ -99,8 +100,10 @@ test('heartbeat rejeita contagem impossível, fracionária e timestamp inválido
     await assertFails(updateDoc(ref('totem-a', 'catalogoEstacionamentos/EST-A'), { ...disponibilidade, ...invalido }));
   }
 });
-test('sensor indisponível mantém booleanos e não aceita campos extras', async () => {
-  await assertSucceeds(updateDoc(ref('totem-a', 'estacionamentos/EST-A/vagas/1'), { ocupada: true, leituraValida: false }));
+test('totem não simula sensores nem altera ocupação sem uma estadia', async () => {
+  await assertFails(updateDoc(ref('totem-a', 'estacionamentos/EST-A/vagas/1'), { ocupada: true, leituraValida: false }));
+  await assertFails(updateDoc(ref('totem-a', 'estacionamentos/EST-A/vagas/1'), vagaLogica('')));
+  await assertFails(updateDoc(ref('totem-a', 'estacionamentos/EST-A/vagas/2'), vagaLogica('XYZ1234')));
   await assertFails(updateDoc(ref('totem-a', 'estacionamentos/EST-A/vagas/1'), { ocupada: null }));
   await assertFails(updateDoc(ref('totem-a', 'estacionamentos/EST-A/vagas/1'), { leituraValida: 'sim' }));
   await assertFails(updateDoc(ref('totem-a', 'estacionamentos/EST-A/vagas/1'), { senha: 'proibido' }));
@@ -109,11 +112,12 @@ test('sensor indisponível mantém booleanos e não aceita campos extras', async
 test('entrada atômica associa veículo e vaga sem mudar saldo/dono', async () => {
   const d = db('totem-a'), batch = writeBatch(d);
   batch.update(doc(d, 'veiculos/XYZ1234'), { vagaAtual: 2, horaEntrada: entrada, estacionamentoId: 'EST-A', tarifaHoraEntrada: 8.5 });
-  batch.update(doc(d, 'estacionamentos/EST-A/vagas/2'), { placa: 'XYZ1234' });
+  batch.update(doc(d, 'estacionamentos/EST-A/vagas/2'), vagaLogica('XYZ1234'));
   await assertSucceeds(batch.commit());
   const v = (await getDoc(doc(d, 'veiculos/XYZ1234'))).data();
   assert.equal(v.saldo, 100);
   assert.equal(v.ownerUid, 'motorista-b');
+  assert.deepEqual((await getDoc(doc(d, 'estacionamentos/EST-A/vagas/2'))).data(), vagaLogica('XYZ1234'));
 });
 test('entrada rejeita vaga fora da faixa e estadia já aberta', async () => {
   await assertFails(updateDoc(ref('totem-a', 'veiculos/XYZ1234'), { vagaAtual: 5, horaEntrada: entrada, estacionamentoId: 'EST-A', tarifaHoraEntrada: 8.5 }));
@@ -138,17 +142,77 @@ test('recarga simulada do próprio veículo permanece compatível', async () => 
 function loteSaida(d, dadosRecibo = recibo) {
   const batch = writeBatch(d);
   batch.update(doc(d, 'veiculos/ABC1D23'), saida);
-  batch.update(doc(d, 'estacionamentos/EST-A/vagas/1'), { placa: '' });
+  batch.update(doc(d, 'estacionamentos/EST-A/vagas/1'), { ...vagaLogica(''), leituraValida: deleteField() });
   batch.set(doc(d, `historico/ABC1D23_${entrada}`), dadosRecibo);
   return batch;
 }
+
+function loteEntrada(d, vaga = 2, dadosVaga = vagaLogica('XYZ1234'), tarifa = 8.5) {
+  const batch = writeBatch(d);
+  batch.update(doc(d, 'veiculos/XYZ1234'), {
+    vagaAtual: vaga, horaEntrada: entrada, estacionamentoId: 'EST-A', tarifaHoraEntrada: tarifa
+  });
+  batch.set(doc(d, `estacionamentos/EST-A/vagas/${vaga}`), dadosVaga);
+  return batch;
+}
+
+test('entrada exige vaga no mesmo lote e não aceita ocupação falsa ou placa trocada', async () => {
+  await assertFails(updateDoc(ref('totem-a', 'veiculos/XYZ1234'), {
+    vagaAtual: 2, horaEntrada: entrada, estacionamentoId: 'EST-A', tarifaHoraEntrada: 8.5
+  }));
+  for (const dados of [vagaLogica('ABC1D23'), { ...vagaLogica('XYZ1234'), ocupada: false },
+    { ...vagaLogica('XYZ1234'), origemOcupacao: 'sensor' }, { ...vagaLogica('XYZ1234'), leituraValida: true }]) {
+    await assertFails(loteEntrada(db('totem-a'), 2, dados).commit());
+  }
+  assert.equal((await getDoc(ref('totem-a', 'veiculos/XYZ1234'))).data().vagaAtual, 0);
+});
+
+test('entrada não sobrescreve vaga ocupada nem aceita tarifa diferente do pátio', async () => {
+  await assertFails(loteEntrada(db('totem-a'), 1).commit());
+  await assertFails(loteEntrada(db('totem-a'), 2, vagaLogica('XYZ1234'), 0).commit());
+  await assertFails(loteEntrada(db('totem-a'), 2, vagaLogica('XYZ1234'), 10001).commit());
+});
+
+test('capacidade lógica permite a vaga 200, sem depender de quatro sensores', async () => {
+  await env.withSecurityRulesDisabled(c => updateDoc(doc(c.firestore(), 'estacionamentos/EST-A'), { numVagas: 200 }));
+  await assertFails(loteEntrada(db('totem-a'), 201).commit());
+  await assertSucceeds(loteEntrada(db('totem-a'), 200).commit());
+  assert.deepEqual((await getDoc(ref('totem-a', 'estacionamentos/EST-A/vagas/200'))).data(), vagaLogica('XYZ1234'));
+});
+
+test('reduzir capacidade não impede saída de uma estadia anterior', async () => {
+  await env.withSecurityRulesDisabled(async c => {
+    const batch = writeBatch(c.firestore());
+    batch.update(doc(c.firestore(), 'veiculos/ABC1D23'), { vagaAtual: 5 });
+    batch.set(doc(c.firestore(), 'estacionamentos/EST-A/vagas/5'), vagaLogica('ABC1D23'));
+    await batch.commit();
+  });
+  const d = db('totem-a'), batch = writeBatch(d);
+  batch.update(doc(d, 'veiculos/ABC1D23'), saida);
+  batch.update(doc(d, 'estacionamentos/EST-A/vagas/5'), vagaLogica(''));
+  batch.set(doc(d, `historico/ABC1D23_${entrada}`), { ...recibo, vaga: 5 });
+  await assertSucceeds(batch.commit());
+});
+
+test('saída converte vaga legada sem manter uma falsa leitura de sensor', async () => {
+  await env.withSecurityRulesDisabled(c => updateDoc(doc(c.firestore(), 'estacionamentos/EST-A/vagas/1'), { leituraValida: false }));
+  await assertSucceeds(loteSaida(db('totem-a')).commit());
+  assert.deepEqual((await getDoc(ref('totem-a', 'estacionamentos/EST-A/vagas/1'))).data(), vagaLogica(''));
+});
+
+test('heartbeat remove limite físico legado e aceita capacidade lógica', async () => {
+  await env.withSecurityRulesDisabled(c => updateDoc(doc(c.firestore(), 'estacionamentos/EST-A'), { numVagas: 200, vagasSuportadasTotem: 4 }));
+  const dados = { ...disponibilidade, vagasEmOperacao: 200, vagasLivres: 199, modoTotem: 'atendimento', tarifaAplicadaTotem: 8.5 };
+  await assertFails(updateDoc(ref('totem-a', 'estacionamentos/EST-A'), dados));
+  await assertSucceeds(updateDoc(ref('totem-a', 'estacionamentos/EST-A'), { ...dados, vagasSuportadasTotem: deleteField() }));
+});
 test('saída: débito, vaga e recibo confirmados juntos com tarifa congelada', async () => {
   await assertSucceeds(updateDoc(ref('operador-a', 'estacionamentos/EST-A'), { tarifaHora: 20 }));
   const d = db('totem-a');
   await assertSucceeds(loteSaida(d).commit());
   assert.equal((await getDoc(doc(d, 'veiculos/ABC1D23'))).data().saldo, 91.5);
   assert.equal((await getDoc(ref('motorista-a', `historico/ABC1D23_${entrada}`))).data().tarifaHora, 8.5);
-  assert.equal((await getDoc(doc(d, 'estacionamentos/EST-A/vagas/1'))).data().placa, '');
+  assert.deepEqual((await getDoc(doc(d, 'estacionamentos/EST-A/vagas/1'))).data(), vagaLogica(''));
 });
 test('recibo inválido cancela débito e liberação da vaga', async () => {
   const d = db('totem-a');
@@ -174,9 +238,9 @@ test('recibo imutável: repetição da saída não debita outra vez', async () =
   await assertFails(getDoc(ref('motorista-b', `historico/ABC1D23_${entrada}`)));
 });
 
-async function rest(path, body, uid = 'totem-a') {
+async function rest(path, body, uid = 'totem-a', method = body ? 'POST' : 'GET') {
   const response = await fetch(`${base}${path}`, {
-    method: body ? 'POST' : 'GET',
+    method,
     headers: { Authorization: `Bearer ${createMockUserToken({ sub: uid }, projectId)}`, 'Content-Type': 'application/json' },
     ...(body ? { body: JSON.stringify(body) } : {})
   });
@@ -197,7 +261,7 @@ test('REST do ESP: versão antiga não sobrescreve recarga concorrente', async (
   await updateDoc(ref('motorista-a', 'veiculos/ABC1D23'), { saldo: increment(50), atualizadoEm: Timestamp.now() });
   const resultado = await rest(':commit', { writes: [
     escrita('veiculos/ABC1D23', saida, { updateTime: original.data.updateTime }),
-    escrita('estacionamentos/EST-A/vagas/1', { placa: '' }, { exists: true }),
+    escrita('estacionamentos/EST-A/vagas/1', vagaLogica(''), { exists: true }),
     escrita(`historico/ABC1D23_${entrada}`, recibo, { exists: false })
   ] });
   // A validação do saldo pode rejeitar antes da precondição de versão.
@@ -205,7 +269,7 @@ test('REST do ESP: versão antiga não sobrescreve recarga concorrente', async (
   // Mesmo com o novo saldo correto, uma leitura antiga continua proibida.
   const revisaoAntiga = await rest(':commit', { writes: [
     escrita('veiculos/ABC1D23', { ...saida, saldo: 141.5 }, { updateTime: original.data.updateTime }),
-    escrita('estacionamentos/EST-A/vagas/1', { placa: '' }, { exists: true }),
+    escrita('estacionamentos/EST-A/vagas/1', vagaLogica(''), { exists: true }),
     escrita(`historico/ABC1D23_${entrada}`, recibo, { exists: false })
   ] });
   assert.equal(revisaoAntiga.data.error?.status, 'FAILED_PRECONDITION', JSON.stringify(revisaoAntiga));
@@ -218,7 +282,7 @@ test('REST do ESP: lote com versões atuais e recibo exclusivo funciona', async 
   const vaga = await rest('/estacionamentos/EST-A/vagas/1');
   const resultado = await rest(':commit', { writes: [
     escrita('veiculos/ABC1D23', saida, { updateTime: veiculo.data.updateTime }),
-    escrita('estacionamentos/EST-A/vagas/1', { placa: '' }, { updateTime: vaga.data.updateTime }),
+    escrita('estacionamentos/EST-A/vagas/1', vagaLogica(''), { updateTime: vaga.data.updateTime }),
     escrita(`historico/ABC1D23_${entrada}`, recibo, { exists: false })
   ] });
   assert.equal(resultado.status, 200, JSON.stringify(resultado));
@@ -231,10 +295,70 @@ test('REST do ESP: duas entradas concorrentes não recebem a mesma vaga', async 
   const segundo = await rest('/veiculos/NEW1234');
   const abrir = (placa, revisao) => rest(':commit', { writes: [
     escrita(`veiculos/${placa}`, { vagaAtual: 2, horaEntrada: entrada, estacionamentoId: 'EST-A', tarifaHoraEntrada: 8.5 }, { updateTime: revisao }),
-    escrita('estacionamentos/EST-A/vagas/2', { placa }, { updateTime: vaga.data.updateTime })
+    escrita('estacionamentos/EST-A/vagas/2', vagaLogica(placa), { updateTime: vaga.data.updateTime })
   ] });
   assert.equal((await abrir('XYZ1234', primeiro.data.updateTime)).status, 200);
   const conflito = await abrir('NEW1234', segundo.data.updateTime);
-  assert.equal(conflito.data.error?.status, 'FAILED_PRECONDITION', JSON.stringify(conflito));
+  assert.ok(['FAILED_PRECONDITION', 'PERMISSION_DENIED'].includes(conflito.data.error?.status), JSON.stringify(conflito));
   assert.equal((await getDoc(ref('totem-a', 'veiculos/NEW1234'))).data().vagaAtual, 0);
+});
+
+test('REST do ESP: criação atômica de vaga ainda inexistente', async () => {
+  const veiculo = await rest('/veiculos/XYZ1234');
+  const resultado = await rest(':commit', { writes: [
+    escrita('veiculos/XYZ1234', { vagaAtual: 3, horaEntrada: entrada, estacionamentoId: 'EST-A', tarifaHoraEntrada: 8.5 }, { updateTime: veiculo.data.updateTime }),
+    escrita('estacionamentos/EST-A/vagas/3', vagaLogica('XYZ1234'), { exists: false })
+  ] });
+  assert.equal(resultado.status, 200, JSON.stringify(resultado));
+});
+
+test('REST do ESP: consulta de vagas é paginada e isolada por pátio', async () => {
+  await env.withSecurityRulesDisabled(async c => {
+    const batch = writeBatch(c.firestore());
+    for (let i = 3; i <= 40; i++) batch.set(doc(c.firestore(), `estacionamentos/EST-A/vagas/${i}`), vagaLogica(''));
+    await batch.commit();
+  });
+  const nomes = new Set();
+  let token = '', paginas = 0;
+  do {
+    const page = await rest(`/estacionamentos/EST-A/vagas?pageSize=16&mask.fieldPaths=placa&pageToken=${encodeURIComponent(token)}`);
+    assert.equal(page.status, 200, JSON.stringify(page));
+    assert.ok(page.data.documents.length <= 16);
+    for (const documento of page.data.documents) {
+      assert.ok(documento.updateTime);
+      assert.deepEqual(Object.keys(documento.fields), ['placa']);
+      assert.ok(!nomes.has(documento.name));
+      nomes.add(documento.name);
+    }
+    token = page.data.nextPageToken ?? '';
+    assert.ok(++paginas <= 3);
+  } while (token);
+  assert.equal(nomes.size, 40);
+  assert.equal((await rest('/estacionamentos/EST-A/vagas?pageSize=16', undefined, 'totem-b')).status, 403);
+});
+
+test('REST do ESP: máscaras do heartbeat removem limite físico e não vazam campos no catálogo', async () => {
+  await env.withSecurityRulesDisabled(c => updateDoc(doc(c.firestore(), 'estacionamentos/EST-A'), { vagasSuportadasTotem: 4 }));
+  const dados = { ...disponibilidade, tarifaAplicadaTotem: 8.5, modoTotem: 'atendimento' };
+  const mascara = [...Object.keys(dados), 'vagasSuportadasTotem'].map(f => `updateMask.fieldPaths=${f}`).join('&');
+  const operacional = await rest(`/estacionamentos/EST-A?${mascara}&currentDocument.exists=true`, { fields: campos(dados) }, 'totem-a', 'PATCH');
+  assert.equal(operacional.status, 200, JSON.stringify(operacional));
+  assert.ok(!operacional.data.fields.vagasSuportadasTotem);
+  const publico = await rest('/catalogoEstacionamentos/EST-A?updateMask.fieldPaths=ultimaAtualizacao&updateMask.fieldPaths=vagasLivres&updateMask.fieldPaths=vagasEmOperacao&currentDocument.exists=true', { fields: campos(dados) }, 'totem-a', 'PATCH');
+  assert.equal(publico.status, 200, JSON.stringify(publico));
+  assert.ok(!publico.data.fields.modoTotem && !publico.data.fields.tarifaAplicadaTotem);
+});
+
+test('REST do ESP: updateMask exclui leituraValida na saída', async () => {
+  await env.withSecurityRulesDisabled(c => updateDoc(doc(c.firestore(), 'estacionamentos/EST-A/vagas/1'), { leituraValida: false }));
+  const veiculo = await rest('/veiculos/ABC1D23');
+  const vaga = await rest('/estacionamentos/EST-A/vagas/1');
+  const limpar = escrita('estacionamentos/EST-A/vagas/1', vagaLogica(''), { updateTime: vaga.data.updateTime });
+  limpar.updateMask.fieldPaths.push('leituraValida');
+  const resultado = await rest(':commit', { writes: [
+    escrita('veiculos/ABC1D23', saida, { updateTime: veiculo.data.updateTime }), limpar,
+    escrita(`historico/ABC1D23_${entrada}`, recibo, { exists: false })
+  ] });
+  assert.equal(resultado.status, 200, JSON.stringify(resultado));
+  assert.deepEqual((await getDoc(ref('totem-a', 'estacionamentos/EST-A/vagas/1'))).data(), vagaLogica(''));
 });

@@ -2,16 +2,20 @@
 
 **ParaAí** é um provedor de tecnologia para estacionamentos, desenvolvido como
 Trabalho de Conclusão de Curso (TCC). A solução combina software e hardware
-para automatizar o acesso: cada estacionamento contratado recebe um totem com
-ESP32, sensores de vaga e catraca, além do painel de faturamento, acessos e
-ocupação. Motoristas usam uma **carteira única** em toda a rede.
+para registrar atendimentos: cada estacionamento recebe um totem com ESP32 e
+tela touch, além do painel de faturamento, acessos e ocupação. Motoristas usam
+uma **carteira única** em toda a rede. A recarga é simulada para fins acadêmicos.
+
+Decisão de 09/09/2026: o totem terá gabinete impresso em 3D, **sem sensores,
+servo ou catraca física**. A ocupação passa a vir das entradas e saídas no
+Firebase. A maquete virtual online é uma etapa futura, ainda não implementada.
 
 ```
 ┌─────────────────────┐         ┌──────────────────┐         ┌─────────────────────┐
 │ TOTEM (ESP32)       │         │                  │         │ PAINEL WEB          │
 │ 1 por estacionamento│ escreve │     Firebase     │  tempo  │ · Dono: faturamento,│
 │ · tela touch        │ ◄─────► │    Firestore     │ ◄─────► │   acessos, ocupação │
-│ · sensores + catraca│   lê    │                  │  real   │ · Motorista: carro, │
+│ · entrada e saída  │   lê    │                  │  real   │ · Motorista: carro, │
 │ → pasta Main/       │         │                  │         │   saldo, recibos    │
 └─────────────────────┘         └──────────────────┘         └─────────────────────┘
 ```
@@ -20,7 +24,7 @@ ocupação. Motoristas usam uma **carteira única** em toda a rede.
 
 | Pasta | O que é | Documentação |
 |---|---|---|
-| [`Main/`](Main/) | Firmware do totem (ESP32 + Arduino): tela ILI9341 touch, sensores HC-SR04, catraca com servo, entrada/saída por placa, cobrança por tempo | [Main/README.md](Main/README.md) |
+| [`Main/`](Main/) | Firmware do totem (ESP32 + Arduino): tela touch, entrada/saída por placa, vagas lógicas, cobrança por tempo | [Main/README.md](Main/README.md) |
 | [`Web/`](Web/) | Painel web (React + Vite + Firebase): landing B2B, conta de operador (dono) e de motorista, faturamento, histórico, carteira | [Web/README.md](Web/README.md) |
 | [`libraries/`](libraries/) | Bibliotecas Arduino usadas pelo firmware | — |
 | [`firestore.rules`](firestore.rules) | Regras de segurança do Firestore com comentários | — |
@@ -54,10 +58,11 @@ disponibilidade na página **Estacionamentos**.
 ```
 estacionamentos/{EST-XXXXXX}
   nome, cidade, numVagas, tarifaHora, ownerUid, criadoEm
-  ultimaAtualizacao, vagasLivres, tarifaAplicadaTotem -- heartbeat (60s)
+  ultimaAtualizacao, vagasLivres, vagasEmOperacao, tarifaAplicadaTotem
+  modoTotem: "atendimento"                 -- heartbeat (60s)
 
 estacionamentos/{id}/vagas/{1..N}
-  ocupada, placa, leituraValida            -- sensor + associação da estadia
+  ocupada, placa, origemOcupacao: "registro" -- ocupação lógica, sem sensores
 
 catalogoEstacionamentos/{EST-XXXXXX}
   nome, endereço, tarifaHora, numVagas,
@@ -112,5 +117,8 @@ antes de autorizar publicação/gravação.
   equipamentos autorizados às operações necessárias de entrada e saída.
 - A recarga de saldo é **simulada** (crédito direto no banco), sem gateway de
   pagamento.
-- O hardware atual monitora até quatro sensores físicos. O painel aceita mais
-  vagas, mas avisa quando a configuração ultrapassa os sensores instalados.
+- O totem registra até 200 vagas lógicas, conforme a capacidade do painel.
+  Não mede presença física. Expressões antigas sobre sensores no site e o
+  simulador legado `/totem.html` serão tratados na etapa web, fora desta entrega.
+- O novo firmware exige internet para confirmar operações. Compilação e
+  testes em computador não substituem a calibração e o teste físico do touch.

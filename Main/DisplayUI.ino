@@ -17,6 +17,7 @@
 #include <Preferences.h>
 #include <time.h>
 #include <math.h>
+#include "Atendimento.h"
 #include <Adafruit_GFX.h>
 #include <Adafruit_ILI9341.h>
 #include <XPT2046_Touchscreen.h>
@@ -139,6 +140,13 @@ const int BTN_SAIDA_X   = 28, BTN_SAIDA_Y   = 160;
 
 // o que o motorista escolheu na tela inicial
 enum Operacao { OP_NENHUMA, OP_ENTRADA, OP_SAIDA };
+static Operacao operacaoVisual = OP_NENHUMA;
+static ConexaoTotem conexaoVisual = ConexaoTotem::INICIANDO;
+static bool feedbackAtivo = false;
+static int feedbackX, feedbackY, feedbackW, feedbackH;
+static char feedbackCaractere;
+static bool feedbackNumero;
+static unsigned long feedbackDesde = 0;
 
 enum FormatoPlaca {
   FORMATO_NAO_ESCOLHIDO,
@@ -182,6 +190,14 @@ void desenharTelaResultado(TipoResultado tipo, String linha1, String linha2, Str
 void desenharTelaConfirmarCadastro(String placa);
 int  verificarToqueConfirmacao();   // 1 = SIM, 0 = NAO, -1 = nada
 void atualizarRelogioCabecalho();
+void atualizarStatusServico(ConexaoTotem estado);
+void definirOperacaoVisual(Operacao operacao);
+void atualizarDigitacao(String placa, FormatoPlaca formato, ModoTecladoInterno anterior);
+void atualizarFeedbackTeclado();
+void realcarTecla(int x, int y, int w, int h, char caractere, bool numero);
+void atualizarProcessamento(String mensagem, unsigned long decorrido);
+void desenharBotaoConcluir();
+bool verificarToqueConcluir();
 bool executarCalibracaoTouch(bool forcar);
 bool verificarPressaoLongaStatus();
 void desenharTelaConfiguracoes();
@@ -762,6 +778,22 @@ void desenharIconeWifi(int x, int y) {
 }
 
 void desenharStatusCabecalho() {
+  tft.fillRect(100, 0, 118, HEADER_H, corHeader);
+  const char* estado = "INICIANDO";
+  switch (conexaoVisual) {
+    case ConexaoTotem::SEM_WIFI: estado = "SEM WI-FI"; break;
+    case ConexaoTotem::AJUSTANDO_HORA: estado = "AJUSTANDO HORA"; break;
+    case ConexaoTotem::AUTENTICANDO: estado = "CONECTANDO"; break;
+    case ConexaoTotem::PRONTO: estado = "ONLINE"; break;
+    case ConexaoTotem::ERRO_CONFIGURACAO: estado = "VERIFICAR REDE"; break;
+    case ConexaoTotem::MANUTENCAO: estado = "MANUTENCAO"; break;
+    default: break;
+  }
+  tft.setFont(nullptr);
+  tft.setTextSize(1);
+  tft.setTextColor(corHeaderTexto);
+  tft.setCursor(104, 11);
+  tft.print(estado);
   tft.fillRect(218, 0, 102, HEADER_H, corHeader);
   desenharIconeWifi(228, 8);
 
@@ -805,6 +837,14 @@ void atualizarRelogioCabecalho() {
   ultimoRelogioMillis = agora;
   desenharStatusCabecalho();
 }
+
+void atualizarStatusServico(ConexaoTotem estado) {
+  if (estado == conexaoVisual) return;
+  conexaoVisual = estado;
+  desenharStatusCabecalho();
+}
+
+void definirOperacaoVisual(Operacao operacao) { operacaoVisual = operacao; }
 
 // -------------------------------------------------------------------------
 // MARCA
@@ -883,6 +923,7 @@ String saudacaoAgora() {
 }
 
 void desenharTelaInicial() {
+  feedbackAtivo = false;
   tft.fillScreen(corFundo);
   desenharCabecalho();
 
@@ -928,6 +969,10 @@ Operacao verificarToqueTelaInicial() {
 // TELA DO TECLADO
 // -------------------------------------------------------------------------
 void atualizarCaixaPlaca(String placaAtual) {
+  tft.fillRect(4, 38, 42, 33, corFundo);
+  textoCentralizadoEm(operacaoVisual == OP_SAIDA ? "SAI" : "ENT", 4, 38, 42, 32, corDestaque, FONTE_PEQUENA);
+  tft.fillRect(274, 38, 46, 33, corFundo);
+  textoCentralizadoEm(String(placaAtual.length()) + "/7", 274, 38, 46, 32, corTextoFraco, FONTE_PEQUENA);
   String exibir = placaAtual;
   while (exibir.length() < 7) exibir += "_";
   desenharPlacaVeicular(52, 38, 216, 32, exibir);
@@ -1075,11 +1120,40 @@ void desenharTeclado(String placaAtual, FormatoPlaca formato) {
 }
 
 void desenharTelaTeclado(String placaAtual, FormatoPlaca formato) {
+  feedbackAtivo = false;
   tft.fillScreen(corFundo);
   desenharCabecalho();
   atualizarCaixaPlaca(placaAtual);
   desenharTeclado(placaAtual, formato);
   bloquearToqueAtualAteSoltar();
+}
+
+void atualizarDigitacao(String placa, FormatoPlaca formato, ModoTecladoInterno anterior) {
+  if (anterior != obterModoTeclado(placa, formato)) {
+    desenharTelaTeclado(placa, formato);
+    return;
+  }
+  atualizarCaixaPlaca(placa);
+  if (placa.length() <= 1) desenharAcoesTeclado(placa);
+}
+
+void atualizarFeedbackTeclado() {
+  if (!feedbackAtivo || millis() - feedbackDesde < 100) return;
+  feedbackAtivo = false;
+  tft.fillRoundRect(feedbackX, feedbackY, feedbackW, feedbackH, 5, corBotao);
+  tft.drawRoundRect(feedbackX, feedbackY, feedbackW, feedbackH, 5, corBotaoBorda);
+  textoCentralizadoEm(String(feedbackCaractere), feedbackX, feedbackY, feedbackW, feedbackH,
+    corTexto, feedbackNumero ? FONTE_GRANDE : FONTE_MEDIA);
+}
+
+void realcarTecla(int x, int y, int w, int h, char caractere, bool numero) {
+  // Se outro toque chegar rápido, restaurar o anterior antes de realçar.
+  if (feedbackAtivo) { feedbackDesde = millis() - 100; atualizarFeedbackTeclado(); }
+  feedbackX = x; feedbackY = y; feedbackW = w; feedbackH = h;
+  feedbackCaractere = caractere; feedbackNumero = numero;
+  feedbackDesde = millis(); feedbackAtivo = true;
+  tft.fillRoundRect(x, y, w, h, 5, corDestaque);
+  textoCentralizadoEm(String(caractere), x, y, w, h, corFundo, numero ? FONTE_GRANDE : FONTE_MEDIA);
 }
 
 EventoTeclado verificarToqueTeclado(String placaAtual, FormatoPlaca formato) {
@@ -1131,6 +1205,8 @@ EventoTeclado verificarToqueTeclado(String placaAtual, FormatoPlaca formato) {
           x >= offsetX && x < offsetX + largura) {
         int coluna = (x - offsetX) / (LETRA_W + LETRA_GAP);
         if (coluna >= 0 && coluna < quantidade) {
+          realcarTecla(offsetX + coluna * (LETRA_W + LETRA_GAP), LETRA_ROW_Y[linha],
+            LETRA_W, LETRA_H, LINHAS_LETRAS[linha][coluna], false);
           return criarEventoTeclado(TECLADO_CARACTERE,
                                     LINHAS_LETRAS[linha][coluna]);
         }
@@ -1150,6 +1226,8 @@ EventoTeclado verificarToqueTeclado(String placaAtual, FormatoPlaca formato) {
         x >= offsetX && x < offsetX + largura) {
       int coluna = (x - offsetX) / (NUMERO_W + NUMERO_GAP);
       if (coluna >= 0 && coluna < quantidade) {
+        realcarTecla(offsetX + coluna * (NUMERO_W + NUMERO_GAP), NUMERO_ROW_Y[linha],
+          NUMERO_W, NUMERO_H, LINHAS_NUMEROS[linha][coluna], true);
         return criarEventoTeclado(TECLADO_CARACTERE,
                                   LINHAS_NUMEROS[linha][coluna]);
       }
@@ -1173,12 +1251,49 @@ void desenharIconeCarregando(int cx, int cy, int raio) {
 }
 
 void desenharTelaProcessando(String mensagem) {
+  feedbackAtivo = false;
   tft.fillScreen(corFundo);
   desenharCabecalho();
   desenharIconeCarregando(160, 92, 26);   // termina em y=118
   centralizarTexto(mensagem, 136, corTexto, FONTE_GRANDE);          // 136..153
   centralizarTexto("Aguarde um instante", 172, corTextoFraco, FONTE_PEQUENA); // 172..185
   bloquearToqueAtualAteSoltar();
+}
+
+void atualizarProcessamento(String mensagem, unsigned long decorrido) {
+  static unsigned long ultimoFrame = 0;
+  static String mensagemAnterior;
+  static unsigned long segundoAnterior = ~0UL;
+  if (millis() - ultimoFrame < 90) return;
+  ultimoFrame = millis();
+  tft.fillRect(126, 58, 68, 68, corFundo);
+  int fase = (decorrido / 120) % 8;
+  for (int i = 0; i < 8; ++i) {
+    float a = i * PI / 4;
+    tft.fillCircle(160 + 24 * cos(a), 92 + 24 * sin(a), i == fase ? 5 : 3,
+      i == fase ? corDestaque : corBotaoBorda);
+  }
+  if (mensagem != mensagemAnterior || decorrido < 200) {
+    tft.fillRect(0, 134, 320, 31, corFundo);
+    centralizarTexto(mensagem, 136, corTexto, FONTE_GRANDE);
+    mensagemAnterior = mensagem;
+  }
+  if (decorrido / 1000 != segundoAnterior) {
+    tft.fillRect(0, 171, 320, 24, corFundo);
+    centralizarTexto(String(decorrido / 1000) + " s | Aguarde a confirmacao", 172, corTextoFraco, FONTE_PEQUENA);
+    segundoAnterior = decorrido / 1000;
+  }
+}
+
+void desenharBotaoConcluir() {
+  tft.fillRoundRect(28, 200, 264, 36, 7, corPainel);
+  tft.drawRoundRect(28, 200, 264, 36, 7, corBotaoBorda);
+  textoCentralizadoEm("CONCLUIR", 28, 200, 264, 36, corTexto, FONTE_MEDIA);
+  bloquearToqueAtualAteSoltar();
+}
+bool verificarToqueConcluir() {
+  int x, y;
+  return lerNovoToque(x, y) && toqueDentro(x, y, 28, 200, 264, 36);
 }
 
 // -------------------------------------------------------------------------
@@ -1210,6 +1325,7 @@ void desenharIconeResultado(TipoResultado tipo, uint16_t cor) {
 }
 
 void desenharTelaResultado(TipoResultado tipo, String linha1, String linha2, String linha3) {
+  feedbackAtivo = false;
   uint16_t cor;
   switch (tipo) {
     case RESULTADO_SUCESSO: cor = corSucesso; break;

@@ -1,25 +1,81 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **08/09/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **09/09/2026**.
 
 ---
 
 ## O que é
 
-Sistema de estacionamento sem operador no posto, dividido em duas partes:
+Sistema acadêmico de atendimento para estacionamentos:
 
 - **`Main/`** — firmware do totem (ESP32 + tela ILI9341 320×240 + touch
-  XPT2046 + 4 sensores ultrassônicos + servo da catraca)
+  XPT2046), sem sensores ou servo/catraca física; gabinete 3D ainda a projetar
 - **`Web/`** — painel React/Vite, com Firebase Auth e Firestore
 
-O motorista digita a placa na tela do totem, a catraca abre, e na saída o
-valor sai da carteira digital dele. O dono do estacionamento acompanha
-faturamento e ocupação pelo painel.
+O motorista registra entrada/saída por placa. O Firebase associa vaga,
+estadia e cobrança simulada. O operador acompanha pelo painel. A ocupação é
+lógica; a maquete virtual online é uma etapa futura, não implementada.
 
-Projeto acadêmico (TCC). Revisão ESP/Firebase: `codex/touch-wifi-totem`.
+Projeto acadêmico (TCC). Revisão atual: `codex/totem-atendimento`.
 
-## Revisão de 08/09/2026 — somente ESP/Firebase
+## Revisão de 09/09/2026 — totem sem sensores
+
+- Mudança de produto aprovada pelos autores: ESP somente para atendimento,
+  em gabinete impresso em 3D. Não implementar a maquete nem mudar Web nesta etapa.
+- Branch criada de origin/main `78199b9`, recuperando por cherry-pick as
+  melhorias de touch/Wi-Fi/testes da proposta anterior (#5), ainda não unida.
+  Nenhum stash de trabalho anterior foi aplicado ou apagado.
+- Sensores.ino removido; sem ESP32Servo, leitura de GPIO de vagas ou comandos
+  de catraca. Biblioteca antiga preservada; histórico do código disponível no Git.
+- Atendimento.cpp concentra Firebase em uma tarefa FreeRTOS exclusiva; Main
+  mantém tela/touch ativos. Filas fixas, uma operação por vez, mensagens sem
+  ponteiros compartilhados e manutenção protegida por exclusão mútua.
+- Tela inicial aparece antes de esperar Wi-Fi. Cabeçalho distingue conexão,
+  ajuste de hora e autenticação. Animação/etapa/tempo durante consulta; tecla
+  destacada e atualização parcial, ENT/SAI e progresso n/7. Resultado tem
+  CONCLUIR, retorno automático e placa limpa. Identidade preservada.
+- Calibração persistente e portal Wi-Fi pelo celular mantidos. Troca de rede
+  espera Firebase ficar ocioso, testa antes de salvar e reinicia no sucesso.
+- Ocupação baseada na placa associada à vaga, sem fingir presença física.
+  Capacidade 1..200 acompanha o limite já existente no painel; consulta paginada
+  de 16 documentos limita a RAM. Sem limitação artificial a quatro sensores.
+- Entrada exige veículo + vaga atômicos e preço igual à configuração; saída
+  exige débito + vaga + recibo exclusivo. Precondições de revisão protegem
+  recarga concorrente e disputa de vaga. Tarifa da entrada permanece congelada.
+- Campos novos: modoTotem=atendimento no documento operacional e
+  origemOcupacao=registro na vaga. ocupada continua booleano para o site.
+  leituraValida é removido na transição; heartbeat remove vagasSuportadasTotem.
+- Firestore é a fonte das estadias. NVS só é usada para Wi-Fi/calibração;
+  antigas reservas paraai-res não são lidas nem apagadas. Sem confirmação
+  offline ou repetição automática de escrita com resultado incerto.
+- **31 testes Firestore aprovados**, incluindo criação de vaga inexistente,
+  capacidade 200, paginação, migração de campos e rejeição de ocupação isolada.
+- Testes C++ da lógica e da interface real aprovados no computador. Harness
+  compila DisplayUI.ino com Adafruit_GFX/fontes reais e periféricos simulados;
+  verifica antirrepetição, transição de tela, confirmação, animação e mapeamento.
+  Gera 13 frames SVG; inspeção visual realizada pelo navegador local.
+- CI executa testes Firestore + C++ e guarda frames para revisão. Compilação
+  ESP32 Dev Module/Huge APP em verificação; resultado final será registrado aqui.
+- **Nada publicado no Firebase e nada gravado no ESP32.** Sem hardware
+  conectado: calibração, responsividade sob TLS e montagem física pendentes.
+  App Check continua em monitoramento. Ver checklist em Main/README.md.
+
+### Implantação e próxima etapa
+
+Autorizar e agendar regras + firmware juntos, interrompendo atendimento na
+troca. O firmware de sensores não é compatível com as novas regras. Conferir
+estadias abertas, tarifa congelada e vínculos veículo/vaga antes de instalar;
+não apagar dados para resolver inconsistências. Calibrar com o display montado.
+
+Depois da validação do totem: evoluir o site e criar a maquete virtual para
+visualizar os registros, sem redefinir cobrança nem simular sensores como
+dados reais. Web/public/totem.html e textos de sensores do site permanecem
+legados, deliberadamente fora desta entrega.
+
+---
+
+## Histórico de 08/09/2026 — proposta anterior com sensores (superada)
 
 - Site preservado. Alterações anteriores desta sessão em `Web/` foram
   guardadas no stash `backup-web-fora-escopo-20260908`, sem entrar na entrega.
@@ -89,9 +145,9 @@ npm run dev               # http://localhost:5173
 Sem o `.env` o site abre mas login e dados não funcionam — ele não está no
 Git de propósito.
 
-Há também um **simulador da tela do totem** em `/totem.html`, que replica as
-primitivas do Adafruit_GFX nas mesmas coordenadas do firmware. Serve para
-conferir layout sem o hardware ligado.
+Existe um simulador **legado** em `/totem.html`, com teclado antigo. Para
+inspecionar o firmware atual, usar Main/tests/ui_totem.test.cpp e preview.mjs,
+conforme Main/README.md. Nenhum deles é a futura maquete virtual.
 
 ### Firmware
 
@@ -104,7 +160,7 @@ na Arduino IDE e gravar.
 
 ---
 
-## O que está pronto
+## Histórico do que já estava pronto antes da revisão atual
 
 **Totem**
 - Tela inicial com dois botões: ENTRADA e SAÍDA (não mostra mais contagem de vagas)
@@ -152,9 +208,10 @@ na Arduino IDE e gravar.
    persistente. Após autorização para gravar, completar cinco pontos e testar
    os dois formatos de placa, confirmação, correção e toque mantido.
 
-2. **Testar o fluxo físico completo** — autenticação, heartbeat e sincronização
-   já foram confirmados no ESP real. Ainda falta executar uma entrada e saída
-   completas, conferindo teclado touch, sensores e abertura da catraca.
+2. **Testar o fluxo completo do novo totem no hardware** — entrada/saída,
+   reinicialização com estadia aberta, troca/perda de Wi-Fi, responsividade
+   durante Firebase, calibração com gabinete e estabilidade prolongada.
+   As validações físicas anteriores referem-se ao firmware antigo.
 
 3. **Configurar a recuperação de senha no Firebase** — em Authentication >
    Templates > Redefinição de senha, apontar a URL da ação para
@@ -162,6 +219,9 @@ na Arduino IDE e gravar.
    etapa, o Firebase abre a página padrão dele em vez da tela do ParaAí.
 
 4. Pagamento é simulado — não há gateway real.
+
+5. Projetar o gabinete 3D pelas medidas reais; depois evoluir o site e criar
+   a maquete virtual, sem reintroduzir sensores/catraca no ESP.
 
 ---
 
@@ -176,9 +236,9 @@ redesenhá-la em SVG por aproximação e o resultado nunca bateu. Para trocar,
 substitua o arquivo. A única exceção é a tela do totem, onde não dá para
 carregar PNG e a marca é reconstruída com retângulos e círculos.
 
-**O totem não mostra vagas.** A tela é só ENTRADA/SAÍDA. Os sensores
-continuam existindo e alimentam a ocupação do painel web, mas não aparecem
-para o motorista.
+**A inicial do totem não mostra contagem de vagas.** Só ENTRADA/SAÍDA. A
+confirmação informa a vaga atribuída. Desde 09/09 não há sensores nem
+atuadores; o painel recebe a ocupação lógica dos registros no Firebase.
 
 **Textos do site sem jargão.** Nada de "ESP32", "Firestore", "ultrassônico" —
 quem entra quer estacionar, não conhecer o hardware.
