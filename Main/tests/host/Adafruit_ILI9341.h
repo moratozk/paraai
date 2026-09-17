@@ -4,6 +4,7 @@
 #include <array>
 #include <fstream>
 #include <cstdio>
+#include <stdexcept>
 // Usa as primitivas E as fontes reais da biblioteca Adafruit_GFX do projeto.
 // Apenas o transporte SPI é substituído por um framebuffer em memória.
 class Adafruit_ILI9341 : public Adafruit_GFX {

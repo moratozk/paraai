@@ -34,6 +34,13 @@ jobs:
     steps:
       - name: Baixar código
         uses: actions/checkout@v5
+      - name: Preparar Adafruit GFX 1.12.6 para os testes
+        uses: actions/checkout@v5
+        with:
+          repository: adafruit/Adafruit-GFX-Library
+          ref: ac6d7c3869a693d406f77b9bfcd486b0673169f0
+          path: libraries/Adafruit_GFX_Library
+          persist-credentials: false
       - name: Preparar Node.js
         uses: actions/setup-node@v5
         with:

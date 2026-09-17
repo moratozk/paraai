@@ -137,8 +137,9 @@ Tela e touch usam SPI separado, conforme a fiação existente. Os antigos pinos
 de servo/sensores não são configurados nem acionados.
 
 Bibliotecas: Firebase ESP Client, Adafruit GFX, Adafruit ILI9341 e
-XPT2046_Touchscreen, com dependências em ../libraries. ESP32Servo não é mais
-dependência do firmware; a biblioteca antiga foi preservada no repositório.
+XPT2046_Touchscreen; instalar pelo Library Manager da Arduino IDE. Neste PC,
+../libraries é o cache local, ignorado pelo Git. ESP32Servo não é mais
+dependência do firmware; a cópia antiga do cache local foi preservada.
 
 Copiar Credenciais.example.h para Credenciais.h **só se ainda não existir**,
 preencher os dados locais e o acesso gerado em Perfil > Segurança do totem.
@@ -177,8 +178,10 @@ com Adafruit_GFX e fontes reais para inspeção em http://127.0.0.1:4174.
 Periféricos são simulados: não valida ruído, pressão, alimentação, SPI, TLS
 ou calibração do painel físico.
 
-O workflow firebase-ci.yml executa as três suítes e guarda as telas como
-artefato em PRs. Não usa credenciais reais, publica regras ou grava hardware.
+O workflow firebase-ci.yml baixa Adafruit GFX 1.12.6 do repositório oficial,
+fixada no commit ac6d7c3869a693d406f77b9bfcd486b0673169f0, para não depender
+do cache deste PC. Executa as três suítes e guarda as telas como artefato em
+PRs. Não usa credenciais reais, publica regras ou grava hardware.
 Compilação ESP é separada, a partir de Main/:
 
 ```sh
