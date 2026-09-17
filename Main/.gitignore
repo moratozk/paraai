@@ -2,6 +2,10 @@ Credenciais.h
 
 # Artefatos de build (Arduino CLI / PlatformIO)
 build/
+.codex-build/
+tests/node_modules/
+tests/*debug.log
+tests/.runtime/
 .pio/
 *.bin
 *.elf

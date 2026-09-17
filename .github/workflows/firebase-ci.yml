@@ -1,0 +1,71 @@
+name: Verificação ESP e Firebase
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Main/**'
+      - 'firestore.rules'
+      - 'firebase.test.json'
+      - '.github/workflows/firebase-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'Main/**'
+      - 'firestore.rules'
+      - 'firebase.test.json'
+      - '.github/workflows/firebase-ci.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  firestore-tests:
+    name: Contratos e isolamento no emulador
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: Main/tests
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v5
+      - name: Preparar Adafruit GFX 1.12.6 para os testes
+        uses: actions/checkout@v5
+        with:
+          repository: adafruit/Adafruit-GFX-Library
+          ref: ac6d7c3869a693d406f77b9bfcd486b0673169f0
+          path: libraries/Adafruit_GFX_Library
+          persist-credentials: false
+      - name: Preparar Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Main/tests/package-lock.json
+      - name: Preparar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Instalar dependências de teste
+        run: npm ci --ignore-scripts
+      - name: Testar lógica C++ compartilhada com o firmware
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror logica_totem.test.cpp -o /tmp/paraai-logica-test
+          /tmp/paraai-logica-test
+      - name: Testar interface real com periféricos simulados
+        run: |
+          g++ -std=c++17 -DARDUINO=100 -Ihost -I../../libraries/Adafruit_GFX_Library ui_totem.test.cpp ../../libraries/Adafruit_GFX_Library/Adafruit_GFX.cpp -o /tmp/paraai-ui-test
+          /tmp/paraai-ui-test .runtime/preview
+      - name: Guardar telas renderizadas para revisão
+        uses: actions/upload-artifact@v4
+        with:
+          name: telas-totem
+          path: Main/tests/.runtime/preview/*.svg
+      - name: Validar regras e operações sem produção
+        run: npm test
