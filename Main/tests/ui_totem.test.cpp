@@ -91,8 +91,23 @@ int main(int argc, char** argv) {
   desenharTelaConfirmarCadastro("ABC1D23"); tft.salvar(destino + "/11-cadastro.svg");
   atualizarStatusServico(ConexaoTotem::MANUTENCAO);
   desenharTelaConfiguracoes(); tft.salvar(destino + "/12-manutencao.svg");
+  soltar();
+  desenharTelaPin(); tft.salvar(destino + "/13-pin.svg");
+  const auto tocarPin = [](int i) { pressionar(pinTeclaX(i) + PIN_TECLA_W / 2, pinTeclaY(i) + PIN_TECLA_H / 2); };
+  tocarPin(4);
+  assert(verificarToquePin() == '5');
+  assert(verificarToquePin() == 0); // Dedo mantido não repete o dígito.
+  soltar(); tocarPin(10);
+  assert(verificarToquePin() == '0');
+  soltar(); tocarPin(9);
+  assert(verificarToquePin() == PIN_APAGAR);
+  soltar(); tocarPin(11);
+  assert(verificarToquePin() == PIN_CONFIRMAR);
+  soltar(); delay(120); atualizarFeedbackTeclado();
+  atualizarDigitosPin(6); tft.salvar(destino + "/14-pin-digitado.svg");
+  desenharTelaPin("PIN INCORRETO"); tft.salvar(destino + "/15-pin-incorreto.svg");
   desenharTelaPortalWifi("ParaAi-123456", "abcDEF123456", "192.168.4.1", "Conecte pelo celular");
-  tft.salvar(destino + "/13-wifi.svg");
+  tft.salvar(destino + "/16-wifi.svg");
   assert(calibracaoTouchPlausivel(200,3700,200,3700));
   assert(calibracaoTouchPlausivel(3700,200,3700,200));
   assert(!calibracaoTouchPlausivel(200,200,200,3700));
@@ -101,5 +116,5 @@ int main(int argc, char** argv) {
   assert(x==159 && y==119);
   mapearToqueBruto(-500,8000,200,3700,200,3700,x,y);
   assert(x==0 && y==239);
-  std::puts("DisplayUI real: teclado, antirrepeticao, confirmacao, animacao e mapeamento aprovados; 13 telas exportadas.");
+  std::puts("DisplayUI real: teclado, antirrepeticao, confirmacao, animacao e mapeamento aprovados; PIN de manutencao conferido; 16 telas exportadas.");
 }

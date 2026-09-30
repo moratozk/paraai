@@ -17,6 +17,14 @@ int main() {
   assert(!tarifaValida(-0.01) && !tarifaValida(10000.01));
   assert(!tarifaValida(NAN) && !tarifaValida(INFINITY));
 
+  static_assert(pinFormatoValido("1234") && pinFormatoValido("12345678"), "PIN valido");
+  for (const char* pin : {"", "123", "123456789", "12a4", "12 34", "-1234"}) assert(!pinFormatoValido(pin));
+  assert(!pinFormatoValido(nullptr));
+  assert(pinConfere("482915", "482915"));
+  assert(!pinConfere("48291", "482915") && !pinConfere("4829150", "482915") && !pinConfere("", "482915"));
+  assert(!pinConfere(nullptr, "482915"));
+  assert(!pinConfere("12", "12")); // PIN configurado fora do formato nunca libera.
+
   constexpr int64_t entrada = 1788800000;
   Cobranca c;
   assert(calcularCobranca(entrada, entrada + 3600, 8.5, 100, c));
@@ -41,5 +49,5 @@ int main() {
   assert(!calcularCobranca(entrada, entrada + 1, 8.5, INFINITY, c));
   assert(!calcularCobranca(entrada, entrada + 1, 8.5, NAN, c));
   assert(!calcularCobranca(std::numeric_limits<int64_t>::min(), entrada, 8.5, 100, c));
-  std::puts("LogicaTotem: placas, capacidade, tarifa e cobranca aprovadas.");
+  std::puts("LogicaTotem: placas, capacidade, tarifa, cobranca e PIN aprovados.");
 }

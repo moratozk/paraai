@@ -20,6 +20,19 @@ inline bool placaValida(const char* placa) {
 inline bool capacidadeValida(int quantidade) { return quantidade >= 1 && quantidade <= MAX_VAGAS; }
 inline bool tarifaValida(double tarifa) { return std::isfinite(tarifa) && tarifa >= 0 && tarifa <= 10000; }
 
+// PIN da manutenção local: de 4 a 8 dígitos, conferido também na compilação.
+constexpr int PIN_MAX_DIGITOS = 8;
+constexpr bool pinFormatoValido(const char* pin) {
+  if (!pin) return false;
+  int n = 0;
+  for (; pin[n]; ++n)
+    if (n >= PIN_MAX_DIGITOS || pin[n] < '0' || pin[n] > '9') return false;
+  return n >= 4;
+}
+inline bool pinConfere(const char* digitado, const char* esperado) {
+  return digitado && pinFormatoValido(esperado) && std::strcmp(digitado, esperado) == 0;
+}
+
 struct Cobranca { int64_t segundos = 0; double valor = 0; double saldoFinal = 0; };
 inline bool calcularCobranca(int64_t entrada, int64_t saida, double tarifa,
                             double saldo, Cobranca& resultado) {

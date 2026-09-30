@@ -8,9 +8,11 @@
 //   cp Credenciais.example.h Credenciais.h        (Linux/Mac)
 //
 // Onde encontrar cada valor:
-//   WIFI_SSID / WIFI_PASSWORD -> rede Wi-Fi 2.4GHz de contingência. Depois
-//                    da primeira gravação, ela pode ser escolhida/trocada
-//                    pelo portal local exibido na tela, sem recompilar.
+//   WIFI_SSID / WIFI_PASSWORD -> rede Wi-Fi 2.4GHz de contingência. Vazio,
+//                    o totem abre o portal de configuração sozinho no
+//                    primeiro uso. Depois, troque pela tela, sem recompilar.
+//   MANUTENCAO_PIN -> 4 a 8 dígitos pedidos antes das configurações do
+//                    totem (troca de Wi-Fi e calibração). Prefira 6 ou mais.
 //   API_KEY      -> Firebase Console > Configurações do projeto > Geral
 //                    > "Chave da API da Web"
 //   PROJECT_ID   -> Firebase Console > Configurações do projeto > Geral
@@ -27,10 +29,14 @@
 #define CREDENCIAIS_H
 
 // Fallback usado se ainda não houver uma rede validada na memória do ESP32.
-// Se ele não conseguir conectar, o totem abre automaticamente a rede de
-// configuração temporária e mostra as instruções na própria tela.
-#define WIFI_SSID     "NOME_DA_SUA_REDE_2G"
-#define WIFI_PASSWORD "SENHA_DA_SUA_REDE"
+// Deixe vazio para configurar pela tela: sem nenhuma rede, o totem abre a rede
+// temporária de configuração sozinho. Com rede definida, ele só reconecta;
+// para trocar, segure o status do cabeçalho por 3 s e informe o PIN.
+#define WIFI_SSID     ""
+#define WIFI_PASSWORD ""
+
+// PIN das configurações locais. Escolha um valor próprio; não use datas.
+#define MANUTENCAO_PIN "000000"
 
 #define API_KEY      "SUA_API_KEY_DO_FIREBASE"
 #define PROJECT_ID   "seu-projeto-firebase"

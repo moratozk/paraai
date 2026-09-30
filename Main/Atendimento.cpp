@@ -1,6 +1,7 @@
 #include "Atendimento.h"
 #include "LogicaTotem.h"
 #include "Credenciais.h"
+#include "RaizesGoogle.h"
 #include <Arduino.h>
 #include <WiFi.h>
 #include <Firebase_ESP_Client.h>
@@ -293,6 +294,11 @@ void tarefa(void*) {
           config.database_url = DATABASE_URL;
           config.timeout.socketConnection = 8000;
           config.timeout.serverResponse = 10000;
+#ifndef PARAAI_TLS_SEM_VERIFICACAO
+          // Sem isto a biblioteca aceita qualquer certificado. O login por
+          // e-mail/senha da versão 4.4.17 ainda ignora esta opção (ver README).
+          config.cert.data = RAIZES_GOOGLE_PEM;
+#endif
           auth.user.email = TOTEM_EMAIL;
           auth.user.password = TOTEM_PASSWORD;
           fb.setResponseSize(12288);

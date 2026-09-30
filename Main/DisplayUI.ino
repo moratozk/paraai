@@ -202,6 +202,10 @@ bool executarCalibracaoTouch(bool forcar);
 bool verificarPressaoLongaStatus();
 void desenharTelaConfiguracoes();
 int  verificarToqueConfiguracoes(); // 1 = WiFi, 2 = calibrar, 3 = voltar
+const char PIN_APAGAR = '<', PIN_CONFIRMAR = '>';
+void desenharTelaPin(const char* aviso = nullptr);
+void atualizarDigitosPin(uint8_t digitos);
+char verificarToquePin();           // '0'..'9', PIN_APAGAR, PIN_CONFIRMAR ou 0
 void desenharTelaPortalWifi(String ap, String senha, String ip, String mensagem);
 void desenharTelaTestandoWifi(String ssid);
 bool verificarToqueCancelarPortalWifi();
@@ -1442,6 +1446,67 @@ int verificarToqueConfiguracoes() {
   if (toqueDentro(x, y, 20, 76, 280, 46)) return 1;
   if (toqueDentro(x, y, 20, 134, 280, 46)) return 2;
   if (toqueDentro(x, y, 70, 194, 180, 38)) return 3;
+  return 0;
+}
+
+// PIN antes das configurações: sem ele, quem está diante do totem poderia
+// trocar a rede. Teclado 3x4; a tecla da esquerda volta quando vazio.
+const int PIN_TECLA_W = 92, PIN_TECLA_H = 32, PIN_GAP_X = 8, PIN_GAP_Y = 4;
+const int PIN_X0 = (TELA_W - (3 * PIN_TECLA_W + 2 * PIN_GAP_X)) / 2;
+const int PIN_Y0 = 90, PIN_PONTOS_Y = 60, PIN_PONTOS_H = 24;
+const char* PIN_TECLAS = "123456789<0>";
+
+int pinTeclaX(int i) { return PIN_X0 + (i % 3) * (PIN_TECLA_W + PIN_GAP_X); }
+int pinTeclaY(int i) { return PIN_Y0 + (i / 3) * (PIN_TECLA_H + PIN_GAP_Y); }
+
+void desenharTeclaApagarPin(bool vazio) {
+  const int x = pinTeclaX(9), y = pinTeclaY(9);
+  tft.fillRoundRect(x, y, PIN_TECLA_W, PIN_TECLA_H, 5, corPainel);
+  tft.drawRoundRect(x, y, PIN_TECLA_W, PIN_TECLA_H, 5, corBotaoBorda);
+  textoCentralizadoEm(vazio ? "VOLTAR" : "APAGAR", x, y, PIN_TECLA_W, PIN_TECLA_H,
+                      corTextoFraco, FONTE_MEDIA);
+}
+
+void atualizarDigitosPin(uint8_t digitos) {
+  tft.fillRect(0, PIN_PONTOS_Y, TELA_W, PIN_PONTOS_H, corFundo);
+  const int passo = 22, x0 = TELA_W / 2 - (digitos - 1) * passo / 2;
+  for (int i = 0; i < digitos; i++)
+    tft.fillCircle(x0 + i * passo, PIN_PONTOS_Y + PIN_PONTOS_H / 2, 6, corDestaque);
+  if (digitos == 0)
+    textoCentralizadoEm("4 a 8 digitos", 0, PIN_PONTOS_Y, TELA_W, PIN_PONTOS_H,
+                        corTextoFraco, FONTE_PEQUENA);
+  desenharTeclaApagarPin(digitos == 0);
+}
+
+void desenharTelaPin(const char* aviso) {
+  tft.fillScreen(corFundo);
+  desenharCabecalho();
+  centralizarTexto(aviso ? aviso : "PIN DE MANUTENCAO", 38,
+                   aviso ? corErro : corTexto, FONTE_MEDIA);
+  for (int i = 0; i < 12; i++) {
+    const char tecla = PIN_TECLAS[i];
+    if (tecla == PIN_APAGAR) continue;
+    const int x = pinTeclaX(i), y = pinTeclaY(i);
+    const bool ok = tecla == PIN_CONFIRMAR;
+    tft.fillRoundRect(x, y, PIN_TECLA_W, PIN_TECLA_H, 5, ok ? corDestaque : corBotao);
+    if (!ok) tft.drawRoundRect(x, y, PIN_TECLA_W, PIN_TECLA_H, 5, corBotaoBorda);
+    textoCentralizadoEm(ok ? String("OK") : String(tecla), x, y, PIN_TECLA_W, PIN_TECLA_H,
+                        ok ? corFundo : corTexto, FONTE_GRANDE);
+  }
+  atualizarDigitosPin(0);
+  bloquearToqueAtualAteSoltar(); // O dedo do toque longo ainda está na tela.
+}
+
+char verificarToquePin() {
+  int x, y;
+  if (!lerNovoToque(x, y)) return 0;
+  for (int i = 0; i < 12; i++) {
+    if (!toqueDentro(x, y, pinTeclaX(i), pinTeclaY(i), PIN_TECLA_W, PIN_TECLA_H)) continue;
+    const char tecla = PIN_TECLAS[i];
+    if (tecla >= '0' && tecla <= '9')
+      realcarTecla(pinTeclaX(i), pinTeclaY(i), PIN_TECLA_W, PIN_TECLA_H, tecla, true);
+    return tecla;
+  }
   return 0;
 }
 

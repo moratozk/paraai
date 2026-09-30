@@ -8,6 +8,11 @@
 #include "DisplayUI.ino"
 #include "ConfiguracaoWiFi.ino"
 
+#ifndef MANUTENCAO_PIN
+#error "Defina MANUTENCAO_PIN (4 a 8 digitos) em Credenciais.h; veja Credenciais.example.h."
+#endif
+static_assert(paraai::pinFormatoValido(MANUTENCAO_PIN), "MANUTENCAO_PIN precisa ter de 4 a 8 digitos.");
+
 enum class Tela { INICIO, PLACA, PROCESSANDO, CADASTRO, RESULTADO, AGUARDANDO_MANUTENCAO };
 Tela tela = Tela::INICIO;
 Operacao operacao = OP_NENHUMA;
@@ -20,6 +25,12 @@ unsigned long ultimaTentativaWifi = 0, processamentoDesde = 0;
 const unsigned long INATIVIDADE_MS = 60000;
 const unsigned long RESULTADO_MS = 8000;
 int manutencaoSolicitada = 0; // 0 central, 1 Wi-Fi, 2 calibração
+bool manutencaoExigePin = true;
+uint8_t errosPin = 0;
+bool pinBloqueado = false;
+unsigned long pinBloqueadoDesde = 0;
+const uint8_t MAX_ERROS_PIN = 5;
+const unsigned long BLOQUEIO_PIN_MS = 5UL * 60UL * 1000UL;
 
 void voltarAoInicio() {
   placa = "";
@@ -65,8 +76,60 @@ void trocarWifi() {
     ESP.restart();
   }
 }
+// Toque longo exige PIN. Serial (USB, gabinete aberto) e o primeiro portal,
+// sem rede alguma configurada, não têm credencial de rede a proteger.
+bool conferirPinManutencao() {
+  if (pinBloqueado && millis() - pinBloqueadoDesde < BLOQUEIO_PIN_MS) {
+    desenharTelaResultado(RESULTADO_ALERTA, "MANUTENCAO BLOQUEADA", "Muitas tentativas de PIN", "Aguarde alguns minutos");
+    delay(3000);
+    return false;
+  }
+  pinBloqueado = false;
+  char digitado[paraai::PIN_MAX_DIGITOS + 1] = {};
+  uint8_t digitos = 0;
+  desenharTelaPin();
+  unsigned long interacao = millis();
+  bool liberado = false;
+  while (millis() - interacao < 30000) {
+    atualizarFeedbackTeclado();
+    const char tecla = verificarToquePin();
+    if (!tecla) { delay(10); continue; }
+    interacao = millis();
+    if (tecla == PIN_APAGAR) {
+      if (digitos == 0) break;
+      digitado[--digitos] = '\0';
+      atualizarDigitosPin(digitos);
+    } else if (tecla == PIN_CONFIRMAR) {
+      if (paraai::pinConfere(digitado, MANUTENCAO_PIN)) { liberado = true; break; }
+      memset(digitado, 0, sizeof(digitado));
+      digitos = 0;
+      if (++errosPin >= MAX_ERROS_PIN) {
+        errosPin = 0;
+        pinBloqueado = true;
+        pinBloqueadoDesde = millis();
+        Serial.println("[TOTEM] Manutencao bloqueada por 5 min apos PIN incorreto.");
+        desenharTelaResultado(RESULTADO_ALERTA, "MANUTENCAO BLOQUEADA", "Muitas tentativas de PIN", "Aguarde alguns minutos");
+        delay(3000);
+        break;
+      }
+      delay(800); // Desacelera tentativas em sequência.
+      desenharTelaPin("PIN INCORRETO");
+    } else if (digitos < paraai::PIN_MAX_DIGITOS) {
+      digitado[digitos++] = tecla;
+      atualizarDigitosPin(digitos);
+    }
+  }
+  memset(digitado, 0, sizeof(digitado));
+  if (liberado) errosPin = 0;
+  return liberado;
+}
 void manutencao() {
   atualizarStatusServico(ConexaoTotem::MANUTENCAO);
+  if (manutencaoExigePin && !conferirPinManutencao()) {
+    retomarAtendimento();
+    voltarAoInicio();
+    return;
+  }
   if (manutencaoSolicitada == 1) trocarWifi();
   else if (manutencaoSolicitada == 2) executarCalibracaoTouch(true);
   else {
@@ -83,8 +146,9 @@ void manutencao() {
   retomarAtendimento();
   voltarAoInicio();
 }
-void pedirManutencao(int acao) {
+void pedirManutencao(int acao, bool exigirPin) {
   manutencaoSolicitada = acao;
+  manutencaoExigePin = exigirPin;
   tela = Tela::AGUARDANDO_MANUTENCAO;
   processamentoDesde = millis();
   desenharTelaProcessando("Preparando configuracoes...");
@@ -118,15 +182,17 @@ void loop() {
     ultimaTentativaWifi = agora;
     iniciarReconexaoWifiConfigurado();
   }
+  // Só abre sozinho sem nenhuma rede para tentar (instalação). Com rede
+  // configurada, uma queda de energia apenas reconecta quando o roteador voltar.
   if (portalAutomaticoPendente && tela == Tela::INICIO && agora - inicio >= 15000) {
     portalAutomaticoPendente = false;
-    pedirManutencao(1);
+    if (obterSsidWifiConfigurado().isEmpty()) pedirManutencao(1, false);
   }
 
   if ((tela == Tela::PLACA || tela == Tela::CADASTRO) && agora - ultimaInteracao >= INATIVIDADE_MS) voltarAoInicio();
   switch (tela) {
     case Tela::INICIO: {
-      if (verificarPressaoLongaStatus()) { pedirManutencao(0); break; }
+      if (verificarPressaoLongaStatus()) { pedirManutencao(0, true); break; }
       Operacao escolha = verificarToqueTelaInicial();
       if (escolha != OP_NENHUMA) {
         operacao = escolha;
@@ -189,8 +255,8 @@ void loop() {
         WiFi.status() == WL_CONNECTED ? "conectado" : "offline",
         static_cast<int>(status.conexao), ESP.getFreeHeap());
     }
-    if (tela == Tela::INICIO && (c == 'w' || c == 'W')) pedirManutencao(1);
-    if (tela == Tela::INICIO && (c == 'c' || c == 'C')) pedirManutencao(2);
+    if (tela == Tela::INICIO && (c == 'w' || c == 'W')) pedirManutencao(1, false);
+    if (tela == Tela::INICIO && (c == 'c' || c == 'C')) pedirManutencao(2, false);
   }
   delay(8);
 }

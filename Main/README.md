@@ -45,23 +45,26 @@ o código anterior continua recuperável no Git.
 
 Na primeira inicialização sem calibração válida, tocar nas quatro miras e no
 ponto central de validação. Os limites ficam em Preferences (paraai-ui).
-Para refazer: segurar o status superior direito por 3 segundos e escolher
-RECALIBRAR TOUCH, enviar C pelo Serial na inicial ou manter o dedo na tela
+Para refazer: segurar o status superior direito por 3 segundos, informar o
+PIN de manutenção e escolher RECALIBRAR TOUCH, enviar C pelo Serial na inicial ou manter o dedo na tela
 durante a splash. Uma calibração inconsistente não substitui a anterior.
 
 ### Trocar Wi-Fi pelo celular
 
-1. Na inicial, segurar o status superior direito por 3 segundos e escolher
-   TROCAR WIFI.
+1. Na inicial, segurar o status superior direito por 3 segundos, informar o
+   PIN (`MANUTENCAO_PIN` em Credenciais.h) e escolher TROCAR WIFI.
 2. Conectar o celular à rede temporária ParaAi-XXXXXX, com a senha exibida na
    tela. Se aparecer aviso de rede sem internet, manter a conexão local.
 3. Abrir http://192.168.4.1, selecionar a rede ou informar SSID oculto e senha.
 4. O totem testa por até 15 segundos. Só salva a rede se conectar; senha
    errada preserva a anterior. Sucesso reinicia o atendimento.
 
-Sem rede conhecida no boot, o portal abre após 15 segundos, quando estiver na
-inicial. Pode ser cancelado e expira em 10 minutos. Serial W é a alternativa
-quando o touch precisa de manutenção.
+Só quando não há rede alguma configurada (NVS vazia e `WIFI_SSID` vazio) o
+portal abre sozinho após 15 segundos, sem PIN. Com rede definida, uma queda de
+energia apenas reconecta quando o roteador voltar. Pode ser cancelado e expira
+em 10 minutos. Serial W/C (USB, gabinete aberto) dispensa o PIN e é a
+alternativa quando o touch precisa de manutenção. Cinco PINs errados bloqueiam
+a manutenção por 5 minutos.
 
 Somente Wi-Fi 2,4 GHz pessoal protegido; não aceita redes abertas, WEP ou
 empresariais. Redes com login adicional de hotel/escola não são suportadas.
@@ -70,8 +73,17 @@ validado na NVS (paraai-net). O portal tem token de sessão e só atende o AP;
 as credenciais Firebase nunca passam pelo formulário.
 
 A manutenção aguarda a tarefa Firebase ficar ociosa antes de controlar o
-rádio. O gesto é acesso físico, **não autenticação de administrador**. A NVS
+rádio. O PIN impede que qualquer pessoa diante do totem troque a rede; a NVS
 não é criptografada: proteja o protótipo e revogue dispositivos perdidos.
+
+### TLS
+
+As chamadas ao Firestore validam o certificado com as raízes GTS de
+`RaizesGoogle.h` (válidas até 2036). Limitação conhecida da
+Firebase-ESP-Client 4.4.17: o login por e-mail/senha e a renovação do token
+ignoram `config.cert` e seguem sem verificação; por isso a troca de rede fica
+atrás do PIN. `#define PARAAI_TLS_SEM_VERIFICACAO` em Credenciais.h desliga a
+verificação apenas para diagnóstico.
 
 ## Firebase: contrato do totem
 
@@ -173,7 +185,7 @@ No Windows, criar .runtime com New-Item, se necessário, e usar a extensão .exe
 Esta revisão usou zig c++ 0.14.1 portátil ([distribuição oficial](https://ziglang.org/download/)).
 
 O emulador só aceita demo-paraai em 127.0.0.1:8180. Testes C++ incluem o código
-real da lógica e da interface, não uma reescrita em JavaScript. Geram 13 SVGs
+real da lógica e da interface, não uma reescrita em JavaScript. Geram 16 SVGs
 com Adafruit_GFX e fontes reais para inspeção em http://127.0.0.1:4174.
 Periféricos são simulados: não valida ruído, pressão, alimentação, SPI, TLS
 ou calibração do painel físico.
