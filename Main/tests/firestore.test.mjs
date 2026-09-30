@@ -2,7 +2,7 @@ import { after, before, beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc, writeBatch, Timestamp, increment, deleteField, setLogLevel } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, writeBatch, Timestamp, increment, deleteField, setLogLevel } from 'firebase/firestore';
 import { createMockUserToken } from '@firebase/util';
 
 // Nunca aceitar projeto/host de produção, nem carregar Credenciais.h/.env.
@@ -13,7 +13,10 @@ assert.match(host ?? '', /^(127\.0\.0\.1|localhost):8180$/,
   'Execute npm test: esta suíte só pode usar o emulador local na porta 8180.');
 const base = `http://${host}/v1/projects/${projectId}/databases/(default)/documents`;
 let env;
-const entrada = 1788800000;
+// As regras só aceitam o horário do momento da gravação: os dados de teste
+// partem do relógio real. A estadia aberta começou há exatamente uma hora.
+const agora = Math.floor(Date.now() / 1000);
+const entrada = agora - 3600;
 const estacionamento = { ownerUid: 'operador-a', nome: 'Patio A', numVagas: 4, tarifaHora: 8.5 };
 const vitrine = { nome: 'Patio A', numVagas: 4, tarifaHora: 8.5,
   cep: '00000000', logradouro: 'Rua A', numero: '1', bairro: 'Centro', cidade: 'Teste', uf: 'SP' };
@@ -111,7 +114,7 @@ test('totem não simula sensores nem altera ocupação sem uma estadia', async (
 });
 test('entrada atômica associa veículo e vaga sem mudar saldo/dono', async () => {
   const d = db('totem-a'), batch = writeBatch(d);
-  batch.update(doc(d, 'veiculos/XYZ1234'), { vagaAtual: 2, horaEntrada: entrada, estacionamentoId: 'EST-A', tarifaHoraEntrada: 8.5 });
+  batch.update(doc(d, 'veiculos/XYZ1234'), { vagaAtual: 2, horaEntrada: agora, estacionamentoId: 'EST-A', tarifaHoraEntrada: 8.5 });
   batch.update(doc(d, 'estacionamentos/EST-A/vagas/2'), vagaLogica('XYZ1234'));
   await assertSucceeds(batch.commit());
   const v = (await getDoc(doc(d, 'veiculos/XYZ1234'))).data();
@@ -120,12 +123,12 @@ test('entrada atômica associa veículo e vaga sem mudar saldo/dono', async () =
   assert.deepEqual((await getDoc(doc(d, 'estacionamentos/EST-A/vagas/2'))).data(), vagaLogica('XYZ1234'));
 });
 test('entrada rejeita vaga fora da faixa e estadia já aberta', async () => {
-  await assertFails(updateDoc(ref('totem-a', 'veiculos/XYZ1234'), { vagaAtual: 5, horaEntrada: entrada, estacionamentoId: 'EST-A', tarifaHoraEntrada: 8.5 }));
+  await assertFails(updateDoc(ref('totem-a', 'veiculos/XYZ1234'), { vagaAtual: 5, horaEntrada: agora, estacionamentoId: 'EST-A', tarifaHoraEntrada: 8.5 }));
   await assertFails(updateDoc(ref('totem-a', 'veiculos/ABC1D23'), { vagaAtual: 2, horaEntrada: entrada + 5 }));
 });
 test('entrada rejeita veículo inativo', async () => {
   await env.withSecurityRulesDisabled(c => updateDoc(doc(c.firestore(), 'veiculos/XYZ1234'), { ativo: false }));
-  await assertFails(updateDoc(ref('totem-a', 'veiculos/XYZ1234'), { vagaAtual: 2, horaEntrada: entrada, estacionamentoId: 'EST-A', tarifaHoraEntrada: 8.5 }));
+  await assertFails(updateDoc(ref('totem-a', 'veiculos/XYZ1234'), { vagaAtual: 2, horaEntrada: agora, estacionamentoId: 'EST-A', tarifaHoraEntrada: 8.5 }));
 });
 test('cadastro acadêmico no totem continua compatível com reivindicação pelo motorista', async () => {
   const dados = { ...livre, cadastradoNoTotem: true };
@@ -139,18 +142,18 @@ test('recarga simulada do próprio veículo permanece compatível', async () => 
   await assertFails(updateDoc(ref('motorista-b', 'veiculos/ABC1D23'), { saldo: increment(50) }));
 });
 
-function loteSaida(d, dadosRecibo = recibo) {
+function loteSaida(d, dadosRecibo = recibo, dadosVeiculo = saida) {
   const batch = writeBatch(d);
-  batch.update(doc(d, 'veiculos/ABC1D23'), saida);
+  batch.update(doc(d, 'veiculos/ABC1D23'), dadosVeiculo);
   batch.update(doc(d, 'estacionamentos/EST-A/vagas/1'), { ...vagaLogica(''), leituraValida: deleteField() });
   batch.set(doc(d, `historico/ABC1D23_${entrada}`), dadosRecibo);
   return batch;
 }
 
-function loteEntrada(d, vaga = 2, dadosVaga = vagaLogica('XYZ1234'), tarifa = 8.5) {
+function loteEntrada(d, vaga = 2, dadosVaga = vagaLogica('XYZ1234'), tarifa = 8.5, horaEntrada = agora) {
   const batch = writeBatch(d);
   batch.update(doc(d, 'veiculos/XYZ1234'), {
-    vagaAtual: vaga, horaEntrada: entrada, estacionamentoId: 'EST-A', tarifaHoraEntrada: tarifa
+    vagaAtual: vaga, horaEntrada, estacionamentoId: 'EST-A', tarifaHoraEntrada: tarifa
   });
   batch.set(doc(d, `estacionamentos/EST-A/vagas/${vaga}`), dadosVaga);
   return batch;
@@ -158,7 +161,7 @@ function loteEntrada(d, vaga = 2, dadosVaga = vagaLogica('XYZ1234'), tarifa = 8.
 
 test('entrada exige vaga no mesmo lote e não aceita ocupação falsa ou placa trocada', async () => {
   await assertFails(updateDoc(ref('totem-a', 'veiculos/XYZ1234'), {
-    vagaAtual: 2, horaEntrada: entrada, estacionamentoId: 'EST-A', tarifaHoraEntrada: 8.5
+    vagaAtual: 2, horaEntrada: agora, estacionamentoId: 'EST-A', tarifaHoraEntrada: 8.5
   }));
   for (const dados of [vagaLogica('ABC1D23'), { ...vagaLogica('XYZ1234'), ocupada: false },
     { ...vagaLogica('XYZ1234'), origemOcupacao: 'sensor' }, { ...vagaLogica('XYZ1234'), leituraValida: true }]) {
@@ -171,6 +174,24 @@ test('entrada não sobrescreve vaga ocupada nem aceita tarifa diferente do páti
   await assertFails(loteEntrada(db('totem-a'), 1).commit());
   await assertFails(loteEntrada(db('totem-a'), 2, vagaLogica('XYZ1234'), 0).commit());
   await assertFails(loteEntrada(db('totem-a'), 2, vagaLogica('XYZ1234'), 10001).commit());
+});
+
+test('entrada e saída só aceitam o horário do momento da gravação', async () => {
+  // Retroativa ou futura, a estadia inflaria a cobrança de outra conta.
+  for (const horaEntrada of [1, agora - 3600, agora + 3600]) {
+    await assertFails(loteEntrada(db('totem-a'), 2, vagaLogica('XYZ1234'), 8.5, horaEntrada).commit());
+  }
+  await assertSucceeds(loteEntrada(db('totem-a')).commit());
+  // Saída uma hora no futuro: duração, valor e saldo coerentes entre si.
+  await assertFails(loteSaida(db('totem-a'),
+    { ...recibo, saida: agora + 3600, duracaoMinutos: 120, valorCobrado: 17 }, { ...saida, saldo: 83 }).commit());
+  assert.equal((await getDoc(ref('motorista-a', 'veiculos/ABC1D23'))).data().saldo, 100);
+});
+
+test('dono não apaga vaga ocupada, só vaga livre do próprio pátio', async () => {
+  await assertFails(deleteDoc(ref('operador-a', 'estacionamentos/EST-A/vagas/1')));
+  await assertFails(deleteDoc(ref('operador-b', 'estacionamentos/EST-A/vagas/2')));
+  await assertSucceeds(deleteDoc(ref('operador-a', 'estacionamentos/EST-A/vagas/2')));
 });
 
 test('capacidade lógica permite a vaga 200, sem depender de quatro sensores', async () => {
@@ -294,7 +315,7 @@ test('REST do ESP: duas entradas concorrentes não recebem a mesma vaga', async 
   const primeiro = await rest('/veiculos/XYZ1234');
   const segundo = await rest('/veiculos/NEW1234');
   const abrir = (placa, revisao) => rest(':commit', { writes: [
-    escrita(`veiculos/${placa}`, { vagaAtual: 2, horaEntrada: entrada, estacionamentoId: 'EST-A', tarifaHoraEntrada: 8.5 }, { updateTime: revisao }),
+    escrita(`veiculos/${placa}`, { vagaAtual: 2, horaEntrada: agora, estacionamentoId: 'EST-A', tarifaHoraEntrada: 8.5 }, { updateTime: revisao }),
     escrita('estacionamentos/EST-A/vagas/2', vagaLogica(placa), { updateTime: vaga.data.updateTime })
   ] });
   assert.equal((await abrir('XYZ1234', primeiro.data.updateTime)).status, 200);
@@ -306,7 +327,7 @@ test('REST do ESP: duas entradas concorrentes não recebem a mesma vaga', async 
 test('REST do ESP: criação atômica de vaga ainda inexistente', async () => {
   const veiculo = await rest('/veiculos/XYZ1234');
   const resultado = await rest(':commit', { writes: [
-    escrita('veiculos/XYZ1234', { vagaAtual: 3, horaEntrada: entrada, estacionamentoId: 'EST-A', tarifaHoraEntrada: 8.5 }, { updateTime: veiculo.data.updateTime }),
+    escrita('veiculos/XYZ1234', { vagaAtual: 3, horaEntrada: agora, estacionamentoId: 'EST-A', tarifaHoraEntrada: 8.5 }, { updateTime: veiculo.data.updateTime }),
     escrita('estacionamentos/EST-A/vagas/3', vagaLogica('XYZ1234'), { exists: false })
   ] });
   assert.equal(resultado.status, 200, JSON.stringify(resultado));

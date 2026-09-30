@@ -95,6 +95,15 @@ service cloud.firestore {
         && dados.cadastradoNoTotem == true;
     }
 
+    // Horários em segundos gravados pelo totem precisam ser os do momento da
+    // gravação. A folga cobre latência e diferença pequena do NTP, sem aceitar
+    // estadia retroativa nem saída no futuro (que inflariam a cobrança).
+    function horarioAtual(segundos) {
+      return segundos is int
+        && segundos * 1000 >= request.time.toMillis() - 300000
+        && segundos * 1000 <= request.time.toMillis() + 60000;
+    }
+
     // Um totem só pode abrir uma estadia que ainda está fora de qualquer
     // pátio e fechá-la se ela pertence ao próprio estacionamento. Isso mantém
     // a carteira global, mas impede um equipamento de alterar uma estadia
@@ -109,8 +118,7 @@ service cloud.firestore {
         && request.resource.data.vagaAtual > 0
         && request.resource.data.vagaAtual <= 200
         && request.resource.data.vagaAtual <= get(/databases/$(database)/documents/estacionamentos/$(request.resource.data.estacionamentoId)).data.numVagas
-        && request.resource.data.horaEntrada is int
-        && request.resource.data.horaEntrada > 0
+        && horarioAtual(request.resource.data.horaEntrada)
         && request.resource.data.estacionamentoId
           == get(/databases/$(database)/documents/totems/$(request.auth.uid)).data.estacionamentoId
         && request.resource.data.tarifaHoraEntrada is number
@@ -251,6 +259,7 @@ service cloud.firestore {
         && dados.vaga is int && dados.vaga >= 1 && dados.vaga <= 200
         && dados.entrada is int && dados.entrada > 0
         && dados.saida is int && dados.saida >= dados.entrada
+        && horarioAtual(dados.saida)
         && dados.duracaoMinutos is int && dados.duracaoMinutos >= 0
         && dados.valorCobrado is number && dados.valorCobrado >= 0
         && dados.tarifaHora is number && dados.tarifaHora >= 0 && dados.tarifaHora <= 10000;
@@ -333,7 +342,9 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'ocupada', 'placa', 'origemOcupacao', 'leituraValida'
           ]);
-        allow delete: if donoDoEstacionamento(estId);
+        // Apagar uma vaga ocupada deixaria a estadia sem saída possível.
+        allow delete: if donoDoEstacionamento(estId)
+          && resource.data.get('placa', '') == '';
       }
     }
 
