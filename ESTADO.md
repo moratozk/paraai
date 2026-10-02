@@ -1,7 +1,7 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **17/09/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **02/10/2026**.
 
 ---
 
@@ -18,6 +18,64 @@ estadia e cobrança simulada. O operador acompanha pelo painel. A ocupação é
 lógica; a maquete virtual online é uma etapa futura, não implementada.
 
 Projeto acadêmico (TCC). Revisão atual: `codex/totem-atendimento`.
+
+## Revisão de 30/09 a 02/10/2026 — segurança, pendência e robustez
+
+Feita sobre o PR #7 a partir de uma revisão de código; cada parte é um commit.
+
+- **Regras:** `horaEntrada` e `saida` só valem entre −5 min e +1 min de
+  `request.time` (antes, uma credencial de totem abria estadia retroativa e
+  debitava anos de tarifa de outra conta). Dono só apaga vaga livre. Entrada
+  exige saldo > −0,005. Recibo ganhou `valorPendente`, conferido contra o saldo
+  final sem somar dívida antiga. `ownerNome` deixou de ser exigido.
+- **Saldo pendente:** sem catraca, a saída é sempre registrada. Se o saldo não
+  cobre, o totem mostra SAIDA COM PENDENCIA (sem exibir o saldo), o recibo
+  guarda a parte não coberta e uma nova entrada fica bloqueada até a recarga.
+  O auto-cadastro (saldo 0) continua entrando. Painel separa recebido de a
+  receber, marca recibos pendentes e exporta `valor_pendente` no CSV.
+- **Manutenção com PIN:** `MANUTENCAO_PIN` (4 a 8 dígitos) é obrigatório em
+  `Credenciais.h`; sem ele a compilação para com mensagem clara. Cinco erros
+  bloqueiam por 5 min. Serial W/C e a primeira instalação dispensam o PIN.
+- **Portal automático** só abre sem nenhuma rede configurada. Antes, toda queda
+  de energia deixava o totem até 10 min no portal, com a senha na tela.
+- **TLS:** Firestore valida certificado com as raízes GTS R1/R3/R4
+  (`Main/RaizesGoogle.h`, até 2036; conferidas com openssl e no CI).
+  Limitação conhecida da Firebase-ESP-Client 4.4.17: login e renovação do token
+  ignoram `config.cert`; por isso a troca de rede ficou atrás do PIN.
+  `PARAAI_TLS_SEM_VERIFICACAO` desliga a verificação só para diagnóstico.
+- **Falhas:** telas distinguem rede, recusa e configuração; recusa ou versão
+  vencida (recarga no mesmo instante) é repetida uma vez relendo tudo; rede
+  nunca é repetida. Cabeçalho mostra CONECTANDO ou VERIFICAR PAINEL. Uma vaga
+  com documento fora do padrão não derruba mais o pátio inteiro.
+- **Textos do totem:** 7 títulos passavam de 304 px e saíam cortados; `|` não
+  existe nas fontes (ASCII 0x20–0x7A) e nunca aparecia. O teste da interface
+  agora reprova texto largo ou fora da fonte.
+- **Site:** textos de sensores removidos; o nome do dono não vai mais para o
+  veículo (todo totem lê esse documento) e o nome legado é apagado na recarga;
+  saldo baixo volta a ficar vermelho (classe `perigo` inexistente → `danger`).
+- **CI:** novo job compila o firmware com o modelo de credenciais e versões
+  fixadas (core 3.3.10, Firebase 4.4.17, ILI9341 1.6.3, GFX 1.12.6, BusIO
+  1.17.4, XPT2046 1.4) e confere se `RaizesGoogle.h` valida o Firestore.
+- **Verificação:** testes de regras e as duas suítes C++ aprovados no CI;
+  firmware compilado localmente (ESP32 Dev Module/Huge APP, 1.398.824 bytes,
+  44%; RAM global 53.448 bytes); site com lint e build aprovados.
+  **Não testado no hardware.** Telas logadas do site não foram conferidas
+  visualmente (exigem login real no Firebase).
+- **Nada publicado no Firebase e nada gravado no ESP32.**
+
+### Decisões abertas desta revisão
+
+- PR #3 (`atualizarVagaManual`): o dono grava a vaga diretamente, o que estas
+  regras negam, e `ocupada: true` com placa vazia é vaga livre para o totem.
+  Decidir qual modelo vale antes de unir os dois.
+- Qualquer pessoa digita a placa de outra e abre estadia no nome dela (placa é
+  pública). Hoje é limitação declarada; ideia: aviso no app a cada entrada e
+  saída, com "não fui eu".
+- Totens leem `estacionamentoId`/`horaEntrada` de qualquer veículo (custo da
+  carteira global): dá para saber onde uma placa está estacionada.
+- Rede institucional (WPA2-Enterprise ou login no navegador) não é suportada;
+  na apresentação, usar hotspot do celular.
+- Fechar o PR #5 ao unir o #7.
 
 ## Revisão de 09/09/2026 — totem sem sensores
 
@@ -70,14 +128,16 @@ Projeto acadêmico (TCC). Revisão atual: `codex/totem-atendimento`.
 ### Implantação e próxima etapa
 
 Autorizar e agendar regras + firmware juntos, interrompendo atendimento na
-troca. O firmware de sensores não é compatível com as novas regras. Conferir
+troca. O firmware de sensores não é compatível com as novas regras, e o
+firmware anterior a 02/10 também não (recibo sem `valorPendente`). Antes de
+gravar, incluir `MANUTENCAO_PIN` no `Credenciais.h`. Conferir
 estadias abertas, tarifa congelada e vínculos veículo/vaga antes de instalar;
 não apagar dados para resolver inconsistências. Calibrar com o display montado.
 
 Depois da validação do totem: evoluir o site e criar a maquete virtual para
 visualizar os registros, sem redefinir cobrança nem simular sensores como
-dados reais. Web/public/totem.html e textos de sensores do site permanecem
-legados, deliberadamente fora desta entrega.
+dados reais. Web/public/totem.html permanece legado, fora desta entrega; os
+textos de sensores do site foram removidos em 02/10/2026.
 
 ---
 
@@ -161,6 +221,9 @@ conforme Main/README.md. Nenhum deles é a futura maquete virtual.
 cp Main/Credenciais.example.h Main/Credenciais.h   # e preencha
 ```
 
+Inclui `MANUTENCAO_PIN` (PIN das configurações do totem). O Wi-Fi pode ficar
+em branco: sem rede alguma, o totem abre a configuração na própria tela.
+
 Precisa de Wi-Fi **2,4 GHz** — o ESP32 não enxerga 5 GHz. Abrir `Main/Main.ino`
 na Arduino IDE e gravar.
 
@@ -188,7 +251,7 @@ na Arduino IDE e gravar.
 **Painel**
 - Faturamento por período, ocupação vaga a vaga, histórico de acessos
 - Status do totem em três estados: nunca conectou / offline / online
-- Avisa se o operador configurar mais vagas do que o totem tem sensores
+- Aviso de "mais vagas do que sensores" removido em 02/10/2026 (sem sensores)
 - Tarifa e número de vagas editáveis
 - Cadastro faz rollback da conta do Authentication se o perfil falhar
 - Rotas carregadas sob demanda e Firebase separado no build
@@ -212,7 +275,8 @@ na Arduino IDE e gravar.
 
 1. **Validar o touch no novo firmware** — a calibração agora é integrada e
    persistente. Após autorização para gravar, completar cinco pontos e testar
-   os dois formatos de placa, confirmação, correção e toque mantido.
+   os dois formatos de placa, confirmação, correção, toque mantido e o PIN.
+   Confirmar no Serial que o Firestore conecta com o certificado validado.
 
 2. **Testar o fluxo completo do novo totem no hardware** — entrada/saída,
    reinicialização com estadia aberta, troca/perda de Wi-Fi, responsividade
@@ -277,6 +341,10 @@ Usar o mesmo tom nos dois reprova em um dos casos.
 
 **Firebase App Check** precisa continuar em "Monitorando" (não forçado), senão
 bloqueia tanto o site quanto o ESP32.
+
+**Fontes do totem só têm ASCII 0x20–0x7A.** Acento, `|`, `{` e `~` somem da tela
+sem erro. O teste `ui_totem.test.cpp` confere caracteres e largura de todas as
+mensagens; ao criar uma mensagem nova, incluí-la lá.
 
 **Regras do Firestore precisam acompanhar o site.** O arquivo
 `firestore.rules` permite que o motorista consulte uma placa inexistente antes
