@@ -330,7 +330,8 @@
 .forca-barra.n0::after { width: 0; }
 
 /* ---- endereço via CEP ---- */
-.cep-row { display: grid; grid-template-columns: 1fr auto; gap: 0.6rem; align-items: end; }
+/* Topo alinhado: a dica sob o CEP não pode empurrar o campo Número para baixo. */
+.cep-row { display: grid; grid-template-columns: 1fr auto; gap: 0.6rem; align-items: start; }
 
 .endereco-preview {
   padding: 0.9rem 1rem;
