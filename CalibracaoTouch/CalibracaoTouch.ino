@@ -34,7 +34,7 @@
 #define TOUCH_CS   33
 #define TOUCH_SCLK 25
 #define TOUCH_MOSI 32
-#define TOUCH_MISO 36
+#define TOUCH_MISO 39   // T_OUT da placa CYD (era 36 no módulo avulso)
 
 SPIClass spiTela(VSPI);
 SPIClass spiTouch(HSPI);
