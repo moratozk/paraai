@@ -17,7 +17,48 @@ O motorista registra entrada/saída por placa. O Firebase associa vaga,
 estadia e cobrança simulada. O operador acompanha pelo painel. A ocupação é
 lógica; a maquete virtual online é uma etapa futura, não implementada.
 
-Projeto acadêmico (TCC). Revisão atual: `codex/totem-atendimento`.
+Projeto acadêmico (TCC). Revisão atual: `claude/integracao` (PR #9), que
+une todas as frentes abertas.
+
+## Integração de 02/10/2026 — versão única (PR #9)
+
+O site publicado (paraai.web.app) era o PR #4 do Lucas, nunca unido à `main`;
+o totem (PR #7), a responsividade (PR #6) e a correção da logo (PR #8) partiam
+da `main`. O PR #9 junta tudo, com estas decisões do responsável:
+
+- **Base: versão do Lucas.** Administração central, cadastro público só de
+  motoristas (contas administrativas provisionadas fora do cliente), mapa
+  público e vagas especiais (PCD, 60+, gestante).
+- **Reserva no app, totem decide.** Reservar é gratuito e vale 30 minutos
+  (`reservas/{uid}` + `reservadaAte` na vaga pública). Na entrada, o totem usa
+  a vaga reservada; sem reserva, escolhe a primeira vaga comum livre. Vagas
+  especiais só por reserva. A cobrança é uma só: no totem, da entrada à saída,
+  pela tarifa por hora. Sai a estadia cobrada pelo app (`estadiasApp`, pagar
+  agora/depois, tarifa por minuto); registros antigos ficam no histórico.
+- **Ocupação só pelo totem.** A marcação manual de vagas saiu (deixava vaga e
+  estadia incoerentes). O mapa do operador virou só leitura; o mapa público é
+  espelhado pelo totem na entrada e na saída.
+- **Design** revisado com as diretrizes da Apple (skill `apple-design`),
+  mantendo âmbar/asfalto, logo e Anton: contraste AA nos dois temas,
+  tipografia por tamanho, nada abaixo de 12 px, hover só com mouse, resposta no
+  toque, alvo de 44 px, modais e menu com movimento ancorado, mola sem rebote,
+  transparência reduzida e contraste aumentado.
+- **Verificação:** 49 testes de regras e as suítes C++ no CI; firmware
+  compilado (1.403.508 bytes no CI, 44%); site com lint e build; telas
+  conferidas num ambiente local de dados simulados (temas e 375 px).
+  **Nada testado no hardware nem publicado.**
+
+### Antes de publicar a versão integrada
+
+1. Regras, firmware e site juntos, em janela de manutenção (as regras novas
+   recusam o firmware e o site antigos).
+2. Limpar dados da versão anterior: estadias `ativa` em `estadiasApp`, campo
+   `reservada: true` nas vagas públicas e `tarifaMinuto` nos estacionamentos
+   (o painel do admin apaga este último ao salvar).
+3. Publicar o mapa de cada estacionamento pelo painel (grava o tipo de cada
+   vaga, que o totem lê) e conferir as vagas especiais.
+4. Depois de unir o PR #9, fechar os PRs #3, #4, #5, #6, #7 e #8 como
+   incorporados.
 
 ## Revisão de 30/09 a 02/10/2026 — segurança, pendência e robustez
 
@@ -65,9 +106,8 @@ Feita sobre o PR #7 a partir de uma revisão de código; cada parte é um commit
 
 ### Decisões abertas desta revisão
 
-- PR #3 (`atualizarVagaManual`): o dono grava a vaga diretamente, o que estas
-  regras negam, e `ocupada: true` com placa vazia é vaga livre para o totem.
-  Decidir qual modelo vale antes de unir os dois.
+- ~~PR #3 (`atualizarVagaManual`)~~: resolvido na integração — ocupação só
+  pelo totem; o mapa do operador é só leitura.
 - Qualquer pessoa digita a placa de outra e abre estadia no nome dela (placa é
   pública). Hoje é limitação declarada; ideia: aviso no app a cada entrada e
   saída, com "não fui eu".
@@ -75,7 +115,7 @@ Feita sobre o PR #7 a partir de uma revisão de código; cada parte é um commit
   carteira global): dá para saber onde uma placa está estacionada.
 - Rede institucional (WPA2-Enterprise ou login no navegador) não é suportada;
   na apresentação, usar hotspot do celular.
-- Fechar o PR #5 ao unir o #7.
+- Fechar o PR #5 ao unir o #7 (agora: fechar #3 a #8 ao unir o #9).
 
 ## Revisão de 09/09/2026 — totem sem sensores
 
@@ -341,6 +381,16 @@ projeto, que preferiu voltar ao original. Não sugerir de novo.
 redesenhá-la em SVG por aproximação e o resultado nunca bateu. Para trocar,
 substitua o arquivo. A única exceção é a tela do totem, onde não dá para
 carregar PNG e a marca é reconstruída com retângulos e círculos.
+
+**Reserva no app, totem decide (02/10/2026).** O app só reserva (grátis, 30
+min). Quem registra a estadia e cobra é o totem. Não reintroduzir cobrança
+pelo app nem marcação manual de vagas.
+
+**Design segue as diretrizes da Apple dentro da identidade.** Contraste AA nos
+dois temas, texto mínimo de 12 px, hover só em `@media (hover: hover)`,
+resposta no `:active`, animação só em `transform`/`opacity`. Ao criar um
+componente, usar os tokens de `index.css` (`--esp-*`, `--dur-*`,
+`--mola-critica`, `--rotulo-*`).
 
 **A inicial do totem não mostra contagem de vagas.** Só ENTRADA/SAÍDA. A
 confirmação informa a vaga atribuída. Desde 09/09 não há sensores nem
