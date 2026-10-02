@@ -789,7 +789,7 @@ void desenharStatusCabecalho() {
     case ConexaoTotem::AJUSTANDO_HORA: estado = "AJUSTANDO HORA"; break;
     case ConexaoTotem::AUTENTICANDO: estado = "CONECTANDO"; break;
     case ConexaoTotem::PRONTO: estado = "ONLINE"; break;
-    case ConexaoTotem::ERRO_CONFIGURACAO: estado = "VERIFICAR REDE"; break;
+    case ConexaoTotem::ERRO_CONFIGURACAO: estado = "VERIFICAR PAINEL"; break;
     case ConexaoTotem::MANUTENCAO: estado = "MANUTENCAO"; break;
     default: break;
   }
@@ -1284,7 +1284,7 @@ void atualizarProcessamento(String mensagem, unsigned long decorrido) {
   }
   if (decorrido / 1000 != segundoAnterior) {
     tft.fillRect(0, 171, 320, 24, corFundo);
-    centralizarTexto(String(decorrido / 1000) + " s | Aguarde a confirmacao", 172, corTextoFraco, FONTE_PEQUENA);
+    centralizarTexto(String(decorrido / 1000) + " s - Aguarde a confirmacao", 172, corTextoFraco, FONTE_PEQUENA);
     segundoAnterior = decorrido / 1000;
   }
 }

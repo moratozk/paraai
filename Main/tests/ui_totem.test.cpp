@@ -77,14 +77,14 @@ int main(int argc, char** argv) {
   delay(120); atualizarProcessamento("Registrando entrada...", 240);
   assert(tft.pixels != frame); // Animação atualiza sem rede ou redraw da tela inteira.
   tft.salvar(destino + "/07-processando.svg");
-  desenharTelaResultado(RESULTADO_SUCESSO, "ENTRADA CONFIRMADA", "ABC1D23", "Vaga 200 | R$ 10000,00/h");
+  desenharTelaResultado(RESULTADO_SUCESSO, "ENTRADA CONFIRMADA", "ABC1D23", "Vaga 200 - R$ 10000,00/h");
   desenharBotaoConcluir();
   tft.salvar(destino + "/08-entrada.svg");
   pressionar(160,218);
   assert(verificarToqueConcluir());
   assert(!verificarToqueConcluir());
   soltar();
-  desenharTelaResultado(RESULTADO_SUCESSO, "SAIDA CONFIRMADA", "R$ 8,50", "60 min | ABC1D23");
+  desenharTelaResultado(RESULTADO_SUCESSO, "SAIDA CONFIRMADA", "R$ 8,50", "60 min - ABC1D23");
   desenharBotaoConcluir(); tft.salvar(destino + "/09-saida.svg");
   desenharTelaResultado(RESULTADO_ERRO, "NAO FOI CONFIRMADO", "Confira a conexao", "Confira o registro no painel");
   desenharBotaoConcluir(); tft.salvar(destino + "/10-erro.svg");
@@ -108,11 +108,32 @@ int main(int argc, char** argv) {
   desenharTelaPin("PIN INCORRETO"); tft.salvar(destino + "/15-pin-incorreto.svg");
   desenharTelaPortalWifi("ParaAi-123456", "abcDEF123456", "192.168.4.1", "Conecte pelo celular");
   tft.salvar(destino + "/16-wifi.svg");
-  // Mensagens do atendimento precisam caber na largura da tela.
-  const auto cabe = [](const char* texto, const GFXfont* fonte) { return larguraTexto(texto, fonte, 1) <= TELA_W - 16; };
-  assert(cabe("SAIDA COM PENDENCIA", FONTE_GRANDE) && cabe("R$ 1234,50 | 1440 min", FONTE_GRANDE));
-  assert(cabe("Regularize no app | ABC1D23", FONTE_MEDIA) && cabe("Regularize no app para entrar", FONTE_MEDIA));
-  desenharTelaResultado(RESULTADO_ALERTA, "SAIDA COM PENDENCIA", "R$ 1234,50 | 1440 min", "Regularize no app | ABC1D23");
+  // Toda mensagem do atendimento (Atendimento.cpp e Main.ino, com os maiores
+  // valores possíveis) precisa caber na tela e usar só glifos da fonte: fora de
+  // 0x20..0x7A a Adafruit_GFX simplesmente pula o caractere.
+  const auto cabe = [](const char* texto, const GFXfont* fonte) {
+    for (const char* c = texto; *c; ++c)
+      if (static_cast<uint8_t>(*c) < fonte->first || static_cast<uint8_t>(*c) > fonte->last) return false;
+    return larguraTexto(texto, fonte, 1) <= TELA_W - 16;
+  };
+  for (const char* titulo : {"CADASTRO INATIVO", "CADASTRO INVALIDO", "CONEXAO INDISPONIVEL", "VERIFIQUE O PAINEL",
+       "CONFIRA A PLACA", "ENTRADA CONFIRMADA", "USE O OUTRO TOTEM", "JA ESTA ESTACIONADO", "SEM VAGAS LIVRES",
+       "ESTADIA INCONSISTENTE", "NAO FOI CONFIRMADO", "OPERACAO RECUSADA", "PLACA SEM CADASTRO", "SAIDA COM PENDENCIA",
+       "SAIDA CONFIRMADA", "SALDO PENDENTE", "SEM CONEXAO", "SEM ENTRADA ABERTA", "TENTE NOVAMENTE",
+       "VAGA INCONSISTENTE", "SERVICO INDISPONIVEL", "ACESSO BLOQUEADO", "WI-FI CONFIGURADO"})
+    assert(cabe(titulo, FONTE_GRANDE));
+  for (const char* detalhe : {"Aguarde a reconexao", "Nada foi registrado", "Estacionamento lotado",
+       "Confira horario e tarifa", "Confira a conexao", "Saida nao registrada", "Pedido nao enviado",
+       "R$ 10000,00 em 1440 min", "R$ 10000,00", "ABC1D23", "Muitas tentativas de PIN"})
+    assert(cabe(detalhe, FONTE_GRANDE));
+  for (const char* ajuda : {"Nenhuma operacao foi enviada", "Procure o responsavel", "Tente mais tarde",
+       "Confira o registro no painel", "Tente novamente", "Os dados mudaram agora", "Use SAIDA ao terminar",
+       "Confira os caracteres", "A entrada foi em outro local", "Nenhuma saida a registrar",
+       "Regularize no app para entrar", "Regularize no app - ABC1D23", "1440 min - ABC1D23",
+       "Vaga 200 - R$ 10000,00/h", "Aguarde alguns minutos", "Reiniciando o atendimento", "999 s - Aguarde a confirmacao"})
+    assert(cabe(ajuda, FONTE_MEDIA));
+  assert(!cabe("60 min | ABC1D23", FONTE_MEDIA)); // A barra não existe na fonte.
+  desenharTelaResultado(RESULTADO_ALERTA, "SAIDA COM PENDENCIA", "R$ 10000,00 em 1440 min", "Regularize no app - ABC1D23");
   desenharBotaoConcluir(); tft.salvar(destino + "/17-saida-pendente.svg");
   desenharTelaResultado(RESULTADO_ALERTA, "SALDO PENDENTE", "ABC1D23", "Regularize no app para entrar");
   desenharBotaoConcluir(); tft.salvar(destino + "/18-entrada-bloqueada.svg");

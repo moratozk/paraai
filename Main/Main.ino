@@ -57,7 +57,7 @@ void exibirResposta(const RespostaTotem& r) {
 }
 void enviar(PedidoTotem pedido) {
   if (!servicoIniciado || !solicitarAtendimento(pedido, placa.c_str())) {
-    RespostaTotem r{TipoResposta::ERRO, "SERVICO INDISPONIVEL", "Nao foi enviado um novo pedido", "Tente novamente"};
+    RespostaTotem r{TipoResposta::ERRO, "SERVICO INDISPONIVEL", "Pedido nao enviado", "Tente novamente"};
     exibirResposta(r);
     return;
   }
@@ -80,7 +80,7 @@ void trocarWifi() {
 // sem rede alguma configurada, não têm credencial de rede a proteger.
 bool conferirPinManutencao() {
   if (pinBloqueado && millis() - pinBloqueadoDesde < BLOQUEIO_PIN_MS) {
-    desenharTelaResultado(RESULTADO_ALERTA, "MANUTENCAO BLOQUEADA", "Muitas tentativas de PIN", "Aguarde alguns minutos");
+    desenharTelaResultado(RESULTADO_ALERTA, "ACESSO BLOQUEADO", "Muitas tentativas de PIN", "Aguarde alguns minutos");
     delay(3000);
     return false;
   }
@@ -108,7 +108,7 @@ bool conferirPinManutencao() {
         pinBloqueado = true;
         pinBloqueadoDesde = millis();
         Serial.println("[TOTEM] Manutencao bloqueada por 5 min apos PIN incorreto.");
-        desenharTelaResultado(RESULTADO_ALERTA, "MANUTENCAO BLOQUEADA", "Muitas tentativas de PIN", "Aguarde alguns minutos");
+        desenharTelaResultado(RESULTADO_ALERTA, "ACESSO BLOQUEADO", "Muitas tentativas de PIN", "Aguarde alguns minutos");
         delay(3000);
         break;
       }

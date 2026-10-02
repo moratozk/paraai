@@ -30,6 +30,9 @@ double tarifa = 0;
 uint32_t ultimoHeartbeat = 0, ultimaTentativa = 0;
 bool sincronizado = false;
 bool patioValidado = false;
+bool configuracaoInvalida = false; // Pátio/totem recusado ou fora do formato.
+bool servidorSemResposta = false;  // Última sincronização falhou por rede.
+bool repetirPedido = false;        // Gravação recusada sem efeito: repetir 1x.
 
 void estado(ConexaoTotem conexao, const char* etapa = "") {
   StatusTotem s{};
@@ -46,9 +49,39 @@ RespostaTotem resposta(TipoResposta tipo, const char* titulo,
   snprintf(r.ajuda, sizeof(r.ajuda), "%s", ajuda.c_str());
   return r;
 }
-RespostaTotem falhaRede() {
-  Serial.printf("[ATENDIMENTO] Operacao nao confirmada (HTTP %d).\n", fb.httpCode());
-  return resposta(TipoResposta::ERRO, "NAO FOI CONFIRMADO", "Confira a conexao", "Confira o registro no painel");
+// Separa "talvez não tenha chegado ao servidor" (rede) de recusa das regras,
+// de versão vencida (dado mudou no meio) e de pátio fora do formato (HTTP 200
+// com conteúdo inválido, 404 do pátio).
+enum class Falha : uint8_t { REDE, RECUSA, CONFLITO, DADOS };
+Falha classificarFalha() {
+  const int codigo = fb.httpCode();
+  if (codigo <= 0 || codigo == 408 || codigo == 429 || codigo >= 500) return Falha::REDE;
+  if (codigo == 401 || codigo == 403) return Falha::RECUSA;
+  if (codigo == 400 || codigo == 409) return Falha::CONFLITO;
+  return Falha::DADOS;
+}
+// Leitura que falhou: nada foi gravado.
+RespostaTotem falhaLeitura() {
+  Serial.printf("[ATENDIMENTO] Leitura falhou (HTTP %d).\n", fb.httpCode());
+  switch (classificarFalha()) {
+    case Falha::REDE: return resposta(TipoResposta::ERRO, "SEM CONEXAO", "Nada foi registrado", "Tente novamente");
+    case Falha::RECUSA: return resposta(TipoResposta::ERRO, "OPERACAO RECUSADA", "Nada foi registrado", "Procure o responsavel");
+    default: return resposta(TipoResposta::ERRO, "VERIFIQUE O PAINEL", "Nada foi registrado", "Procure o responsavel");
+  }
+}
+// Gravação que falhou. Recusa e conflito não gravam nada (lote atômico) e
+// costumam vir de recarga ou troca de tarifa no mesmo instante: a tarefa repete
+// o pedido uma vez, relendo tudo. Falha de rede nunca é repetida, porque a
+// gravação pode ter chegado ao servidor.
+RespostaTotem falhaEscrita() {
+  Serial.printf("[ATENDIMENTO] Gravacao nao confirmada (HTTP %d).\n", fb.httpCode());
+  const Falha falha = classificarFalha();
+  if (falha == Falha::REDE)
+    return resposta(TipoResposta::ERRO, "NAO FOI CONFIRMADO", "Confira a conexao", "Confira o registro no painel");
+  repetirPedido = true;
+  if (falha == Falha::RECUSA)
+    return resposta(TipoResposta::ERRO, "OPERACAO RECUSADA", "Nada foi registrado", "Procure o responsavel");
+  return resposta(TipoResposta::ALERTA, "TENTE NOVAMENTE", "Nada foi registrado", "Os dados mudaram agora");
 }
 String valorEmReais(double valor) {
   String texto(valor, 2);
@@ -115,12 +148,22 @@ bool mapaVagas(MapaVagas& mapa) {
       if (!texto(pagina, prefixo + "/name", nome)) break;
       String id = nome.substring(nome.lastIndexOf('/') + 1);
       int n = id.toInt();
-      if (n < 1 || n > paraai::MAX_VAGAS || id != String(n) || vista[n]) return false;
+      if (n < 1 || n > paraai::MAX_VAGAS || id != String(n) || vista[n]) {
+        // Documento fora do padrão (ex.: "01", criado no console) não é vaga
+        // do totem: ignorar em vez de parar o pátio inteiro.
+        Serial.printf("[ATENDIMENTO] Vaga ignorada: id \"%s\" fora do padrao.\n", id.c_str());
+        continue;
+      }
       vista[n] = true;
       // Documento criado pelo firmware antigo só com leitura pode não ter placa.
-      if (!texto(pagina, prefixo + "/fields/placa/stringValue", placa) &&
-          pagina.get(item, prefixo + "/fields/placa")) return false;
-      if (!placa.isEmpty() && !paraai::placaValida(placa.c_str())) return false;
+      const bool placaLegivel = texto(pagina, prefixo + "/fields/placa/stringValue", placa) ||
+                                !pagina.get(item, prefixo + "/fields/placa");
+      if (!placaLegivel || (!placa.isEmpty() && !paraai::placaValida(placa.c_str()))) {
+        // Na dúvida a vaga não é oferecida: nunca dois carros na mesma vaga.
+        Serial.printf("[ATENDIMENTO] Vaga %d com placa fora do padrao; tratada como ocupada.\n", n);
+        usada[n] = true;
+        continue;
+      }
       usada[n] = !placa.isEmpty();
       if (n <= capacidade && !usada[n] &&
           (candidataExistente == 0 || n < candidataExistente)) {
@@ -166,9 +209,14 @@ void dadosVaga(FirebaseJson& vaga, const String& placa) {
   vaga.set("fields/origemOcupacao/stringValue", "registro");
   // leituraValida é removido pelo updateMask, não fingimos uma leitura física.
 }
-bool heartbeat() {
+enum class Sincronia : uint8_t { OK, REDE, CONFIGURACAO };
+Sincronia falhaSincronia() {
+  Serial.printf("[ATENDIMENTO] Sincronizacao falhou (HTTP %d).\n", fb.httpCode());
+  return classificarFalha() == Falha::REDE ? Sincronia::REDE : Sincronia::CONFIGURACAO;
+}
+Sincronia heartbeat() {
   MapaVagas mapa;
-  if (!configurarPatio() || !mapaVagas(mapa)) return false;
+  if (!configurarPatio() || !mapaVagas(mapa)) return falhaSincronia();
   FirebaseJson dados;
   dados.set("fields/ultimaAtualizacao/integerValue", String(static_cast<long long>(time(nullptr))));
   dados.set("fields/vagasLivres/integerValue", String(mapa.livres));
@@ -177,10 +225,11 @@ bool heartbeat() {
   dados.set("fields/modoTotem/stringValue", "atendimento");
   // Remove o antigo limite de sensores; a UI web já trata sua ausência.
   if (!Firebase.Firestore.patchDocument(&fb, PROJECT_ID, "", PATIO, dados.raw(),
-      "ultimaAtualizacao,vagasLivres,vagasEmOperacao,tarifaAplicadaTotem,modoTotem,vagasSuportadasTotem", "", "true")) return false;
+      "ultimaAtualizacao,vagasLivres,vagasEmOperacao,tarifaAplicadaTotem,modoTotem,vagasSuportadasTotem", "", "true"))
+    return falhaSincronia();
   bool ok = Firebase.Firestore.patchDocument(&fb, PROJECT_ID, "", String("catalogoEstacionamentos/") + ESTACIONAMENTO_ID,
     dados.raw(), "ultimaAtualizacao,vagasLivres,vagasEmOperacao", "", "true");
-  return ok || fb.httpCode() == 404;
+  return ok || fb.httpCode() == 404 ? Sincronia::OK : falhaSincronia();
 }
 
 RespostaTotem executar(const Solicitacao& pedido) {
@@ -190,8 +239,8 @@ RespostaTotem executar(const Solicitacao& pedido) {
   estado(ConexaoTotem::PRONTO, "Consultando a placa...");
   FirebaseJson veiculo;
   if (!consultar(caminho, veiculo)) {
-    if (fb.httpCode() != 404) return falhaRede();
-    if (pedido.tipo == PedidoTotem::SAIDA) return resposta(TipoResposta::ALERTA, "PLACA NAO ENCONTRADA", placa, "Confira os caracteres");
+    if (fb.httpCode() != 404) return falhaLeitura();
+    if (pedido.tipo == PedidoTotem::SAIDA) return resposta(TipoResposta::ALERTA, "PLACA SEM CADASTRO", placa, "Confira os caracteres");
     if (pedido.tipo != PedidoTotem::CADASTRAR_ENTRADA)
       return resposta(TipoResposta::CONFIRMAR_CADASTRO, "", placa);
     FirebaseJson novo;
@@ -202,9 +251,9 @@ RespostaTotem executar(const Solicitacao& pedido) {
     novo.set("fields/estacionamentoId/stringValue", "");
     novo.set("fields/tarifaHoraEntrada/doubleValue", 0.0);
     novo.set("fields/cadastradoNoTotem/booleanValue", true);
-    if (!Firebase.Firestore.createDocument(&fb, PROJECT_ID, "", caminho, novo.raw()) && fb.httpCode() != 409) return falhaRede();
+    if (!Firebase.Firestore.createDocument(&fb, PROJECT_ID, "", caminho, novo.raw()) && fb.httpCode() != 409) return falhaEscrita();
     // Releitura também cobre um cadastro concorrente; nunca sobrescrever dono/saldo.
-    if (!consultar(caminho, veiculo)) return falhaRede();
+    if (!consultar(caminho, veiculo)) return falhaLeitura();
   }
   FirebaseJsonData ativo;
   int64_t numeroVaga = -1, entrada = 0;
@@ -213,20 +262,20 @@ RespostaTotem executar(const Solicitacao& pedido) {
   texto(veiculo, "fields/estacionamentoId/stringValue", local);
   if (!texto(veiculo, "updateTime", revisao) || revisao.isEmpty() ||
       !inteiro(veiculo, "vagaAtual", numeroVaga) || numeroVaga < 0 || numeroVaga > paraai::MAX_VAGAS ||
-      !numero(veiculo, "saldo", saldo)) return resposta(TipoResposta::ERRO, "CADASTRO INCONSISTENTE", placa, "Procure o responsavel");
+      !numero(veiculo, "saldo", saldo)) return resposta(TipoResposta::ERRO, "CADASTRO INVALIDO", placa, "Procure o responsavel");
   if (!veiculo.get(ativo, "fields/ativo/booleanValue") || !ativo.to<bool>())
     return resposta(TipoResposta::ALERTA, "CADASTRO INATIVO", placa, "Procure o responsavel");
 
   if (pedido.tipo != PedidoTotem::SAIDA) {
     if (numeroVaga != 0 || !local.isEmpty())
-      return resposta(TipoResposta::ALERTA, "ENTRADA JA REGISTRADA", placa, "Use SAIDA ao terminar");
+      return resposta(TipoResposta::ALERTA, "JA ESTA ESTACIONADO", placa, "Use SAIDA ao terminar");
     // Uma estadia sem saldo vira pendência; outra só depois de regularizar.
     if (!paraai::entradaPermitida(saldo))
       return resposta(TipoResposta::ALERTA, "SALDO PENDENTE", placa, "Regularize no app para entrar");
     estado(ConexaoTotem::PRONTO, "Verificando disponibilidade...");
     MapaVagas mapa;
-    if (!configurarPatio() || !mapaVagas(mapa)) return falhaRede();
-    if (!mapa.primeira) return resposta(TipoResposta::ALERTA, "ESTACIONAMENTO LOTADO", "Nenhuma vaga disponivel", "Tente mais tarde");
+    if (!configurarPatio() || !mapaVagas(mapa)) return falhaLeitura();
+    if (!mapa.primeira) return resposta(TipoResposta::ALERTA, "SEM VAGAS LIVRES", "Estacionamento lotado", "Tente mais tarde");
     FirebaseJson alteracao, vaga;
     alteracao.set("fields/vagaAtual/integerValue", String(mapa.primeira));
     alteracao.set("fields/horaEntrada/integerValue", String(static_cast<long long>(time(nullptr))));
@@ -238,13 +287,13 @@ RespostaTotem executar(const Solicitacao& pedido) {
     escrita(lote, String(PATIO) + "/vagas/" + String(mapa.primeira), vaga,
       "placa,ocupada,origemOcupacao,leituraValida", mapa.revisao, mapa.existe);
     estado(ConexaoTotem::PRONTO, "Registrando entrada...");
-    if (!Firebase.Firestore.commitDocument(&fb, PROJECT_ID, "", lote, "")) return falhaRede();
+    if (!Firebase.Firestore.commitDocument(&fb, PROJECT_ID, "", lote, "")) return falhaEscrita();
     sincronizado = false;
     return resposta(TipoResposta::SUCESSO, "ENTRADA CONFIRMADA", placa,
-      "Vaga " + String(mapa.primeira) + " | R$ " + valorEmReais(tarifa) + "/h");
+      "Vaga " + String(mapa.primeira) + " - R$ " + valorEmReais(tarifa) + "/h");
   }
   if (numeroVaga == 0) return resposta(TipoResposta::ALERTA, "SEM ENTRADA ABERTA", placa, "Nenhuma saida a registrar");
-  if (local != ESTACIONAMENTO_ID) return resposta(TipoResposta::ALERTA, "ENTRADA EM OUTRO LOCAL", placa, "Use o totem do local de entrada");
+  if (local != ESTACIONAMENTO_ID) return resposta(TipoResposta::ALERTA, "USE O OUTRO TOTEM", placa, "A entrada foi em outro local");
   paraai::Cobranca cobranca;
   int64_t agora = time(nullptr);
   if (!inteiro(veiculo, "horaEntrada", entrada) || !numero(veiculo, "tarifaHoraEntrada", congelada) ||
@@ -253,7 +302,8 @@ RespostaTotem executar(const Solicitacao& pedido) {
   String caminhoVaga = String(PATIO) + "/vagas/" + String(static_cast<int>(numeroVaga));
   FirebaseJson vagaAtual;
   String placaVaga, revisaoVaga;
-  if (!consultar(caminhoVaga, vagaAtual, "placa") || !texto(vagaAtual, "updateTime", revisaoVaga) ||
+  if (!consultar(caminhoVaga, vagaAtual, "placa") && fb.httpCode() != 404) return falhaLeitura();
+  if (fb.httpCode() == 404 || !texto(vagaAtual, "updateTime", revisaoVaga) ||
       !texto(vagaAtual, "fields/placa/stringValue", placaVaga) || placaVaga != placa)
     return resposta(TipoResposta::ERRO, "VAGA INCONSISTENTE", "Saida nao registrada", "Procure o responsavel");
   FirebaseJson alteracao, vaga, recibo;
@@ -278,16 +328,22 @@ RespostaTotem executar(const Solicitacao& pedido) {
   escrita(lote, caminhoVaga, vaga, "placa,ocupada,origemOcupacao,leituraValida", revisaoVaga, true);
   escrita(lote, "historico/" + placa + "_" + String(static_cast<long long>(entrada)), recibo, "", "", false);
   estado(ConexaoTotem::PRONTO, "Registrando saida...");
-  if (!Firebase.Firestore.commitDocument(&fb, PROJECT_ID, "", lote, "")) return falhaRede();
+  if (!Firebase.Firestore.commitDocument(&fb, PROJECT_ID, "", lote, "")) return falhaEscrita();
   sincronizado = false;
   const String minutos = String(static_cast<long long>(cobranca.segundos / 60)) + " min";
   // Sem catraca, a saída é sempre registrada. O valor da pendência não é
   // exibido: o saldo é do dono da placa, não de quem está no totem.
   if (cobranca.pendente >= paraai::TOLERANCIA_SALDO)
-    return resposta(TipoResposta::ALERTA, "SAIDA COM PENDENCIA", "R$ " + valorEmReais(cobranca.valor) + " | " + minutos,
-      "Regularize no app | " + placa);
+    return resposta(TipoResposta::ALERTA, "SAIDA COM PENDENCIA", "R$ " + valorEmReais(cobranca.valor) + " em " + minutos,
+      "Regularize no app - " + placa);
   return resposta(TipoResposta::SUCESSO, "SAIDA CONFIRMADA", "R$ " + valorEmReais(cobranca.valor),
-    minutos + " | " + placa);
+    minutos + " - " + placa);
+}
+
+ConexaoTotem estadoDoServico(bool pronto) {
+  if (!pronto || servidorSemResposta) return ConexaoTotem::AUTENTICANDO; // "CONECTANDO"
+  if (configuracaoInvalida) return ConexaoTotem::ERRO_CONFIGURACAO;
+  return patioValidado ? ConexaoTotem::PRONTO : ConexaoTotem::INICIANDO;
 }
 
 void tarefa(void*) {
@@ -317,22 +373,38 @@ void tarefa(void*) {
           iniciado = true;
         }
         pronto = Firebase.ready();
-        estado(pronto ? (patioValidado ? ConexaoTotem::PRONTO :
-          (ultimaTentativa == 0 ? ConexaoTotem::INICIANDO : ConexaoTotem::ERRO_CONFIGURACAO)) : ConexaoTotem::AUTENTICANDO);
+        estado(estadoDoServico(pronto));
       }
     }
     Solicitacao pedido;
     if (xQueueReceive(pedidos, &pedido, 0) == pdTRUE) {
+      repetirPedido = false;
       RespostaTotem r = pronto ? executar(pedido)
         : resposta(TipoResposta::ERRO, "CONEXAO INDISPONIVEL", "Aguarde a reconexao", "Nenhuma operacao foi enviada");
+      if (repetirPedido) {
+        Serial.println("[ATENDIMENTO] Repetindo uma vez com os dados relidos.");
+        repetirPedido = false;
+        r = executar(pedido);
+        repetirPedido = false;
+      }
       xQueueOverwrite(respostas, &r);
     } else if (pronto && uxQueueMessagesWaiting(respostas) == 0 &&
                (!sincronizado || millis() - ultimoHeartbeat >= HEARTBEAT_MS) &&
                (ultimaTentativa == 0 || millis() - ultimaTentativa >= RETENTATIVA_MS)) {
       ultimaTentativa = millis();
-      patioValidado = heartbeat();
-      if (patioValidado) { ultimoHeartbeat = millis(); sincronizado = true; }
-      else estado(ConexaoTotem::ERRO_CONFIGURACAO);
+      const Sincronia sincronia = heartbeat();
+      // Falha de rede mantém a última validação; nova tentativa em 15 s.
+      servidorSemResposta = sincronia == Sincronia::REDE;
+      if (sincronia == Sincronia::OK) {
+        patioValidado = true;
+        configuracaoInvalida = false;
+        ultimoHeartbeat = millis();
+        sincronizado = true;
+      } else if (sincronia == Sincronia::CONFIGURACAO) {
+        patioValidado = false;
+        configuracaoInvalida = true;
+      }
+      estado(estadoDoServico(true));
     }
     xSemaphoreGive(exclusao);
     vTaskDelay(pdMS_TO_TICKS(30));

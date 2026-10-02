@@ -38,8 +38,17 @@ o código anterior continua recuperável no Git.
 - O Firebase roda em outra tarefa, com filas fixas e apenas um atendimento
   pendente. A tela mantém animação, etapa e tempo durante consultas lentas.
 - Não há cancelamento de escrita já enviada. Se a resposta se perder após
-  o commit, conferir o registro com o responsável antes de repetir.
-  O firmware não repete o débito automaticamente.
+  o commit (falha de rede), a tela pede para conferir o registro no painel
+  e o firmware não repete. Recusa das regras ou versão vencida (recarga ou
+  troca de tarifa no mesmo instante) não gravam nada: o pedido é repetido
+  uma única vez, relendo tudo, antes de mostrar o erro.
+- Mensagens distinguem rede (SEM CONEXAO), recusa (OPERACAO RECUSADA) e
+  configuração do pátio (VERIFIQUE O PAINEL); o cabeçalho mostra
+  CONECTANDO quando o servidor não responde e VERIFICAR PAINEL quando o
+  pátio ou o totem estão inválidos. Uma vaga com documento fora do padrão é
+  ignorada (id) ou tratada como ocupada (placa), sem parar o pátio.
+- As fontes cobrem só ASCII 0x20–0x7A; o teste da interface reprova texto
+  que use outro caractere ou passe da largura da tela.
 
 ### Calibração integrada
 
