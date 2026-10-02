@@ -19,7 +19,7 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <Adafruit_GFX.h>
-#include <Adafruit_ILI9341.h>
+#include <Adafruit_ST7789.h>
 #include <XPT2046_Touchscreen.h>
 
 // ---- Mesma pinagem do firmware principal ----
@@ -38,7 +38,7 @@
 
 SPIClass spiTela(VSPI);
 SPIClass spiTouch(HSPI);
-Adafruit_ILI9341 tft = Adafruit_ILI9341(&spiTela, TFT_DC, TFT_CS, TFT_RST);
+Adafruit_ST7789 tft = Adafruit_ST7789(&spiTela, TFT_CS, TFT_DC, TFT_RST);
 XPT2046_Touchscreen ts(TOUCH_CS);
 
 const int TELA_W = 320, TELA_H = 240;
@@ -104,8 +104,10 @@ void setup() {
   digitalWrite(TFT_LED, HIGH);
 
   spiTela.begin(TFT_SCLK, TFT_MISO, TFT_MOSI, TFT_CS);
-  tft.begin(40000000UL);
+  tft.init(240, 320);              // mesma sequência do firmware principal
+  tft.setSPISpeed(40000000UL);
   tft.setRotation(3);
+  tft.invertDisplay(false);
 
   spiTouch.begin(TOUCH_SCLK, TOUCH_MISO, TOUCH_MOSI, TOUCH_CS);
   ts.begin(spiTouch);

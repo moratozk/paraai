@@ -1,4 +1,4 @@
-// ParaAí — totem de atendimento. ESP32 + ILI9341 + XPT2046.
+// ParaAí — totem de atendimento. Placa ESP32 CYD de 2,8" (ST7789 + XPT2046).
 // Sem sensores, servo, catraca ou simulação de presença física.
 #include <Arduino.h>
 #include <WiFi.h>

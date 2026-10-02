@@ -1,7 +1,7 @@
 # ParaAí — totem de atendimento
 
-Firmware Arduino para a placa **ESP32 CYD de 2,8" (ESP32-2432S028R: ILI9341
-320 × 240 + touch XPT2046)**.
+Firmware Arduino para a placa **ESP32 CYD de 2,8" de duas portas
+(ESP32-2432S028R: ST7789 320 × 240 + touch XPT2046)**.
 Gabinete previsto em impressão 3D; sem sensores, servo ou catraca física.
 Vaga ocupada significa **estadia registrada**, não carro detectado. A maquete
 virtual e a evolução do site ficam para a próxima etapa.
@@ -161,8 +161,11 @@ Referência: [operações atômicas no Firestore](https://firebase.google.com/do
 
 ## Montagem e configuração
 
-Placa: **ESP32-2432S028R ("CYD", 2,8")**, com tela e touch já ligados na
-própria placa. Pinos usados pelo firmware:
+Placa: **ESP32-2432S028R ("CYD", 2,8") de duas portas** (micro-USB + USB-C),
+com tela e touch já ligados na própria placa. Esta versão usa o controlador de
+tela **ST7789** (driver `Adafruit_ST7789`, rotação 3, sem inversão de cor); a
+CYD de uma porta só usa ILI9341, com os mesmos pinos, e precisaria voltar ao
+driver `Adafruit_ILI9341`. Pinos usados pelo firmware:
 
 | Função | GPIO |
 |---|---|
@@ -177,7 +180,7 @@ avulsos, o T_DO ficava no GPIO36; para voltar àquela fiação, trocar
 `TOUCH_MISO` para 36 no firmware e em `touch-calibration/`. Os antigos pinos de
 servo/sensores não são configurados nem acionados.
 
-Bibliotecas: Firebase ESP Client, Adafruit GFX, Adafruit ILI9341 e
+Bibliotecas: Firebase ESP Client, Adafruit GFX, Adafruit ST7735 and ST7789 e
 XPT2046_Touchscreen; instalar pelo Library Manager da Arduino IDE. Neste PC,
 `libraries/`, na raiz do repositório, é o cache local, ignorado pelo Git. ESP32Servo não é mais
 dependência do firmware; a cópia antiga do cache local foi preservada.
@@ -187,6 +190,11 @@ preencher os dados locais e o acesso gerado em Perfil > Segurança do totem.
 Nunca sobrescrever um arquivo real com o modelo nem versioná-lo.
 Selecionar ESP32 Dev Module, core usado nos testes 3.3.10, partição
 **Huge APP (3MB No OTA/1MB SPIFFS)**. Não oferece atualização OTA.
+
+Se a gravação falhar com "Wrong boot mode detected", o reset automático da
+CYD não pôs o chip em modo de gravação: segure BOOT, aperte e solte RST, solte
+BOOT e grave com o esptool usando `--before no-reset` (o comando completo sai de
+`arduino-cli upload --verbose --dry-run`).
 
 Antes de desenhar o gabinete 3D, medir a placa real. Preservar
 acesso USB/reset, suporte do display, espaço dos fios e fixação sem pressionar

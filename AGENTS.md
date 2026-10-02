@@ -11,8 +11,8 @@ O ParaAí é um TCC composto por:
 - `web/`: painel React/Vite integrado ao Firebase, incluindo administração
   central da rede.
 - `firmware/`: firmware Arduino do totem de atendimento (sketch em
-  `firmware/totem/`): placa ESP32 CYD de 2,8", tela ILI9341 e touch XPT2046,
-  sem sensores nem servo/catraca física.
+  `firmware/totem/`): placa ESP32 CYD de 2,8" de duas portas, tela ST7789 e
+  touch XPT2046, sem sensores nem servo/catraca física.
 - `firebase/firestore.rules`: regras de acesso do banco em produção, com
   testes no emulador em `firebase/test/`.
 

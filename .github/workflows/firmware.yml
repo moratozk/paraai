@@ -76,16 +76,18 @@ jobs:
           path: |
             ~/.arduino15
             ~/Arduino/libraries
-          key: arduino-esp32-3.3.10-firebase-4.4.17-v1
+          key: arduino-esp32-3.3.10-firebase-4.4.17-st7789-v2
       - name: Instalar core e bibliotecas nas versões usadas no projeto
         run: |
           arduino-cli core update-index
           arduino-cli core install esp32:esp32@3.3.10
           arduino-cli lib install --no-deps \
             "Firebase Arduino Client Library for ESP8266 and ESP32@4.4.17" \
-            "Adafruit ILI9341@1.6.3" "Adafruit GFX Library@1.12.6" \
+            "Adafruit ST7735 and ST7789 Library@1.11.0" "Adafruit GFX Library@1.12.6" \
             "Adafruit BusIO@1.17.4" "XPT2046_Touchscreen@1.4"
       - name: Compilar com o modelo de credenciais
         run: |
           cp firmware/totem/Credenciais.example.h firmware/totem/Credenciais.h
           arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=huge_app --warnings default firmware/totem
+      - name: Compilar o sketch de calibração do toque
+        run: arduino-cli compile --fqbn esp32:esp32:esp32 --warnings default firmware/touch-calibration

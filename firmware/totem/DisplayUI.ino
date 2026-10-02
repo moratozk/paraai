@@ -1,6 +1,6 @@
 // =========================================================================
 // MÓDULO DE INTERFACE GRÁFICA (DisplayUI.ino)
-// Tela ILI9341 320x240 + Touch XPT2046
+// Tela ST7789 320x240 + Touch XPT2046 (placa CYD de duas portas)
 //
 // Diretrizes de layout (é um totem, operado em pé e com o dedo):
 //  - nada de texto essencial em tamanho 1: o mínimo é tamanho 2 (10x14px)
@@ -19,7 +19,7 @@
 #include <math.h>
 #include "Atendimento.h"
 #include <Adafruit_GFX.h>
-#include <Adafruit_ILI9341.h>
+#include <Adafruit_ST7789.h>
 #include <XPT2046_Touchscreen.h>
 // Fontes próprias, geradas de Bahnschrift (a DIN da Microsoft, mesma família
 // da sinalização rodoviária). As FreeSans que vêm na biblioteca são derivadas
@@ -38,8 +38,10 @@
 #define FONTE_PLACA   (&FreeMonoBold12pt7b)    // mono, como placa de veículo
 
 // -------------------------------------------------------------------------
-// PINOS DA TELA + TOUCH - placa ESP32-2432S028R ("CYD", 2,8")
-// Tela e touch já vêm ligados na própria placa; não há fiação a fazer.
+// PINOS DA TELA + TOUCH - placa ESP32-2432S028R ("CYD", 2,8"), versão de
+// duas portas (micro-USB + USB-C). Esta versão usa o controlador ST7789; a de
+// uma porta só usa ILI9341, com os mesmos pinos. Tela e touch já vêm ligados
+// na própria placa; não há fiação a fazer.
 // -------------------------------------------------------------------------
 #define TFT_SCLK   14
 #define TFT_MOSI   13
@@ -61,7 +63,7 @@
 
 SPIClass spiTela(VSPI);
 SPIClass spiTouch(HSPI);
-Adafruit_ILI9341 tft = Adafruit_ILI9341(&spiTela, TFT_DC, TFT_CS, TFT_RST);
+Adafruit_ST7789 tft = Adafruit_ST7789(&spiTela, TFT_CS, TFT_DC, TFT_RST);
 XPT2046_Touchscreen ts(TOUCH_CS);
 
 // -------------------------------------------------------------------------
@@ -79,9 +81,14 @@ static long touchXMin = TOUCH_X_MIN;
 static long touchXMax = TOUCH_X_MAX;
 static long touchYMin = TOUCH_Y_MIN;
 static long touchYMax = TOUCH_Y_MAX;
+// Conforme a placa, o painel de toque vem montado com os eixos trocados em
+// relação à tela. A calibração descobre isso pelos cantos e grava junto.
+static bool touchTrocarEixos = false;
 
 const char* NVS_UI_NAMESPACE = "paraai-ui";  // Preferences limita a 15 caracteres
-const uint8_t VERSAO_CALIBRACAO_TOUCH = 1;
+// Versão 2: troca para a CYD (ST7789). Limites gravados na montagem anterior
+// não valem mais, então o assistente roda de novo no primeiro boot.
+const uint8_t VERSAO_CALIBRACAO_TOUCH = 2;
 
 // Um toque so vira evento depois de permanecer pressionado e so rearma apos
 // uma soltura estavel. Isso elimina repeticao por dedo mantido, toques perdidos
@@ -231,7 +238,8 @@ bool lerNovoToque(int &x, int &y);
 void atualizarEstadoToque();
 void bloquearToqueAtualAteSoltar();
 bool carregarCalibracaoTouch();
-bool salvarCalibracaoTouch(long xMin, long xMax, long yMin, long yMax);
+bool salvarCalibracaoTouch(long xMin, long xMax, long yMin, long yMax, bool trocarEixos);
+TS_Point lerPontoTouch();
 bool calibracaoTouchPlausivel(long xMin, long xMax, long yMin, long yMax);
 bool detectarToqueMantidoNoBoot();
 ModoTecladoInterno obterModoTeclado(String placaAtual, FormatoPlaca formato);
@@ -265,8 +273,12 @@ void initUI() {
   digitalWrite(TFT_LED, HIGH);
 
   spiTela.begin(TFT_SCLK, TFT_MISO, TFT_MOSI, TFT_CS);
-  tft.begin(TFT_SPI_FREQ);
+  // Sequência conferida na placa com um diagnóstico das 4 rotações: a 3 deixa
+  // a tela deitada e de pé, e as cores saem certas sem inversão.
+  tft.init(240, 320);
+  tft.setSPISpeed(TFT_SPI_FREQ);
   tft.setRotation(3);
+  tft.invertDisplay(false);
 
   spiTouch.begin(TOUCH_SCLK, TOUCH_MISO, TOUCH_MOSI, TOUCH_CS);
   ts.begin(spiTouch);
@@ -377,6 +389,17 @@ void mapearToqueBruto(long brutoX, long brutoY,
   y = constrain(y, 0, TELA_H - 1);
 }
 
+// Leitura bruta do XPT2046 já com os eixos na orientação da tela.
+TS_Point lerPontoTouch() {
+  TS_Point p = ts.getPoint();
+  if (touchTrocarEixos) {
+    int16_t x = p.x;
+    p.x = p.y;
+    p.y = x;
+  }
+  return p;
+}
+
 // Converte a leitura bruta do XPT2046 em coordenada de tela. O getPoint()
 // da biblioteca ja seleciona o par mais proximo entre tres leituras; aqui
 // usamos a mediana de mais tres pontos para rejeitar o primeiro contato.
@@ -386,7 +409,7 @@ bool lerToqueFiltrado(int &x, int &y) {
 
   for (int i = 0; i < 3; i++) {
     if (!ts.touched()) return false;
-    TS_Point p = ts.getPoint();
+    TS_Point p = lerPontoTouch();
     amostrasX[i] = p.x;
     amostrasY[i] = p.y;
     delay(4);
@@ -416,7 +439,7 @@ bool lerToqueFiltrado(int &x, int &y) {
 }
 
 void lerToqueTela(int &x, int &y) {
-  TS_Point p = ts.getPoint();
+  TS_Point p = lerPontoTouch();
   mapearToqueBruto(p.x, p.y, touchXMin, touchXMax, touchYMin, touchYMax, x, y);
 }
 
@@ -509,6 +532,7 @@ bool carregarCalibracaoTouch() {
   long xMax = preferencias.getInt("x_max", TOUCH_X_MAX);
   long yMin = preferencias.getInt("y_min", TOUCH_Y_MIN);
   long yMax = preferencias.getInt("y_max", TOUCH_Y_MAX);
+  bool trocarEixos = preferencias.getUChar("troca", 0) == 1;
   preferencias.end();
 
   if (versao != VERSAO_CALIBRACAO_TOUCH ||
@@ -520,11 +544,12 @@ bool carregarCalibracaoTouch() {
   touchXMax = xMax;
   touchYMin = yMin;
   touchYMax = yMax;
+  touchTrocarEixos = trocarEixos;
   Serial.println("[TOUCH] Calibracao carregada da memoria.");
   return true;
 }
 
-bool salvarCalibracaoTouch(long xMin, long xMax, long yMin, long yMax) {
+bool salvarCalibracaoTouch(long xMin, long xMax, long yMin, long yMax, bool trocarEixos) {
   Preferences preferencias;
   if (!preferencias.begin(NVS_UI_NAMESPACE, false)) return false;
 
@@ -535,7 +560,8 @@ bool salvarCalibracaoTouch(long xMin, long xMax, long yMin, long yMax) {
   bool gravouXMax = preferencias.putInt("x_max", (int32_t)xMax) == sizeof(int32_t);
   bool gravouYMin = preferencias.putInt("y_min", (int32_t)yMin) == sizeof(int32_t);
   bool gravouYMax = preferencias.putInt("y_max", (int32_t)yMax) == sizeof(int32_t);
-  ok = ok && gravouXMin && gravouXMax && gravouYMin && gravouYMax;
+  bool gravouTroca = preferencias.putUChar("troca", trocarEixos ? 1 : 0) == sizeof(uint8_t);
+  ok = ok && gravouXMin && gravouXMax && gravouYMin && gravouYMax && gravouTroca;
   if (ok) {
     ok = preferencias.putUChar("cal_ver", VERSAO_CALIBRACAO_TOUCH) == sizeof(uint8_t);
   }
@@ -682,6 +708,22 @@ bool executarCalibracaoTouch(bool forcar) {
     delay(220);
   }
 
+  // Os pontos 0->1 e 2->3 andam só na horizontal da tela. Se nesse trajeto o
+  // Y bruto varia mais que o X bruto, o painel está montado com os eixos
+  // trocados: a partir daqui tudo passa a usar X e Y já destrocados.
+  long variacaoX = diferencaAbsoluta(brutoX[0], brutoX[1]) +
+                   diferencaAbsoluta(brutoX[2], brutoX[3]);
+  long variacaoY = diferencaAbsoluta(brutoY[0], brutoY[1]) +
+                   diferencaAbsoluta(brutoY[2], brutoY[3]);
+  bool trocarEixos = variacaoY > variacaoX;
+  if (trocarEixos) {
+    for (int i = 0; i < 4; i++) {
+      long x = brutoX[i];
+      brutoX[i] = brutoY[i];
+      brutoY[i] = x;
+    }
+  }
+
   long xEsquerda = (brutoX[0] + brutoX[2]) / 2;
   long xDireita = (brutoX[1] + brutoX[3]) / 2;
   long ySuperior = (brutoY[0] + brutoY[1]) / 2;
@@ -725,6 +767,11 @@ bool executarCalibracaoTouch(bool forcar) {
   centralizarTexto("Ponto 5 de 5", 210, corTextoFraco, FONTE_PEQUENA);
   desenharMiraCalibracao(TELA_W / 2, TELA_H / 2, corDestaque);
   if (!capturarPontoCalibracao(centroBrutoX, centroBrutoY)) return false;
+  if (trocarEixos) {
+    long x = centroBrutoX;
+    centroBrutoX = centroBrutoY;
+    centroBrutoY = x;
+  }
 
   int centroX, centroY;
   mapearToqueBruto(centroBrutoX, centroBrutoY,
@@ -742,7 +789,8 @@ bool executarCalibracaoTouch(bool forcar) {
   touchXMax = novoXMax;
   touchYMin = novoYMin;
   touchYMax = novoYMax;
-  bool persistiu = salvarCalibracaoTouch(novoXMin, novoXMax, novoYMin, novoYMax);
+  touchTrocarEixos = trocarEixos;
+  bool persistiu = salvarCalibracaoTouch(novoXMin, novoXMax, novoYMin, novoYMax, trocarEixos);
 
   tft.fillScreen(corFundo);
   centralizarTexto("TOUCH CALIBRADO", 80, corSucesso, FONTE_GRANDE);
@@ -758,7 +806,8 @@ bool executarCalibracaoTouch(bool forcar) {
   Serial.print(" Y=");
   Serial.print(touchYMin);
   Serial.print("..");
-  Serial.println(touchYMax);
+  Serial.print(touchYMax);
+  Serial.println(touchTrocarEixos ? " (eixos trocados)" : "");
   return persistiu;
 }
 

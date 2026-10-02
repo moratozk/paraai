@@ -7,11 +7,13 @@
 #include <stdexcept>
 // Usa as primitivas E as fontes reais da biblioteca Adafruit_GFX do projeto.
 // Apenas o transporte SPI é substituído por um framebuffer em memória.
-class Adafruit_ILI9341 : public Adafruit_GFX {
+class Adafruit_ST7789 : public Adafruit_GFX {
 public:
   std::array<uint16_t, 320 * 240> pixels{};
-  Adafruit_ILI9341(SPIClass*, int, int, int) : Adafruit_GFX(320,240) {}
-  void begin(unsigned long) {}
+  Adafruit_ST7789(SPIClass*, int, int, int) : Adafruit_GFX(320,240) {}
+  void init(uint16_t, uint16_t) {}
+  void setSPISpeed(uint32_t) {}
+  void invertDisplay(bool) override {}
   void setRotation(uint8_t) override {}
   static uint16_t color565(uint8_t r, uint8_t g, uint8_t b) { return ((r&248)<<8)|((g&252)<<3)|(b>>3); }
   void drawPixel(int16_t x, int16_t y, uint16_t c) override {
