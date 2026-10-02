@@ -18,6 +18,8 @@ import {
   formatarMoeda,
   formatarDataHora,
   formatarDuracao,
+  valorPendente,
+  valorRecebido,
 } from "../utils/format";
 import "./Pages.css";
 
@@ -59,7 +61,7 @@ function calcularSerieDiaria(historico, numDias) {
     const saida = Number(h.saida) || 0;
     const dia = dias.find((d) => saida >= d.inicio && saida < d.fim);
     if (dia) {
-      dia.valor += Number(h.valorCobrado) || 0;
+      dia.valor += valorRecebido(h);
       dia.acessos += 1;
     }
   });
@@ -102,6 +104,7 @@ function baixarCSV(historico, nomeEstacionamento) {
     "saida",
     "duracao_minutos",
     "valor_cobrado",
+    "valor_pendente",
   ];
   const linhas = historico.map((h) =>
     [
@@ -111,6 +114,7 @@ function baixarCSV(historico, nomeEstacionamento) {
       formatarDataHora(h.saida),
       h.duracaoMinutos || 0,
       (Number(h.valorCobrado) || 0).toFixed(2).replace(".", ","),
+      valorPendente(h).toFixed(2).replace(".", ","),
     ].join(";")
   );
   const csv = [cabecalho.join(";"), ...linhas].join("\n");
@@ -157,9 +161,6 @@ export default function PainelOperador() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [estacionamento?.id, assinaturaCatalogo]);
 
-  // Quantos sensores o equipamento reportou ter. Só existe depois do primeiro
-  // heartbeat; até lá não dá para avisar sobre limite de hardware.
-  const sensoresDoTotem = Number(estacionamento?.vagasSuportadasTotem) || 0;
   const { vagas } = useVagas(estId, estacionamento?.numVagas);
   const { historico, loading } = useHistoricoEstacionamento(estId);
 
@@ -224,16 +225,16 @@ export default function PainelOperador() {
   );
 
   // --- KPIs ---
-  const faturamentoPeriodo = doPeriodo.reduce(
-    (s, h) => s + (Number(h.valorCobrado) || 0),
-    0
-  );
-  const faturamentoTotal = historico.reduce(
+  // Recebido exclui o que o saldo do motorista não cobriu (pendência).
+  const faturamentoPeriodo = doPeriodo.reduce((s, h) => s + valorRecebido(h), 0);
+  const pendentePeriodo = doPeriodo.reduce((s, h) => s + valorPendente(h), 0);
+  const faturamentoTotal = historico.reduce((s, h) => s + valorRecebido(h), 0);
+  const cobradoPeriodo = doPeriodo.reduce(
     (s, h) => s + (Number(h.valorCobrado) || 0),
     0
   );
   const ticketMedio = doPeriodo.length
-    ? faturamentoPeriodo / doPeriodo.length
+    ? cobradoPeriodo / doPeriodo.length
     : 0;
   const permanenciaMedia = doPeriodo.length
     ? doPeriodo.reduce((s, h) => s + (Number(h.duracaoMinutos) || 0), 0) /
@@ -369,17 +370,9 @@ export default function PainelOperador() {
                   onChange={(e) => setNovasVagas(e.target.value)}
                 />
                 <span className="field-hint">
-                  O totem se ajusta sozinho: em até um minuto passa a monitorar
-                  essa mesma quantidade, respeitando os sensores instalados.
+                  O totem se ajusta sozinho: em até um minuto passa a distribuir
+                  as entradas entre essa mesma quantidade de vagas.
                 </span>
-                {/* Avisa antes de salvar se o número passa do que o hardware lê */}
-                {sensoresDoTotem > 0 &&
-                  Number(novasVagas) > sensoresDoTotem && (
-                    <span className="error-text">
-                      O totem tem {sensoresDoTotem} sensores instalados. Acima
-                      disso ele monitora apenas os {sensoresDoTotem} primeiros.
-                    </span>
-                  )}
               </div>
             </div>
             <div className="acoes-etapa">
@@ -440,9 +433,14 @@ export default function PainelOperador() {
       <div className="card fat-hero">
         <div>
           <span className="stat-label">
-            Faturamento · {periodoAtivo.rotulo.toLowerCase()}
+            Recebido · {periodoAtivo.rotulo.toLowerCase()}
           </span>
           <div className="fat-total">{formatarMoeda(faturamentoPeriodo)}</div>
+          {pendentePeriodo > 0 && (
+            <span className="muted-note fat-pendente">
+              A receber: {formatarMoeda(pendentePeriodo)} em saídas sem saldo
+            </span>
+          )}
           <span className="muted-note" style={{ marginTop: 4, display: "block" }}>
             Acumulado histórico: {formatarMoeda(faturamentoTotal)}
           </span>
@@ -607,6 +605,14 @@ export default function PainelOperador() {
                         <td>{formatarDuracao(item.duracaoMinutos)}</td>
                         <td className="money">
                           {formatarMoeda(item.valorCobrado)}
+                          {valorPendente(item) > 0 && (
+                            <span
+                              className="status-pill warning pill-pendente"
+                              title={`${formatarMoeda(valorPendente(item))} não coberto pelo saldo`}
+                            >
+                              pendente
+                            </span>
+                          )}
                         </td>
                       </tr>
                     ))}

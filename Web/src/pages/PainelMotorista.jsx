@@ -12,6 +12,8 @@ import {
   formatarMoeda,
   formatarDataHora,
   formatarDuracaoAoVivo,
+  saldoEmPendencia,
+  valorPendente,
 } from "../utils/format";
 import { VALOR_POR_HORA } from "../utils/constants";
 import {
@@ -74,8 +76,10 @@ export default function PainelMotorista() {
   );
 
   const saldo = Number(veiculo?.saldo) || 0;
+  // Saldo negativo: uma saída não foi coberta e o totem recusa nova entrada.
+  const emPendencia = Boolean(placa) && saldoEmPendencia(saldo);
   // Alerta se o saldo não cobre nem 1 hora na tarifa vigente
-  const saldoBaixo = Boolean(placa) && saldo < tarifaAtual;
+  const saldoBaixo = Boolean(placa) && !emPendencia && saldo < tarifaAtual;
 
   async function encerrarEstadiaPeloApp() {
     setFinalizandoApp(true);
@@ -130,12 +134,25 @@ export default function PainelMotorista() {
         </div>
       )}
 
+      {emPendencia && (
+        <div className="card destaque-aviso alerta-saldo">
+          <div>
+            <strong>Saldo pendente.</strong> Faltaram {formatarMoeda(-saldo)}{" "}
+            para cobrir suas estadias. Recarregue para regularizar: até lá, o
+            totem não registra novas entradas.
+          </div>
+          <Link to="/perfil" className="btn btn-primary btn-sm">
+            Regularizar
+          </Link>
+        </div>
+      )}
+
       {saldoBaixo && (
         <div className="card destaque-aviso alerta-saldo">
           <div>
             <strong>Saldo baixo.</strong> Você tem{" "}
             {formatarMoeda(saldo)} — menos que uma hora de estacionamento.
-            Recarregue para não ficar preso na saída.
+            Recarregue para não sair com pendência.
           </div>
           <Link to="/perfil" className="btn btn-primary btn-sm">
             Recarregar
@@ -146,7 +163,7 @@ export default function PainelMotorista() {
       <div className="stats-grid">
         <div className="card stat-card">
           <span className="stat-label">Saldo na carteira</span>
-          <span className={`stat-value ${saldoBaixo ? "perigo" : "accent"}`}>
+          <span className={`stat-value ${saldoBaixo || emPendencia ? "danger" : "accent"}`}>
             {placa ? formatarMoeda(saldo) : "—"}
           </span>
         </div>
@@ -293,8 +310,15 @@ export default function PainelMotorista() {
                       </div>
                       <span
                         className={`status-pill ${
-                          item.status === "ativa" ? "warning" : "success"
+                          item.status === "ativa" || valorPendente(item) > 0
+                            ? "warning"
+                            : "success"
                         }`}
+                        title={
+                          valorPendente(item) > 0
+                            ? "Parte desta estadia ficou pendente"
+                            : undefined
+                        }
                       >
                         {item.status === "ativa"
                           ? `${formatarMoeda(cobranca.valorPendente)} a pagar`

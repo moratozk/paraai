@@ -173,18 +173,6 @@
   color: var(--text-muted);
 }
 
-.totem-alerta-vagas {
-  flex-basis: 100%;
-  padding: 0.6rem 0.85rem;
-  border-radius: var(--radius-sm);
-  background: var(--accent-soft);
-  border: 1px solid var(--accent);
-  border-left-width: 3px;
-  font-size: 0.84rem;
-  font-weight: 600;
-  color: var(--accent-text);
-}
-
 @media (max-width: 560px) {
   .totem-aviso-topo { flex-direction: column; gap: 0.6rem; }
   .totem-online-linha { align-items: flex-start; }

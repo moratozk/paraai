@@ -12,6 +12,8 @@ import {
   formatarDataHora,
   formatarDuracao,
   formatarDuracaoAoVivo,
+  valorPendente,
+  valorRecebido,
 } from "../utils/format";
 import { calcularCobrancaEstadiaApp } from "../services/estadiasApp";
 import "./Pages.css";
@@ -108,12 +110,19 @@ export default function Historico() {
     return true;
   });
 
+  // Recibos do totem descontam a parte não coberta pelo saldo (pendência).
   const totalValor = acessosExibidos.reduce(
     (soma, item) =>
       soma +
-      (item.status === "ativa"
-        ? Number(item.cobrancaApp?.valorDescontado) || 0
-        : Number(item.valorCobrado) || 0),
+      (item.origem === "aplicativo"
+        ? item.status === "ativa"
+          ? Number(item.cobrancaApp?.valorDescontado) || 0
+          : Number(item.valorCobrado) || 0
+        : valorRecebido(item)),
+    0
+  );
+  const totalPendente = acessosExibidos.reduce(
+    (soma, item) => soma + (item.origem === "aplicativo" ? 0 : valorPendente(item)),
     0
   );
 
@@ -168,6 +177,12 @@ export default function Historico() {
                 {role === "operador" ? "Total recebido" : "Total pago"}
               </span>
               <span className="stat-value accent">{formatarMoeda(totalValor)}</span>
+              {totalPendente > 0 && (
+                <span className="muted-note fat-pendente">
+                  {role === "operador" ? "A receber" : "Pendente"}:{" "}
+                  {formatarMoeda(totalPendente)}
+                </span>
+              )}
             </div>
             {role === "motorista" && (
               <div className="card stat-card">
@@ -286,15 +301,34 @@ export default function Historico() {
                             {formatarMoeda(item.valorCobrado)} descontado da carteira
                           </small>
                         )}
+                      {role === "operador" && valorPendente(item) > 0 && (
+                        <span
+                          className="status-pill warning pill-pendente"
+                          title={`${formatarMoeda(valorPendente(item))} não coberto pelo saldo`}
+                        >
+                          pendente
+                        </span>
+                      )}
                     </td>
                     {role === "motorista" && (
                       <td>
                         <span
                           className={`status-pill ${
-                            item.status === "ativa" ? "warning" : "success"
+                            item.status === "ativa" || valorPendente(item) > 0
+                              ? "warning"
+                              : "success"
                           }`}
+                          title={
+                            valorPendente(item) > 0
+                              ? `${formatarMoeda(valorPendente(item))} não coberto pelo saldo`
+                              : undefined
+                          }
                         >
-                          {item.status === "ativa" ? "Em andamento" : "Concluído"}
+                          {item.status === "ativa"
+                            ? "Em andamento"
+                            : valorPendente(item) > 0
+                              ? "Pendente"
+                              : "Concluído"}
                         </span>
                       </td>
                     )}

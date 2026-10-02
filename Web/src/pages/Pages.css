@@ -161,6 +161,18 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Saídas que o saldo do motorista não cobriu: aparecem como a receber. */
+.fat-pendente {
+  display: block;
+  margin-top: 6px;
+  color: var(--danger);
+  font-weight: 600;
+}
+.pill-pendente {
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
 /* Os 3 indicadores ao lado do total. Cada um é rótulo em cima, valor embaixo
    — sem isso os três viram uma linha de texto grudada no valor principal. */
 .fat-periodos {

@@ -199,7 +199,7 @@ export default function Perfil() {
 
     setProcessando(true);
     try {
-      await registrarVeiculo({ uid: user.uid, nome: name, placa: placaNova });
+      await registrarVeiculo({ uid: user.uid, placa: placaNova });
       setPlacaInput("");
       setMensagem({ tipo: "ok", texto: "Veículo cadastrado com sucesso!" });
       toast.sucesso(`Placa ${placaNova} cadastrada!`);

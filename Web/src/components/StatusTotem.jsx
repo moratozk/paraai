@@ -15,11 +15,6 @@ export default function StatusTotem({ estacionamento, online, onCopiarId }) {
   const ultimaAtualizacao = Number(estacionamento?.ultimaAtualizacao) || 0;
   const nuncaConectou = ultimaAtualizacao === 0;
 
-  const vagasConfiguradas = Number(estacionamento?.numVagas) || 0;
-  const vagasSuportadas = Number(estacionamento?.vagasSuportadasTotem) || 0;
-  const excedeHardware =
-    vagasSuportadas > 0 && vagasConfiguradas > vagasSuportadas;
-
   /* ---------------- nunca conectou: primeira instalação ---------------- */
   if (nuncaConectou) {
     return (
@@ -43,8 +38,9 @@ export default function StatusTotem({ estacionamento, online, onCopiarId }) {
             (copie de <code>Credenciais.example.h</code> se ainda não existir).
           </li>
           <li>
-            <strong>Preencha</strong> o nome e a senha do Wi-Fi do
-            estabelecimento.
+            <strong>Preencha</strong> o acesso do totem (gerado em Perfil) e um
+            PIN de manutenção. O Wi-Fi pode ficar em branco: o totem abre a
+            configuração na própria tela.
           </li>
           <li>
             <strong>Cole o identificador</strong> deste estacionamento em{" "}
@@ -109,16 +105,8 @@ export default function StatusTotem({ estacionamento, online, onCopiarId }) {
         Totem online
       </span>
       <span className="totem-online-detalhe">
-        Última leitura {formatarQuando(ultimaAtualizacao)}
-        {vagasSuportadas > 0 && ` · ${vagasSuportadas} sensores instalados`}
+        Último contato {formatarQuando(ultimaAtualizacao)}
       </span>
-
-      {excedeHardware && (
-        <span className="totem-alerta-vagas" role="status">
-          Você configurou {vagasConfiguradas} vagas, mas o totem tem apenas{" "}
-          {vagasSuportadas} sensores — ele está monitorando {vagasSuportadas}.
-        </span>
-      )}
     </div>
   );
 }
