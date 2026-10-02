@@ -9,16 +9,26 @@ coisa parou sem precisar reler o histórico. Atualizado em **02/10/2026**.
 
 Sistema acadêmico de atendimento para estacionamentos:
 
-- **`Main/`** — firmware do totem (ESP32 + tela ILI9341 320×240 + touch
-  XPT2046), sem sensores ou servo/catraca física; gabinete 3D ainda a projetar
+- **`Main/`** — firmware do totem na placa CYD de 2,8" (ESP32-2432S028R:
+  ESP32 + tela ILI9341 320×240 + touch XPT2046), sem sensores ou servo/catraca
+  física; gabinete 3D ainda a projetar
 - **`Web/`** — painel React/Vite, com Firebase Auth e Firestore
 
 O motorista registra entrada/saída por placa. O Firebase associa vaga,
 estadia e cobrança simulada. O operador acompanha pelo painel. A ocupação é
 lógica; a maquete virtual online é uma etapa futura, não implementada.
 
-Projeto acadêmico (TCC). Revisão atual: `claude/integracao` (PR #9), que
-une todas as frentes abertas.
+Projeto acadêmico (TCC). A `main` tem a versão integrada (PR #9, unida em
+02/10/2026). Revisão atual: `claude/firmware-cyd`, troca para a placa CYD.
+
+## Placa CYD de 2,8" (02/10/2026)
+
+O totem passou a usar a placa **ESP32-2432S028R ("CYD")**, que já traz a tela
+ILI9341 320×240 e o touch XPT2046 ligados. Os pinos da tela são os mesmos da
+montagem anterior; no touch, o T_OUT (MISO) fica no GPIO39 (antes 36, que na
+CYD é o T_IRQ e não é usado). Firmware e `CalibracaoTouch/` ajustados; o
+assistente de calibração mede o painel novo no primeiro boot.
+**Ainda não testado na placa.**
 
 ## Integração de 02/10/2026 — versão única (PR #9)
 
@@ -52,13 +62,17 @@ da `main`. O PR #9 junta tudo, com estas decisões do responsável:
 
 1. Regras, firmware e site juntos, em janela de manutenção (as regras novas
    recusam o firmware e o site antigos).
-2. Limpar dados da versão anterior: estadias `ativa` em `estadiasApp`, campo
-   `reservada: true` nas vagas públicas e `tarifaMinuto` nos estacionamentos
-   (o painel do admin apaga este último ao salvar).
+2. Limpar pelo console os dados da versão anterior que as regras não deixam
+   o site nem o totem corrigirem: `veiculos` com `vagaAtual` diferente de 0
+   (estadia de teste aberta), vagas em `estacionamentos/{id}/vagas` com
+   `placa` preenchida (sobra da marcação manual; trava a vaga) e `historico`
+   com `status: ativa` (estadia pelo app que nunca terminou; o site mostra
+   "Em andamento"). O resto (`estadiasApp`, `reservada` nas vagas públicas,
+   `tarifaMinuto`) a versão nova ignora.
 3. Publicar o mapa de cada estacionamento pelo painel (grava o tipo de cada
    vaga, que o totem lê) e conferir as vagas especiais.
-4. Depois de unir o PR #9, fechar os PRs #3, #4, #5, #6, #7 e #8 como
-   incorporados.
+4. ~~Fechar os PRs #3 a #8~~ — feito em 02/10/2026: #4, #6, #7 e #8 foram
+   unidos junto com o #9; #3 e #5 fechados como substituídos.
 
 ## Revisão de 30/09 a 02/10/2026 — segurança, pendência e robustez
 
