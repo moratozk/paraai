@@ -505,7 +505,13 @@ bool iniciarAtendimento() {
   if (pedidos && respostas && statusFila && exclusao) {
     estado(ConexaoTotem::INICIANDO);
     // Só esta tarefa acessa Firebase. Tela, touch e manutenção pertencem ao loop.
-    if (xTaskCreatePinnedToCore(tarefa, "paraai-cloud", 24576, nullptr, 1, nullptr, 0) == pdPASS) return true;
+    // Prioridade igual à da tarefa ociosa do núcleo 0: a biblioteca espera o
+    // TLS num laço sem pausa (até o timeout de 8 s) e, com prioridade maior,
+    // a ociosa não rodava e o watchdog reiniciava o ESP numa rede lenta. Wi-Fi
+    // e TCP/IP têm prioridade própria, maior, e não são afetados. O mutex
+    // `exclusao` herda prioridade se o loop precisar esperar por ela.
+    if (xTaskCreatePinnedToCore(tarefa, "paraai-cloud", 24576, nullptr, tskIDLE_PRIORITY,
+                                nullptr, 0) == pdPASS) return true;
   }
   if (pedidos) vQueueDelete(pedidos);
   if (respostas) vQueueDelete(respostas);

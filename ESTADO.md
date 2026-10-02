@@ -9,9 +9,9 @@ coisa parou sem precisar reler o histórico. Atualizado em **02/10/2026**.
 
 Sistema acadêmico de atendimento para estacionamentos:
 
-- **`firmware/`** — firmware do totem na placa CYD de 2,8" (ESP32-2432S028R:
-  ESP32 + tela ILI9341 320×240 + touch XPT2046), sem sensores ou servo/catraca
-  física; gabinete 3D ainda a projetar
+- **`firmware/`** — firmware do totem na placa CYD de 2,8" de duas portas
+  (ESP32-2432S028R: ESP32 + tela ST7789 320×240 + touch XPT2046), sem sensores
+  ou servo/catraca física; gabinete 3D ainda a projetar
 - **`web/`** — painel React/Vite, com Firebase Auth e Firestore
 - **`firebase/`** — regras do Firestore e testes no emulador
 
@@ -20,8 +20,9 @@ estadia e cobrança simulada. O operador acompanha pelo painel. A ocupação é
 lógica; a maquete virtual online é uma etapa futura, não implementada.
 
 Projeto acadêmico (TCC). A `main` tem a versão integrada (PR #9, unida em
-02/10/2026). Revisão atual: `claude/organiza-pastas` (reorganização de pastas), feita
-sobre `claude/firmware-cyd` (placa CYD).
+02/10/2026). Revisão atual: `claude/tela-st7789` (tela, toque e watchdog na
+CYD), feita sobre `claude/organiza-pastas` (pastas) e `claude/firmware-cyd`
+(pinos da CYD).
 
 ## Reorganização de pastas (02/10/2026)
 
@@ -52,12 +53,29 @@ precisa mover `Main/Credenciais.h` e conferir a pasta `web/` (ver
 
 ## Placa CYD de 2,8" (02/10/2026)
 
-O totem passou a usar a placa **ESP32-2432S028R ("CYD")**, que já traz a tela
-ILI9341 320×240 e o touch XPT2046 ligados. Os pinos da tela são os mesmos da
-montagem anterior; no touch, o T_OUT (MISO) fica no GPIO39 (antes 36, que na
-CYD é o T_IRQ e não é usado). Firmware e `firmware/touch-calibration/` ajustados; o
-assistente de calibração mede o painel novo no primeiro boot.
-**Ainda não testado na placa.**
+O totem passou a usar a placa **ESP32-2432S028R ("CYD")** na versão de **duas
+portas (micro-USB + USB-C)**, que já traz tela e touch XPT2046 ligados. Os pinos
+da tela são os mesmos da montagem anterior; no touch, o T_OUT (MISO) fica no
+GPIO39 (antes 36, que na CYD é o T_IRQ e não é usado).
+
+O que a primeira gravação mostrou, e como foi resolvido:
+
+- **A tela é ST7789, não ILI9341**, embora a placa seja vendida como ILI9341
+  (a CYD de uma porta usa ILI9341). Com o driver ILI9341 a imagem saía virada e
+  com as cores invertidas. Um diagnóstico das 4 rotações nos dois controladores
+  confirmou: `Adafruit_ST7789`, `init(240, 320)`, rotação 3, sem inversão de
+  cor. O firmware e `firmware/touch-calibration/` usam essa sequência.
+- **Toque:** a calibração não fechava. O assistente agora detecta pelos cantos
+  se o painel está com os eixos trocados e grava isso junto com os limites
+  (`VERSAO_CALIBRACAO_TOUCH` 2 força uma calibração nova). Pode calibrar com o
+  plástico protetor da tela; o toque é resistivo e precisa de pressão firme.
+- **Watchdog:** com rede lenta, o login TLS da biblioteca do Firebase prendia o
+  núcleo 0 por mais de 5 s e o ESP reiniciava (backtrace em `Firebase.begin`).
+  A tarefa `paraai-cloud` passou a rodar com a prioridade da tarefa ociosa.
+
+Gravação na placa: com o esptool direto e `--before no-reset`, depois de pôr a
+placa em modo de gravação (segurar BOOT, apertar RST, soltar BOOT); o reset
+automático desta placa não entra sozinho nesse modo.
 
 ## Integração de 02/10/2026 — versão única (PR #9)
 
