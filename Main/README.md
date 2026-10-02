@@ -112,7 +112,7 @@ estacionamentos/{id}/vagas/{1..200}
   origemOcupacao: "registro"
 
 veiculos/{PLACA}
-  ativo, saldo, ownerUid?, ownerNome?, atualizadoEm?
+  ativo, saldo, ownerUid?, atualizadoEm?   # ownerNome legado é apagado na recarga
   vagaAtual: 0 ou número da vaga
   horaEntrada: segundos Unix ou 0
   estacionamentoId: id ou ""

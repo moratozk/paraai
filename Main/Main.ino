@@ -160,7 +160,7 @@ void setup() {
   carregarConfiguracaoWifi();
   // WiFi.mode precisa anteceder WiFi.begin quando não existe rede salva.
   WiFi.mode(WIFI_STA);
-  WiFi.setTxPower(WIFI_POWER_8_5dBm);
+  WiFi.setTxPower(ParaAiWifiConfig::POTENCIA_WIFI); // Ver ConfiguracaoWiFi.ino.
   iniciarReconexaoWifiConfigurado();
   inicio = ultimaTentativaWifi = millis();
   servicoIniciado = iniciarAtendimento();

@@ -137,6 +137,14 @@ test('cadastro acadêmico no totem continua compatível com reivindicação pelo
   await assertSucceeds(updateDoc(ref('motorista-a', 'veiculos/NEW1234'), { ownerUid: 'motorista-a', ownerNome: 'Ana', atualizadoEm: Timestamp.now() }));
   await assertFails(updateDoc(ref('motorista-b', 'veiculos/NEW1234'), { ownerUid: 'motorista-b', ownerNome: 'B', atualizadoEm: Timestamp.now() }));
 });
+test('painel cadastra veículo sem o nome do dono e a recarga apaga o nome legado', async () => {
+  const novo = { ativo: true, vagaAtual: 0, horaEntrada: 0, saldo: 0, estacionamentoId: '',
+    tarifaHoraEntrada: 0, ownerUid: 'motorista-a', atualizadoEm: Timestamp.now() };
+  await assertSucceeds(setDoc(ref('motorista-a', 'veiculos/NEW1234'), novo));
+  await assertSucceeds(updateDoc(ref('motorista-a', 'veiculos/ABC1D23'),
+    { saldo: increment(10), ownerNome: deleteField(), atualizadoEm: Timestamp.now() }));
+  assert.ok(!('ownerNome' in (await getDoc(ref('motorista-a', 'veiculos/ABC1D23'))).data()));
+});
 test('recarga simulada do próprio veículo permanece compatível', async () => {
   await assertSucceeds(updateDoc(ref('motorista-a', 'veiculos/ABC1D23'), { saldo: increment(50), atualizadoEm: Timestamp.now() }));
   await assertFails(updateDoc(ref('motorista-b', 'veiculos/ABC1D23'), { saldo: increment(50) }));

@@ -59,7 +59,7 @@ service cloud.firestore {
         ])
         && dados.keys().hasAll([
           'ativo', 'vagaAtual', 'horaEntrada', 'saldo', 'ownerUid',
-          'ownerNome', 'atualizadoEm'
+          'atualizadoEm'
         ])
         && dados.ativo == true
         && dados.vagaAtual == 0
@@ -71,7 +71,9 @@ service cloud.firestore {
         && (!('estacionamentoId' in dados) || dados.estacionamentoId == '')
         && (!('tarifaHoraEntrada' in dados) || dados.tarifaHoraEntrada == 0)
         && dados.ownerUid == request.auth.uid
-        && dados.ownerNome is string
+        // O nome não é mais gravado (todo totem lê o veículo); aceito só para
+        // uma página antiga ainda em cache.
+        && (!('ownerNome' in dados) || dados.ownerNome is string)
         && dados.atualizadoEm is timestamp;
     }
 

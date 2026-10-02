@@ -73,7 +73,8 @@ catalogoEstacionamentos/{EST-XXXXXX}
 veiculos/{PLACA}                          -- GLOBAL: carteira única na rede
   ativo, vagaAtual (0=fora), horaEntrada (Unix s), saldo,
   estacionamentoId (onde está agora, "" se fora), tarifaHoraEntrada,
-  ownerUid, ownerNome, atualizadoEm       -- gravados pelo painel
+  ownerUid, atualizadoEm                  -- gravados pelo painel (o nome
+                                            fica só em users/{uid})
 
 historico/{PLACA_horaEntrada}              -- novo firmware: ID da estadia
   placa, vaga, entrada, saida, duracaoMinutos, valorCobrado,

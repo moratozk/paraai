@@ -159,9 +159,6 @@ export default function PainelOperador() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [estacionamento?.id, assinaturaCatalogo]);
 
-  // Quantos sensores o equipamento reportou ter. Só existe depois do primeiro
-  // heartbeat; até lá não dá para avisar sobre limite de hardware.
-  const sensoresDoTotem = Number(estacionamento?.vagasSuportadasTotem) || 0;
   const { vagas } = useVagas(estId, estacionamento?.numVagas);
   const { historico, loading } = useHistoricoEstacionamento(estId);
 
@@ -339,17 +336,9 @@ export default function PainelOperador() {
                   onChange={(e) => setNovasVagas(e.target.value)}
                 />
                 <span className="field-hint">
-                  O totem se ajusta sozinho: em até um minuto passa a monitorar
-                  essa mesma quantidade, respeitando os sensores instalados.
+                  O totem se ajusta sozinho: em até um minuto passa a distribuir
+                  as entradas entre essa mesma quantidade de vagas.
                 </span>
-                {/* Avisa antes de salvar se o número passa do que o hardware lê */}
-                {sensoresDoTotem > 0 &&
-                  Number(novasVagas) > sensoresDoTotem && (
-                    <span className="error-text">
-                      O totem tem {sensoresDoTotem} sensores instalados. Acima
-                      disso ele monitora apenas os {sensoresDoTotem} primeiros.
-                    </span>
-                  )}
               </div>
             </div>
             <div className="acoes-etapa">

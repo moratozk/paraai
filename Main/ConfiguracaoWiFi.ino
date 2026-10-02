@@ -40,6 +40,11 @@ const uint32_t VERSAO_REDE = 1;
 const unsigned long TIMEOUT_TESTE_MS = 15000;
 const unsigned long TIMEOUT_PORTAL_MS = 10UL * 60UL * 1000UL;
 const uint8_t MAX_REDES_PORTAL = 12;
+// Potencia reduzida de proposito: o pico de corrente do Wi-Fi somado ao
+// backlight derrubava a tensao (brownout) na alimentacao do prototipo.
+// Com fonte de 5 V/2 A dedicada, pode subir para WIFI_POWER_19_5dBm e
+// ganhar alcance.
+const wifi_power_t POTENCIA_WIFI = WIFI_POWER_8_5dBm;
 
 // Um unico blob evita deixar SSID e senha de gravacoes diferentes caso falte
 // energia entre duas operacoes na NVS. O checksum detecta dados incompletos ou
@@ -385,7 +390,7 @@ bool conectarWifiConfigurado(unsigned long timeoutMs) {
   if (ssidConfigurado.length() < 1 || ssidConfigurado.length() > 32) return false;
 
   WiFi.mode(WIFI_STA);
-  WiFi.setTxPower(WIFI_POWER_8_5dBm);
+  WiFi.setTxPower(POTENCIA_WIFI);
   WiFi.begin(ssidConfigurado.c_str(), senhaConfigurada.c_str());
 
   unsigned long inicio = millis();

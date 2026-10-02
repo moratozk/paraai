@@ -69,3 +69,42 @@ jobs:
           path: Main/tests/.runtime/preview/*.svg
       - name: Validar regras e operações sem produção
         run: npm test
+
+  firmware-build:
+    # Os testes acima rodam no PC; este job compila o .ino de verdade, como a
+    # AGENTS.md exige, usando o modelo de credenciais (sem segredo nenhum).
+    name: Compilação do firmware (ESP32 Dev Module, Huge APP)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ARDUINO_BOARD_MANAGER_ADDITIONAL_URLS: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v5
+      - name: Conferir que RaizesGoogle.h valida o Firestore
+        run: |
+          sed -n '/BEGIN CERTIFICATE/,/END CERTIFICATE/p' Main/RaizesGoogle.h > /tmp/raizes.pem
+          echo | openssl s_client -connect firestore.googleapis.com:443 \
+            -servername firestore.googleapis.com -CAfile /tmp/raizes.pem -verify_return_error 2>&1 \
+            | grep -q 'Verify return code: 0 (ok)'
+      - name: Preparar arduino-cli
+        uses: arduino/setup-arduino-cli@v2
+      - name: Reaproveitar core ESP32 e bibliotecas
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.arduino15
+            ~/Arduino/libraries
+          key: arduino-esp32-3.3.10-firebase-4.4.17-v1
+      - name: Instalar core e bibliotecas nas versões usadas no projeto
+        run: |
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32@3.3.10
+          arduino-cli lib install --no-deps \
+            "Firebase Arduino Client Library for ESP8266 and ESP32@4.4.17" \
+            "Adafruit ILI9341@1.6.3" "Adafruit GFX Library@1.12.6" \
+            "Adafruit BusIO@1.17.4" "XPT2046_Touchscreen@1.4"
+      - name: Compilar com o modelo de credenciais
+        run: |
+          cp Main/Credenciais.example.h Main/Credenciais.h
+          arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=huge_app --warnings default Main
