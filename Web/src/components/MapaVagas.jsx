@@ -1,0 +1,123 @@
+import { useState } from "react";
+import { obterTipoVaga } from "../utils/mapaVagas";
+import "./MapaVagas.css";
+
+function Vaga({ vaga, selecionada, onSelecionar }) {
+  const classificacao = obterTipoVaga(vaga.tipo, vaga.numero);
+  const especial = classificacao.tipo === "comum" ? null : classificacao;
+  const descricao = vaga.ocupada
+    ? `Vaga ${vaga.numero} ocupada${vaga.placa ? ` pela placa ${vaga.placa}` : ""}`
+    : `Vaga ${vaga.numero} livre`;
+
+  return (
+    <button
+      type="button"
+      className={`mapa-vaga ${vaga.ocupada ? "ocupada" : "livre"} ${
+        especial ? `especial ${especial.tipo}` : ""
+      } ${selecionada ? "selecionada" : ""}`}
+      onClick={() => onSelecionar(vaga)}
+      aria-label={`${descricao}${especial ? `, reservada para ${especial.rotulo}` : ""}`}
+      aria-pressed={selecionada}
+    >
+      <span className="mapa-vaga-topo">
+        <strong>{String(vaga.numero).padStart(2, "0")}</strong>
+        {especial && (
+          <span className="mapa-vaga-tipo" title={`Vaga para ${especial.rotulo}`}>
+            <span aria-hidden="true">{especial.icone}</span>
+            {especial.rotulo}
+          </span>
+        )}
+      </span>
+      <span className="mapa-vaga-corpo" aria-hidden="true">
+        {vaga.ocupada ? <span className="mapa-carro">CARRO</span> : <span className="mapa-livre">LIVRE</span>}
+      </span>
+      <span className="mapa-vaga-rodape">
+        {vaga.ocupada ? vaga.placa || "OCUPADA" : "Disponível"}
+      </span>
+    </button>
+  );
+}
+
+// Mapa do operador. Só leitura: a ocupação é registrada pelo totem na
+// entrada e na saída da placa. Marcar uma vaga à mão deixaria vaga e estadia
+// incoerentes (liberar uma vaga com carro dentro travaria a saída).
+export default function MapaVagas({ vagas, nomeEstacionamento }) {
+  const [vagaSelecionada, setVagaSelecionada] = useState(null);
+
+  const vagaAtual = vagaSelecionada
+    ? vagas.find((vaga) => vaga.id === vagaSelecionada) || null
+    : null;
+  const tipoAtual = vagaAtual ? obterTipoVaga(vagaAtual.tipo, vagaAtual.numero) : null;
+  const metade = Math.ceil(vagas.length / 2);
+  const fileiraSuperior = vagas.slice(0, metade);
+  const fileiraInferior = vagas.slice(metade);
+
+  function selecionarVaga(vaga) {
+    setVagaSelecionada((atual) => (atual === vaga.id ? null : vaga.id));
+  }
+
+  return (
+    <div className="card mapa-vagas-card">
+      <div className="card-head-row mapa-vagas-cabecalho">
+        <div>
+          <h2>Mapa de vagas</h2>
+          <p>{nomeEstacionamento || "Estacionamento"} · atualizado pelo totem a cada entrada e saída</p>
+        </div>
+        <span className="live-dot" title="Atualiza em tempo real">
+          <span className="status-dot online pulsa" />AO VIVO
+        </span>
+      </div>
+
+      <div className="mapa-legenda" aria-label="Legenda do mapa">
+        <span><i className="legenda-cor livre" />Livre</span>
+        <span><i className="legenda-cor ocupada" />Ocupada</span>
+        <span><i className="legenda-cor pcd" />PCD</span>
+        <span><i className="legenda-cor idoso" />60+</span>
+        <span><i className="legenda-cor gestante" />Gestante</span>
+      </div>
+
+      <div className="mapa-vagas-scroll">
+        <div className="mapa-patio" role="region" aria-label="Mapa visual das vagas do estacionamento">
+          <div className="mapa-fileira superior">
+            {fileiraSuperior.map((vaga) => (
+              <Vaga key={vaga.id} vaga={vaga} selecionada={vaga.id === vagaSelecionada} onSelecionar={selecionarVaga} />
+            ))}
+          </div>
+
+          <div className="mapa-corredor" aria-hidden="true">
+            <span className="mapa-portao entrada">ENTRADA</span>
+            <span className="mapa-setas">→ &nbsp; circulação &nbsp; →</span>
+            <span className="mapa-portao saida">SAÍDA</span>
+          </div>
+
+          <div className="mapa-fileira inferior">
+            {fileiraInferior.map((vaga) => (
+              <Vaga key={vaga.id} vaga={vaga} selecionada={vaga.id === vagaSelecionada} onSelecionar={selecionarVaga} />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {vagaAtual && (
+        <div className="mapa-vaga-editor" role="status" aria-live="polite">
+          <div className="mapa-editor-resumo">
+            <span className="stat-label">Vaga selecionada</span>
+            <strong>Vaga {String(vagaAtual.numero).padStart(2, "0")}</strong>
+            <span className={`status-pill ${vagaAtual.ocupada ? "danger" : "success"}`}>
+              {vagaAtual.ocupada ? "Ocupada" : "Livre"}
+            </span>
+          </div>
+          <p className="mapa-editor-nota">
+            {vagaAtual.ocupada
+              ? `Placa ${vagaAtual.placa || "não informada"}.`
+              : "Sem veículo registrado."}
+            {tipoAtual && tipoAtual.tipo !== "comum" && ` Vaga para ${tipoAtual.rotulo}.`}
+          </p>
+          <p className="muted-note mapa-editor-nota">
+            A ocupação é registrada pelo totem na entrada e na saída da placa.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}

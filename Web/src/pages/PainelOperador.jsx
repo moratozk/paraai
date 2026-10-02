@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import {
   atualizarConfiguracao,
+  publicarMapaVagas,
   sincronizarCatalogo,
 } from "../services/estacionamentos";
 import {
@@ -12,10 +13,13 @@ import {
   useHistoricoEstacionamento,
 } from "../hooks/useParkingData";
 import StatusTotem from "../components/StatusTotem";
+import MapaVagas from "../components/MapaVagas";
 import {
   formatarMoeda,
   formatarDataHora,
   formatarDuracao,
+  valorPendente,
+  valorRecebido,
 } from "../utils/format";
 import "./Pages.css";
 
@@ -57,7 +61,7 @@ function calcularSerieDiaria(historico, numDias) {
     const saida = Number(h.saida) || 0;
     const dia = dias.find((d) => saida >= d.inicio && saida < d.fim);
     if (dia) {
-      dia.valor += Number(h.valorCobrado) || 0;
+      dia.valor += valorRecebido(h);
       dia.acessos += 1;
     }
   });
@@ -100,6 +104,7 @@ function baixarCSV(historico, nomeEstacionamento) {
     "saida",
     "duracao_minutos",
     "valor_cobrado",
+    "valor_pendente",
   ];
   const linhas = historico.map((h) =>
     [
@@ -109,6 +114,7 @@ function baixarCSV(historico, nomeEstacionamento) {
       formatarDataHora(h.saida),
       h.duracaoMinutos || 0,
       (Number(h.valorCobrado) || 0).toFixed(2).replace(".", ","),
+      valorPendente(h).toFixed(2).replace(".", ","),
     ].join(";")
   );
   const csv = [cabecalho.join(";"), ...linhas].join("\n");
@@ -155,24 +161,33 @@ export default function PainelOperador() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [estacionamento?.id, assinaturaCatalogo]);
 
-  // Quantos sensores o equipamento reportou ter. Só existe depois do primeiro
-  // heartbeat; até lá não dá para avisar sobre limite de hardware.
-  const sensoresDoTotem = Number(estacionamento?.vagasSuportadasTotem) || 0;
   const { vagas } = useVagas(estId, estacionamento?.numVagas);
   const { historico, loading } = useHistoricoEstacionamento(estId);
 
   const [periodo, setPeriodo] = useState("7d");
   const [busca, setBusca] = useState("");
 
-  // edição de tarifa / vagas direto no painel
+  // edição dos dados operacionais direto no painel
   const [editando, setEditando] = useState(false);
+  const [novoNome, setNovoNome] = useState("");
   const [novaTarifa, setNovaTarifa] = useState("");
   const [novasVagas, setNovasVagas] = useState("");
   const [salvandoConfig, setSalvandoConfig] = useState(false);
+  const [publicarMapaAoSalvar, setPublicarMapaAoSalvar] = useState(false);
 
   function abrirEdicao() {
+    setNovoNome(estacionamento?.nome || "");
     setNovaTarifa(String(estacionamento?.tarifaHora ?? 5));
     setNovasVagas(String(estacionamento?.numVagas ?? 4));
+    setPublicarMapaAoSalvar(estacionamento?.modoDisponibilidade === "mapa");
+    setEditando(true);
+  }
+
+  function prepararDemonstracaoFatec() {
+    setNovoNome("Estacionamento FATEC");
+    setNovaTarifa(String(estacionamento?.tarifaHora ?? 5));
+    setNovasVagas("20");
+    setPublicarMapaAoSalvar(true);
     setEditando(true);
   }
 
@@ -181,9 +196,13 @@ export default function PainelOperador() {
     setSalvandoConfig(true);
     try {
       await atualizarConfiguracao(estId, {
+        nome: novoNome,
         tarifaHora: novaTarifa.replace(",", "."),
         numVagas: novasVagas,
       });
+      if (publicarMapaAoSalvar) {
+        await publicarMapaVagas(estId);
+      }
       toast.sucesso("Configuração atualizada!");
       setEditando(false);
     } catch (err) {
@@ -206,16 +225,16 @@ export default function PainelOperador() {
   );
 
   // --- KPIs ---
-  const faturamentoPeriodo = doPeriodo.reduce(
-    (s, h) => s + (Number(h.valorCobrado) || 0),
-    0
-  );
-  const faturamentoTotal = historico.reduce(
+  // Recebido exclui o que o saldo do motorista não cobriu (pendência).
+  const faturamentoPeriodo = doPeriodo.reduce((s, h) => s + valorRecebido(h), 0);
+  const pendentePeriodo = doPeriodo.reduce((s, h) => s + valorPendente(h), 0);
+  const faturamentoTotal = historico.reduce((s, h) => s + valorRecebido(h), 0);
+  const cobradoPeriodo = doPeriodo.reduce(
     (s, h) => s + (Number(h.valorCobrado) || 0),
     0
   );
   const ticketMedio = doPeriodo.length
-    ? faturamentoPeriodo / doPeriodo.length
+    ? cobradoPeriodo / doPeriodo.length
     : 0;
   const permanenciaMedia = doPeriodo.length
     ? doPeriodo.reduce((s, h) => s + (Number(h.duracaoMinutos) || 0), 0) /
@@ -281,8 +300,14 @@ export default function PainelOperador() {
           </p>
         </div>
         <div className="header-acoes">
+          {(estacionamento?.nome !== "Estacionamento FATEC" ||
+            Number(estacionamento?.numVagas) !== 20) && (
+            <button className="btn btn-primary btn-sm" onClick={prepararDemonstracaoFatec}>
+              Preparar demo FATEC
+            </button>
+          )}
           <button className="btn btn-outline btn-sm" onClick={abrirEdicao}>
-            Ajustar tarifa e vagas
+            Ajustar estacionamento
           </button>
         </div>
       </div>
@@ -307,6 +332,17 @@ export default function PainelOperador() {
                 Configuração do pátio
               </h2>
             </div>
+            <div className="field">
+              <label htmlFor="novoNome">Nome do estacionamento</label>
+              <input
+                id="novoNome"
+                type="text"
+                value={novoNome}
+                onChange={(e) => setNovoNome(e.target.value)}
+                autoFocus
+                required
+              />
+            </div>
             <div className="field-row">
               <div className="field">
                 <label htmlFor="novaTarifa">Tarifa por hora (R$)</label>
@@ -315,7 +351,6 @@ export default function PainelOperador() {
                   type="number"
                   min={0}
                   step="0.50"
-                  autoFocus
                   value={novaTarifa}
                   onChange={(e) => setNovaTarifa(e.target.value)}
                 />
@@ -335,17 +370,9 @@ export default function PainelOperador() {
                   onChange={(e) => setNovasVagas(e.target.value)}
                 />
                 <span className="field-hint">
-                  O totem se ajusta sozinho: em até um minuto passa a monitorar
-                  essa mesma quantidade, respeitando os sensores instalados.
+                  O totem se ajusta sozinho: em até um minuto passa a distribuir
+                  as entradas entre essa mesma quantidade de vagas.
                 </span>
-                {/* Avisa antes de salvar se o número passa do que o hardware lê */}
-                {sensoresDoTotem > 0 &&
-                  Number(novasVagas) > sensoresDoTotem && (
-                    <span className="error-text">
-                      O totem tem {sensoresDoTotem} sensores instalados. Acima
-                      disso ele monitora apenas os {sensoresDoTotem} primeiros.
-                    </span>
-                  )}
               </div>
             </div>
             <div className="acoes-etapa">
@@ -406,9 +433,14 @@ export default function PainelOperador() {
       <div className="card fat-hero">
         <div>
           <span className="stat-label">
-            Faturamento · {periodoAtivo.rotulo.toLowerCase()}
+            Recebido · {periodoAtivo.rotulo.toLowerCase()}
           </span>
           <div className="fat-total">{formatarMoeda(faturamentoPeriodo)}</div>
+          {pendentePeriodo > 0 && (
+            <span className="muted-note fat-pendente">
+              A receber: {formatarMoeda(pendentePeriodo)} em saídas sem saldo
+            </span>
+          )}
           <span className="muted-note" style={{ marginTop: 4, display: "block" }}>
             Acumulado histórico: {formatarMoeda(faturamentoTotal)}
           </span>
@@ -468,6 +500,8 @@ export default function PainelOperador() {
           </span>
         </div>
       </div>
+
+      <MapaVagas vagas={vagas} nomeEstacionamento={estacionamento?.nome} />
 
       <div className="dashboard-grid">
         <div className="dashboard-col">
@@ -541,8 +575,8 @@ export default function PainelOperador() {
                   : "Nenhuma movimentação neste período."}
               </p>
             ) : (
-              <div className="tabela-wrap">
-                <table className="history-table">
+              <div className="tabela-wrap tabela-cards">
+                <table className="history-table responsive-table">
                   <thead>
                     <tr>
                       <th>Placa</th>
@@ -556,17 +590,27 @@ export default function PainelOperador() {
                   <tbody>
                     {movimentacoes.map((item) => (
                       <tr key={item.id}>
-                        <td>
+                        <td data-label="Placa">
                           <span className="placa-tag placa-tag-sm">
                             {item.placa}
                           </span>
                         </td>
-                        <td>{item.vaga}</td>
-                        <td>{formatarDataHora(item.entrada)}</td>
-                        <td>{formatarDataHora(item.saida)}</td>
-                        <td>{formatarDuracao(item.duracaoMinutos)}</td>
-                        <td className="money">
-                          {formatarMoeda(item.valorCobrado)}
+                        <td data-label="Vaga">{item.vaga}</td>
+                        <td data-label="Entrada">{formatarDataHora(item.entrada)}</td>
+                        <td data-label="Saída">{formatarDataHora(item.saida)}</td>
+                        <td data-label="Duração">{formatarDuracao(item.duracaoMinutos)}</td>
+                        <td data-label="Valor" className="money">
+                          <span className="valor-com-marca">
+                            {formatarMoeda(item.valorCobrado)}
+                            {valorPendente(item) > 0 && (
+                              <span
+                                className="status-pill warning pill-pendente"
+                                title={`${formatarMoeda(valorPendente(item))} não coberto pelo saldo`}
+                              >
+                                pendente
+                              </span>
+                            )}
+                          </span>
                         </td>
                       </tr>
                     ))}
@@ -578,43 +622,6 @@ export default function PainelOperador() {
         </div>
 
         <div className="dashboard-col">
-          {/* ---------- Pátio ao vivo ---------- */}
-          <div className="card">
-            <div className="card-head-row">
-              <h2 style={{ marginBottom: 0, background: "none", paddingBottom: 0 }}>
-                Pátio ao vivo
-              </h2>
-              <span className="live-dot" title="Atualiza em tempo real">
-                <span className="status-dot online pulsa"></span>AO VIVO
-              </span>
-            </div>
-            <div className="vagas-grid mini animada">
-              {vagas.map((v) => (
-                <div
-                  key={v.id}
-                  className={`vaga-slot ${v.ocupada ? "occupied" : "free"}`}
-                  title={
-                    v.ocupada
-                      ? `Vaga ${v.numero} ocupada${v.placa ? ` — ${v.placa}` : ""}`
-                      : `Vaga ${v.numero} livre`
-                  }
-                >
-                  <span className="vaga-numero">VAGA {v.numero}</span>
-                  {v.ocupada ? (
-                    <>
-                      <span className="vaga-icon">🚗</span>
-                      {v.placa && (
-                        <span className="placa-tag placa-tag-sm">{v.placa}</span>
-                      )}
-                    </>
-                  ) : (
-                    <span className="vaga-free">LIVRE</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* ---------- Clientes ---------- */}
           <div className="card">
             <h2>Melhores clientes</h2>
@@ -623,26 +630,30 @@ export default function PainelOperador() {
                 Os clientes aparecem aqui após o primeiro uso.
               </p>
             ) : (
-              <table className="history-table">
-                <thead>
-                  <tr>
-                    <th>Placa</th>
-                    <th>Usos</th>
-                    <th>Gasto</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {clientes.slice(0, 6).map((c) => (
-                    <tr key={c.placa}>
-                      <td>
-                        <span className="placa-tag placa-tag-sm">{c.placa}</span>
-                      </td>
-                      <td>{c.acessos}</td>
-                      <td className="money">{formatarMoeda(c.total)}</td>
+              <div className="tabela-wrap tabela-cards">
+                <table className="history-table responsive-table">
+                  <thead>
+                    <tr>
+                      <th>Placa</th>
+                      <th>Usos</th>
+                      <th>Gasto</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {clientes.slice(0, 6).map((c) => (
+                      <tr key={c.placa}>
+                        <td data-label="Placa">
+                          <span className="placa-tag placa-tag-sm">{c.placa}</span>
+                        </td>
+                        <td data-label="Usos">{c.acessos}</td>
+                        <td data-label="Gasto" className="money">
+                          {formatarMoeda(c.total)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
 

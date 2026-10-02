@@ -6,13 +6,18 @@
 // =========================================================================
 
 import {
+  collection,
+  deleteField,
   doc,
   getDoc,
+  getDocs,
   setDoc,
   serverTimestamp,
+  updateDoc,
   writeBatch,
 } from "firebase/firestore";
 import { db } from "../firebase/firebaseConfig";
+import { obterTipoVaga, tipoVagaValido } from "../utils/mapaVagas";
 
 // Tarifa padrão usada até o dono definir a dele no painel.
 export const TARIFA_PADRAO = 5;
@@ -41,9 +46,24 @@ function dadosPublicos(estacionamento) {
     uf: estacionamento.uf || "",
   };
 
+  if (typeof estacionamento.ativo === "boolean") {
+    dados.ativo = estacionamento.ativo;
+  }
+
   for (const campo of ["ultimaAtualizacao", "vagasLivres", "vagasEmOperacao"]) {
     const valor = Number(estacionamento[campo]);
     if (Number.isFinite(valor) && valor >= 0) dados[campo] = valor;
+  }
+
+  if (estacionamento.modoDisponibilidade === "mapa") {
+    dados.modoDisponibilidade = "mapa";
+    const vagasLivresMapeadas = Number(estacionamento.vagasLivresMapeadas);
+    if (Number.isFinite(vagasLivresMapeadas) && vagasLivresMapeadas >= 0) {
+      dados.vagasLivresMapeadas = vagasLivresMapeadas;
+    }
+    if (estacionamento.ultimaAtualizacaoMapa) {
+      dados.ultimaAtualizacaoMapa = estacionamento.ultimaAtualizacaoMapa;
+    }
   }
 
   return dados;
@@ -157,4 +177,191 @@ export function sincronizarCatalogo(estacionamento) {
     { ...dadosPublicos(estacionamento), atualizadoEm: serverTimestamp() },
     { merge: true }
   );
+}
+
+export async function criarEstacionamentoAdmin({
+  uid,
+  nome,
+  numVagas,
+  tarifaHora = TARIFA_PADRAO,
+  cep = "",
+  logradouro = "",
+  numero = "",
+  bairro = "",
+  cidade = "",
+  uf = "",
+}) {
+  const perfil = await getDoc(doc(db, "users", uid));
+  if (!perfil.exists() || perfil.data().role !== "admin") {
+    throw new Error("Apenas administradores podem cadastrar estacionamentos.");
+  }
+
+  const vagas = Number(numVagas);
+  const hora = Number(tarifaHora);
+  if (!String(nome || "").trim()) throw new Error("Informe o nome.");
+  if (!Number.isInteger(vagas) || vagas < 1 || vagas > 200) {
+    throw new Error("Número de vagas deve ser de 1 a 200.");
+  }
+  if (!Number.isFinite(hora) || hora < 0) throw new Error("Tarifa por hora inválida.");
+
+  let id = gerarIdEstacionamento();
+  while ((await getDoc(doc(db, "estacionamentos", id))).exists()) {
+    id = gerarIdEstacionamento();
+  }
+
+  const estacionamento = {
+    nome: String(nome).trim(),
+    numVagas: vagas,
+    tarifaHora: hora,
+    cep,
+    logradouro,
+    numero,
+    bairro,
+    cidade,
+    uf,
+    ativo: true,
+    ownerUid: uid,
+    criadoPorAdmin: uid,
+    criadoEm: serverTimestamp(),
+  };
+  const batch = writeBatch(db);
+  batch.set(doc(db, "estacionamentos", id), estacionamento);
+  batch.set(doc(db, "catalogoEstacionamentos", id), dadosPublicos(estacionamento));
+  await batch.commit();
+  return id;
+}
+
+export async function atualizarEstacionamentoAdmin(estId, campos) {
+  if (!estId) throw new Error("Estacionamento inválido.");
+  const atualSnap = await getDoc(doc(db, "estacionamentos", estId));
+  if (!atualSnap.exists()) throw new Error("Estacionamento não encontrado.");
+
+  const dados = { atualizadoEm: serverTimestamp() };
+  const texto = ["nome", "cep", "logradouro", "numero", "bairro", "cidade", "uf"];
+  for (const campo of texto) {
+    if (campos[campo] !== undefined) dados[campo] = String(campos[campo]).trim();
+  }
+  if (campos.nome !== undefined && !dados.nome) throw new Error("Informe o nome.");
+  if (campos.numVagas !== undefined) {
+    const vagas = Number(campos.numVagas);
+    if (!Number.isInteger(vagas) || vagas < 1 || vagas > 200) {
+      throw new Error("Número de vagas deve ser de 1 a 200.");
+    }
+    dados.numVagas = vagas;
+  }
+  if (campos.tarifaHora !== undefined) {
+    const tarifa = Number(campos.tarifaHora);
+    if (!Number.isFinite(tarifa) || tarifa < 0) throw new Error("Tarifa por hora inválida.");
+    dados.tarifaHora = tarifa;
+  }
+  // Tarifa por minuto da versão anterior: removida, o totem cobra por hora.
+  dados.tarifaMinuto = deleteField();
+  if (campos.ativo !== undefined) dados.ativo = Boolean(campos.ativo);
+
+  const combinado = { ...atualSnap.data(), ...campos };
+  const dadosCatalogo = {
+    ...dadosPublicos(combinado),
+    atualizadoEm: serverTimestamp(),
+  };
+  dadosCatalogo.tarifaMinuto = deleteField();
+
+  const batch = writeBatch(db);
+  batch.update(doc(db, "estacionamentos", estId), dados);
+  batch.set(doc(db, "catalogoEstacionamentos", estId), dadosCatalogo, {
+    merge: true,
+  });
+  await batch.commit();
+}
+
+// Publica o mapa do app a partir das vagas do totem. Grava também o tipo de
+// cada vaga (inclusive os padrões da demonstração), porque o totem só deixa
+// vagas especiais para quem as reservou e lê o tipo deste documento. A
+// reserva (reservadaAte) é do app e não é tocada aqui.
+export async function publicarMapaVagas(estId) {
+  if (!estId) throw new Error("Estacionamento inválido.");
+
+  const estacionamentoRef = doc(db, "estacionamentos", estId);
+  const [estacionamentoSnap, vagasSnap, publicasSnap] = await Promise.all([
+    getDoc(estacionamentoRef),
+    getDocs(collection(db, "estacionamentos", estId, "vagas")),
+    getDocs(collection(db, "catalogoEstacionamentos", estId, "vagas")),
+  ]);
+
+  if (!estacionamentoSnap.exists()) {
+    throw new Error("Estacionamento não encontrado.");
+  }
+
+  const estacionamento = estacionamentoSnap.data();
+  const numVagas = Math.max(1, Number(estacionamento.numVagas) || 1);
+  const vagasOcupadas = new Set();
+  vagasSnap.forEach((vaga) => {
+    const numero = Number(vaga.id);
+    if (numero >= 1 && numero <= numVagas && String(vaga.data().placa || "") !== "") {
+      vagasOcupadas.add(numero);
+    }
+  });
+  const tiposPublicados = {};
+  publicasSnap.forEach((vaga) => {
+    tiposPublicados[vaga.id] = vaga.data().tipo;
+  });
+
+  const disponibilidade = {
+    modoDisponibilidade: "mapa",
+    vagasLivresMapeadas: Math.max(0, numVagas - vagasOcupadas.size),
+    ultimaAtualizacaoMapa: serverTimestamp(),
+  };
+  const batch = writeBatch(db);
+  batch.set(estacionamentoRef, disponibilidade, { merge: true });
+  batch.set(
+    doc(db, "catalogoEstacionamentos", estId),
+    {
+      ...dadosPublicos({ ...estacionamento, ...disponibilidade }),
+      ...disponibilidade,
+      atualizadoEm: serverTimestamp(),
+    },
+    { merge: true }
+  );
+  for (let numero = 1; numero <= numVagas; numero += 1) {
+    batch.set(
+      doc(db, "catalogoEstacionamentos", estId, "vagas", String(numero)),
+      {
+        ocupada: vagasOcupadas.has(numero),
+        tipo: obterTipoVaga(tiposPublicados[String(numero)], numero).tipo,
+      },
+      { merge: true }
+    );
+  }
+  await batch.commit();
+
+  return disponibilidade.vagasLivresMapeadas;
+}
+
+// Classificação editável pelo administrador. O tipo fica no documento
+// operacional e na projeção pública, sem alterar ocupação, placa ou reserva.
+export async function atualizarTipoVagaAdmin({ estId, numero, tipo }) {
+  const numeroVaga = Number(numero);
+  if (!estId || !Number.isInteger(numeroVaga) || numeroVaga < 1 || numeroVaga > 200) {
+    throw new Error("Vaga inválida.");
+  }
+  if (!tipoVagaValido(tipo)) throw new Error("Tipo de vaga inválido.");
+
+  const vagaPublicaRef = doc(
+    db,
+    "catalogoEstacionamentos",
+    estId,
+    "vagas",
+    String(numeroVaga)
+  );
+  const vagaPublica = await getDoc(vagaPublicaRef);
+  if (vagaPublica.exists()) {
+    await updateDoc(vagaPublicaRef, { tipo });
+  } else {
+    // Primeira classificação de uma vaga ainda fora do mapa público.
+    const vagaOperacional = await getDoc(
+      doc(db, "estacionamentos", estId, "vagas", String(numeroVaga))
+    );
+    const ocupada = vagaOperacional.exists() && String(vagaOperacional.data().placa || "") !== "";
+    await setDoc(vagaPublicaRef, { ocupada, tipo });
+  }
+  return tipo;
 }

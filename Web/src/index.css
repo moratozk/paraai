@@ -23,11 +23,11 @@
   --bg-asphalt: #06070a;
 
   /* ---- Tinta ----
-     Contrastes sobre --bg-primary: primary 16.4:1 · secondary 8.1:1 ·
-     muted 5.3:1 — todos passam em AA. */
+     Todos passam em AA (4.5:1) sobre qualquer superfície do tema, inclusive
+     --bg-elevated: o texto apagado é o que mais aparece em rótulos e dicas. */
   --text-primary: #f4f6f9;
   --text-secondary: #a5adbb;
-  --text-muted: #7d8595;
+  --text-muted: #828a99;
 
   /* ---- Marca: âmbar viário ---- */
   --accent: #ffc300;
@@ -49,8 +49,8 @@
   --border: #262c37;
   --border-strong: #39414f;
 
-  --radius: 14px;
-  --radius-sm: 8px;
+  --radius: 16px;
+  --radius-sm: 12px;
 
   --glow-accent: 0 14px 34px -12px rgba(255, 195, 0, 0.5);
   --glow-cyan: 0 14px 34px -12px rgba(53, 200, 232, 0.4);
@@ -73,6 +73,32 @@
   --largura: 1220px;
 
   --mola: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* ---- Espaçamento em rem: acompanha o tamanho de fonte do usuário ---- */
+  --esp-1: 0.25rem;
+  --esp-2: 0.5rem;
+  --esp-3: 0.75rem;
+  --esp-4: 1rem;
+  --esp-5: 1.5rem;
+  --esp-6: 2rem;
+  --esp-7: 3rem;
+
+  /* ---- Rótulos técnicos: o menor texto do site ---- */
+  --rotulo-tamanho: 0.75rem;
+  --rotulo-tracking: 0.06em;
+
+  /* ---- Movimento ----
+     Resposta no toque é imediata; o resto desacelera ao chegar. A mola é
+     criticamente amortecida (sem ultrapassar o alvo, resposta ~0,35 s) e
+     serve para superfícies que entram e saem, como modais. */
+  --dur-toque: 100ms;
+  --dur-rapida: 180ms;
+  --dur-media: 280ms;
+  --dur-mola: 600ms;
+  --mola-critica: linear(0, 0.075 4.2%, 0.227 8.3%, 0.39 12.5%, 0.536 16.7%,
+    0.656 20.8%, 0.75 25%, 0.821 29.2%, 0.873 33.3%, 0.911 37.5%, 0.938 41.7%,
+    0.957 45.8%, 0.971 50%, 0.98 54.2%, 0.986 58.3%, 0.991 62.5%, 0.994 66.7%,
+    0.997 75%, 0.999 83.3%, 1);
   color-scheme: dark;
 }
 
@@ -91,7 +117,7 @@
 
   --text-primary: #22252b;
   --text-secondary: #525864;
-  --text-muted: #6d7381;
+  --text-muted: #5a5f6b;    /* 4.6:1 até sobre --bg-elevated */
 
   /* No claro o âmbar tem dois papéis distintos:
      --accent      preenche superfícies e leva texto escuro por cima
@@ -104,12 +130,12 @@
   --accent-contrast: #0a0c11;
   --accent-text: #7d5800;   /* 5.2:1 sobre o fundo claro */
 
-  --cyan: #0c6d84;
-  --cyan-soft: rgba(12, 109, 132, 0.1);
-  --success: #0c7245;
-  --success-soft: rgba(12, 114, 69, 0.12);
-  --danger: #c41f34;
-  --danger-soft: rgba(196, 31, 52, 0.1);
+  --cyan: #0b687e;
+  --cyan-soft: rgba(11, 104, 126, 0.1);
+  --success: #0c6d42;
+  --success-soft: rgba(12, 109, 66, 0.12);
+  --danger: #ba1d31;
+  --danger-soft: rgba(186, 29, 49, 0.1);
 
   --border: #d5d0c9;
   --border-strong: #b9b3aa;
@@ -161,6 +187,13 @@ img { height: auto; }
 
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; background: none; border: none; padding: 0; }
+/* Toque: sem o clarão cinza do navegador e sem o atraso do zoom por duplo
+   toque. O feedback visual de cada componente substitui o clarão. */
+a, button, [role="button"], label, summary, input, select, textarea {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+input, select, textarea { min-width: 0; max-width: 100%; }
 a { color: inherit; text-decoration: none; }
 
 :focus-visible {
@@ -181,17 +214,19 @@ a { color: inherit; text-decoration: none; }
 /* A display (Anton) é condensada e pesada: ótima para manchete, agressiva
    demais para título de card num painel. Por isso os títulos usam a fonte de
    corpo por padrão, e o Anton entra só onde é pedido, via .display. */
+/* Tracking e entrelinha mudam com o tamanho: quanto maior o título, mais
+   juntas as letras e mais curta a entrelinha. Corpo fica perto de zero. */
 h1, h2, h3, h4 {
   font-family: var(--font-main);
   font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.01em;
+  font-optical-sizing: auto;
+  text-wrap: balance;
 }
 
-h1 { font-size: var(--t-h1); }
-h2 { font-size: var(--t-h2); }
-h3 { font-size: var(--t-h3); }
-h4 { font-size: 1rem; }
+h1 { font-size: var(--t-h1); line-height: 1.08; letter-spacing: -0.022em; }
+h2 { font-size: var(--t-h2); line-height: 1.14; letter-spacing: -0.016em; }
+h3 { font-size: var(--t-h3); line-height: 1.24; letter-spacing: -0.01em; }
+h4 { font-size: 1rem; line-height: 1.35; letter-spacing: -0.004em; }
 
 /* Manchete: condensada, caixa alta, bem grande. Só em hero e afins. */
 /* Manchete: condensada, caixa alta, bem grande. Só em hero e afins. */
@@ -209,14 +244,16 @@ p { text-wrap: pretty; }
 .rotulo, .eyebrow {
   display: inline-block;
   font-family: var(--font-mono);
-  font-size: var(--t-mini);
+  font-size: var(--rotulo-tamanho);
   font-weight: 500;
-  letter-spacing: 0.24em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--accent-text);
 }
 
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+/* Valores que mudam ao vivo não "dançam": algarismos de largura fixa. */
+.money, .stat-value, .fat-total { font-variant-numeric: tabular-nums; }
 .accent { color: var(--accent-text); }
 .danger { color: var(--danger); }
 .cyan { color: var(--cyan); }
@@ -224,10 +261,10 @@ p { text-wrap: pretty; }
 /* ==========================================================================
    LAYOUT
    ========================================================================== */
-.app-shell { min-height: 100vh; display: flex; flex-direction: column; }
+.app-shell { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
 
 .container {
-  width: min(100% - 2.5rem, var(--largura));
+  width: min(calc(100% - 2.5rem), var(--largura));
   margin-inline: auto;
 }
 
@@ -244,22 +281,27 @@ p { text-wrap: pretty; }
   align-items: center;
   justify-content: center;
   gap: 0.6rem;
-  padding: 0.85rem 1.5rem;
+  min-height: 44px;
+  padding: 0.75rem 1.4rem;
   border-radius: var(--radius-sm);
   background: var(--btn-bg);
   color: var(--btn-cor);
   border: 1.5px solid var(--btn-borda);
   font-weight: 700;
-  font-size: 0.88rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 0.95rem;
+  letter-spacing: -0.005em;
   white-space: nowrap;
-  transition: transform 0.18s var(--mola), background 0.18s,
-    border-color 0.18s, box-shadow 0.18s, color 0.18s;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: transform var(--dur-toque) ease-out, background var(--dur-rapida),
+    border-color var(--dur-rapida), box-shadow var(--dur-rapida), color var(--dur-rapida);
 }
 
-.btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--shadow-card); }
-.btn:active:not(:disabled) { transform: translateY(0); }
+@media (hover: hover) {
+  .btn:hover:not(:disabled) { box-shadow: var(--shadow-card); }
+}
+/* Resposta no momento do toque, não ao soltar. */
+.btn:active:not(:disabled) { transform: scale(0.97); }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .btn-primary {
@@ -267,26 +309,34 @@ p { text-wrap: pretty; }
   --btn-cor: var(--accent-contrast);
   --btn-borda: var(--accent);
 }
-.btn-primary:hover:not(:disabled) {
-  --btn-bg: var(--accent-strong);
-  --btn-borda: var(--accent-strong);
-  box-shadow: var(--glow-accent);
+@media (hover: hover) {
+  .btn-primary:hover:not(:disabled) {
+    --btn-bg: var(--accent-strong);
+    --btn-borda: var(--accent-strong);
+    box-shadow: var(--glow-accent);
+  }
 }
 
 .btn-outline { --btn-bg: transparent; }
-.btn-outline:hover:not(:disabled) {
-  --btn-borda: var(--accent);
-  --btn-cor: var(--accent-text);
+@media (hover: hover) {
+  .btn-outline:hover:not(:disabled) {
+    --btn-borda: var(--accent);
+    --btn-cor: var(--accent-text);
+  }
 }
 
 .btn-ghost { --btn-bg: transparent; --btn-borda: transparent; --btn-cor: var(--text-secondary); }
-.btn-ghost:hover:not(:disabled) { --btn-cor: var(--text-primary); --btn-bg: var(--bg-elevated); }
+@media (hover: hover) {
+  .btn-ghost:hover:not(:disabled) { --btn-cor: var(--text-primary); --btn-bg: var(--bg-elevated); }
+}
 
 .btn-danger { --btn-bg: transparent; --btn-borda: var(--danger); --btn-cor: var(--danger); }
-.btn-danger:hover:not(:disabled) { --btn-bg: var(--danger); --btn-cor: #fff; }
+@media (hover: hover) {
+  .btn-danger:hover:not(:disabled) { --btn-bg: var(--danger); --btn-cor: #fff; }
+}
 
-.btn-sm { padding: 0.55rem 1rem; font-size: 0.76rem; }
-.btn-lg { padding: 1.05rem 2rem; font-size: 0.98rem; }
+.btn-sm { min-height: 40px; padding: 0.5rem 1rem; font-size: 0.86rem; }
+.btn-lg { min-height: 52px; padding: 0.95rem 2rem; font-size: 1.02rem; }
 .btn-block { width: 100%; }
 
 /* ==========================================================================
@@ -315,9 +365,9 @@ p { text-wrap: pretty; }
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   font-family: var(--font-mono);
-  font-size: var(--t-mini);
+  font-size: var(--rotulo-tamanho);
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: var(--rotulo-tracking);
   text-transform: uppercase;
   color: var(--text-secondary);
 }
@@ -331,11 +381,10 @@ p { text-wrap: pretty; }
 .field { display: flex; flex-direction: column; gap: 0.45rem; margin-bottom: 1.1rem; }
 
 .label, .field-label-row {
-  font-family: var(--font-mono);
-  font-size: var(--t-mini);
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  font-family: var(--font-main);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0;
   color: var(--text-secondary);
 }
 .field-label-row { display: flex; justify-content: space-between; align-items: center; }
@@ -344,12 +393,15 @@ p { text-wrap: pretty; }
 input[type="text"], input[type="email"], input[type="password"],
 input[type="tel"], input[type="number"], input[type="date"], select, textarea {
   width: 100%;
-  padding: 0.85rem 1rem;
+  min-height: 48px;
+  padding: 0.8rem 1rem;
   background: var(--bg-input);
   border: 1.5px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
-  transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
+  font-size: max(16px, 1rem);
+  transition: border-color var(--dur-rapida), background var(--dur-rapida),
+    box-shadow var(--dur-rapida);
 }
 
 input::placeholder, textarea::placeholder { color: var(--text-muted); }
@@ -363,7 +415,9 @@ input:focus, select:focus, textarea:focus {
 
 .field-hint { font-size: 0.8rem; color: var(--text-muted); }
 .field-link { font-size: 0.8rem; color: var(--accent-text); font-weight: 600; }
-.field-link:hover { text-decoration: underline; }
+@media (hover: hover) {
+  .field-link:hover { text-decoration: underline; }
+}
 
 .error-text, .erro { color: var(--danger); font-size: 0.85rem; font-weight: 600; }
 
@@ -382,7 +436,7 @@ input:focus, select:focus, textarea:focus {
   background: #f4f6f9;
   font-family: var(--font-mono);
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.06em;
   line-height: 1;
 }
 .placa::before { content: ""; width: 9px; background: var(--plate-blue); flex: none; }
@@ -419,6 +473,31 @@ input:focus, select:focus, textarea:focus {
   .revelar { opacity: 1; animation: none; }
 }
 
+/* Transparência reduzida: superfícies de vidro viram sólidas. */
+@media (prefers-reduced-transparency: reduce) {
+  .navbar, .navbar-rolou, .modal-overlay, .mapa-publico-overlay, .menu-mobile {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  .navbar, .navbar-rolou, .menu-mobile { background: var(--bg-secondary) !important; }
+}
+
+/* Contraste aumentado: bordas definidas e texto secundário mais forte. */
+@media (prefers-contrast: more) {
+  :root, [data-theme="light"] {
+    --border: var(--border-strong);
+    --text-muted: var(--text-secondary);
+  }
+  .card, .btn, .chip, .status-pill { border-width: 2px; }
+}
+
+/* Troca de tema: crossfade curto em vez do salto de brilho (ver ThemeContext). */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--dur-media);
+  animation-timing-function: ease-out;
+}
+
 /* ==========================================================================
    ESTADOS
    ========================================================================== */
@@ -435,6 +514,22 @@ input:focus, select:focus, textarea:focus {
   text-align: center;
   padding: clamp(2rem, 6vw, 4rem) 1rem;
   color: var(--text-secondary);
+}
+
+@media (max-width: 620px) {
+  .container { width: min(calc(100% - 1.5rem), var(--largura)); }
+
+  .card { padding: 1rem; }
+
+  .btn {
+    max-width: 100%;
+    padding-inline: 1rem;
+    line-height: 1.25;
+    text-align: center;
+    white-space: normal;
+  }
+  .btn-lg { padding: 0.95rem 1.15rem; }
+  .empty-state { padding: 1.75rem 0.5rem; }
 }
 
 /* ==========================================================================
@@ -457,4 +552,6 @@ input:focus, select:focus, textarea:focus {
   border-radius: 100px;
   border: 3px solid var(--bg-primary);
 }
-::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+@media (hover: hover) {
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+}

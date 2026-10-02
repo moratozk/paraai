@@ -91,7 +91,7 @@
   background: var(--accent);
   color: var(--accent-contrast);
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
 }
 
@@ -168,21 +168,9 @@
 
 .totem-online-detalhe {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   letter-spacing: 0.06em;
   color: var(--text-muted);
-}
-
-.totem-alerta-vagas {
-  flex-basis: 100%;
-  padding: 0.6rem 0.85rem;
-  border-radius: var(--radius-sm);
-  background: var(--accent-soft);
-  border: 1px solid var(--accent);
-  border-left-width: 3px;
-  font-size: 0.84rem;
-  font-weight: 600;
-  color: var(--accent-text);
 }
 
 @media (max-width: 560px) {

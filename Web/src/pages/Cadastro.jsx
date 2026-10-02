@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { criarEstacionamento } from "../services/estacionamentos";
@@ -27,15 +27,11 @@ function IconeEstacionamento() {
   );
 }
 
-// Motorista: uma etapa só.
-// Operador: 3 etapas — conta → estacionamento → vagas.
-// A TARIFA não entra aqui de propósito: é definida depois, no painel, onde
-// o dono pode ajustá-la quando quiser.
+// O cadastro público cria apenas motoristas. O acesso administrativo substitui
+// o antigo cadastro aberto de donos de estacionamento e é provisionado fora
+// do cliente para não permitir autopromoção de privilégios.
 export default function Cadastro() {
-  const [searchParams] = useSearchParams();
-  const [role, setRole] = useState(
-    searchParams.get("perfil") === "operador" ? "operador" : "motorista"
-  );
+  const [role, setRole] = useState("motorista");
   const [etapa, setEtapa] = useState(1);
 
   // etapa 1 — conta
@@ -236,17 +232,11 @@ export default function Cadastro() {
               <span className="role-titulo">Sou motorista</span>
               <span className="role-desc">Estacionar na rede</span>
             </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={role === "operador"}
-              className={`role-option ${role === "operador" ? "active" : ""}`}
-              onClick={() => trocarPapel("operador")}
-            >
+            <Link className="role-option role-option-link" to="/login?perfil=admin">
               <span className="role-icone"><IconeEstacionamento /></span>
-              <span className="role-titulo">Tenho um estacionamento</span>
-              <span className="role-desc">Automatizar meu pátio</span>
-            </button>
+              <span className="role-titulo">Sou administrador</span>
+              <span className="role-desc">Gerenciar a rede de estacionamentos</span>
+            </Link>
           </div>
         )}
 

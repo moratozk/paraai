@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { useCatalogoEstacionamentos } from "../hooks/useParkingData";
+import { useCatalogoEstacionamentos, useVeiculo } from "../hooks/useParkingData";
 import { montarEnderecoLinha } from "../services/cep";
 import { formatarMoeda } from "../utils/format";
 import { TOTEM_OFFLINE_APOS_SEGUNDOS } from "../utils/constants";
+import MapaVagasPublico from "../components/MapaVagasPublico";
 import "./Pages.css";
 import "./MarketplaceEstacionamentos.css";
 
@@ -36,8 +37,20 @@ function prepararEstacionamento(item, agora) {
   const online =
     ultimaAtualizacao > 0 &&
     agora - ultimaAtualizacao < TOTEM_OFFLINE_APOS_SEGUNDOS;
-  const leituraVagas = Number(item.vagasLivres);
-  const temLeitura = online && Number.isFinite(leituraVagas) && leituraVagas >= 0;
+  const disponibilidadePeloMapa = item.modoDisponibilidade === "mapa";
+  // Com o totem online, o número vivo do heartbeat (já sem as reservas).
+  // Offline, o último retrato publicado do mapa, quando existe.
+  const leituraVagas = Number(
+    online
+      ? item.vagasLivres
+      : disponibilidadePeloMapa
+        ? item.vagasLivresMapeadas
+        : NaN
+  );
+  const temLeitura =
+    (disponibilidadePeloMapa || online) &&
+    Number.isFinite(leituraVagas) &&
+    leituraVagas >= 0;
   const vagasLivres = temLeitura ? leituraVagas : null;
   const tarifaHora = Number(item.tarifaHora);
   const endereco = montarEnderecoLinha(item);
@@ -48,6 +61,7 @@ function prepararEstacionamento(item, agora) {
   return {
     ...item,
     online,
+    disponibilidadePeloMapa,
     temLeitura,
     vagasLivres,
     disponivel: temLeitura && vagasLivres > 0,
@@ -58,11 +72,14 @@ function prepararEstacionamento(item, agora) {
 }
 
 export default function MarketplaceEstacionamentos() {
-  const { userData } = useAuth();
+  const { user, userData } = useAuth();
+  const placa = userData?.placa || "";
+  const { veiculo } = useVeiculo(placa);
   const { estacionamentos, loading, erro } = useCatalogoEstacionamentos();
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todos");
   const [ordem, setOrdem] = useState("relevancia");
+  const [mapaAberto, setMapaAberto] = useState(null);
   const [agora, setAgora] = useState(() => Math.floor(Date.now() / 1000));
 
   useEffect(() => {
@@ -81,6 +98,7 @@ export default function MarketplaceEstacionamentos() {
 
   const resultados = useMemo(() => {
     const filtrados = preparados.filter((item) => {
+      if (item.ativo === false) return false;
       if (termo && !item.pesquisavel.includes(termo)) return false;
       if (filtro === "com-vagas" && !item.disponivel) return false;
       if (filtro === "ate-dez" && item.tarifaHora > 10) return false;
@@ -97,11 +115,13 @@ export default function MarketplaceEstacionamentos() {
     });
   }, [preparados, termo, filtro, ordem]);
 
-  if (userData?.role === "operador") {
+  if (["operador", "admin"].includes(userData?.role)) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const disponiveisAgora = preparados.filter((item) => item.disponivel).length;
+  const disponiveisAgora = preparados.filter(
+    (item) => item.ativo !== false && item.disponivel
+  ).length;
 
   return (
     <main className="page container marketplace-page">
@@ -110,8 +130,9 @@ export default function MarketplaceEstacionamentos() {
           <span className="marketplace-sobrelinha">Rede ParaAí</span>
           <h1>Encontre onde parar</h1>
           <p>
-            Compare tarifa e vagas disponíveis antes de sair. Ao chegar, basta
-            digitar sua placa para iniciar o acesso.
+            Compare tarifas, veja as vagas livres no mapa e reserve a sua por
+            30 minutos, sem custo. Sem reserva, o totem escolhe a vaga quando
+            você chegar.
           </p>
         </div>
         <div className="marketplace-resumo" aria-label="Resumo da rede">
@@ -245,7 +266,8 @@ export default function MarketplaceEstacionamentos() {
                       <div>
                         <span>Tarifa</span>
                         <strong>
-                          {formatarMoeda(item.tarifaHora)}<small>/hora</small>
+                          {formatarMoeda(item.tarifaHora)}
+                          <small>/hora</small>
                         </strong>
                       </div>
                       <div>
@@ -257,9 +279,25 @@ export default function MarketplaceEstacionamentos() {
                     </div>
 
                     <div className="marketplace-card-acoes">
+                      {item.disponibilidadePeloMapa && (
+                        <button
+                          className="btn btn-primary btn-block"
+                          type="button"
+                          aria-expanded={mapaAberto === item.id}
+                          onClick={() =>
+                            setMapaAberto((atual) =>
+                              atual === item.id ? null : item.id
+                            )
+                          }
+                        >
+                          Abrir mapa de vagas
+                        </button>
+                      )}
                       {rota ? (
                         <a
-                          className="btn btn-primary btn-block"
+                          className={`btn btn-block ${
+                            item.disponibilidadePeloMapa ? "btn-outline" : "btn-primary"
+                          }`}
                           href={rota}
                           target="_blank"
                           rel="noreferrer"
@@ -272,6 +310,19 @@ export default function MarketplaceEstacionamentos() {
                         </button>
                       )}
                     </div>
+                    {mapaAberto === item.id && item.disponibilidadePeloMapa && (
+                      <MapaVagasPublico
+                        estacionamento={item}
+                        rota={rota}
+                        motorista={{
+                          uid: user?.uid,
+                          placa,
+                          saldo: Number(veiculo?.saldo) || 0,
+                          estacionado: Number(veiculo?.vagaAtual) > 0,
+                        }}
+                        onFechar={() => setMapaAberto(null)}
+                      />
+                    )}
                   </div>
                 </article>
               );

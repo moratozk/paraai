@@ -8,9 +8,10 @@ repositório. Antes de alterar qualquer coisa, leia também `README.md` e
 
 O ParaAí é um TCC composto por:
 
-- `Web/`: painel React/Vite integrado ao Firebase.
-- `Main/`: firmware Arduino para ESP32, tela ILI9341, touch XPT2046, sensores e
-  servo da catraca.
+- `Web/`: painel React/Vite integrado ao Firebase, incluindo administração
+  central da rede.
+- `Main/`: firmware Arduino do totem de atendimento: ESP32, tela ILI9341 e
+  touch XPT2046, sem sensores nem servo/catraca física.
 - `firestore.rules`: regras de acesso do banco em produção.
 
 Preserve o fluxo completo entre painel, Firebase e totem. Uma mudança em um
@@ -35,8 +36,10 @@ componente não pode quebrar os outros.
   chaves, tokens, credenciais de totem ou arquivos de conta de serviço.
 - Use somente `Web/.env.example` e `Main/Credenciais.example.h` como modelos.
 - Não enfraqueça `firestore.rules`. Motoristas acessam apenas os próprios
-  dados, operadores apenas o próprio estacionamento e totens apenas as ações
-  necessárias do equipamento autorizado.
+  dados, operadores antigos apenas o próprio estacionamento, administradores
+  gerenciam a rede e totens executam somente as ações necessárias do
+  equipamento autorizado. Contas `admin` nunca podem ser criadas ou promovidas
+  pelo cliente web.
 - O Firebase App Check deve permanecer em modo de monitoramento enquanto o
   ESP32 não tiver uma integração compatível.
 - Não publique no Firebase nem grave o ESP32 sem solicitação explícita do
@@ -65,14 +68,17 @@ hardware.
   hardware na interface.
 - A tela inicial do totem mostra somente `ENTRADA` e `SAÍDA`, sem contagem de
   vagas.
+- Decisão de 09/09/2026: o ESP terá gabinete impresso em 3D. Ocupação é lógica,
+  vinculada à estadia no Firebase. A maquete virtual web fica para uma etapa
+  posterior; não reintroduzir sensores ou atuadores.
 - A recarga é simulada para fins acadêmicos e não deve ser apresentada como
   pagamento real.
 
 ## Regras de revisão
 
 - Bloqueie qualquer alteração que exponha segredo, permita acesso entre contas
-  ou estacionamentos, quebre login/cadastro ou abra a catraca em estado
-  incoerente.
+  ou estacionamentos, quebre login/cadastro ou confirme uma operação com
+  veículo, vaga e cobrança em estado incoerente.
 - Verifique responsividade, tema claro/escuro e mensagens de erro nas mudanças
   visuais.
 - Em mudanças de cobrança, preserve a tarifa congelada na entrada e o cálculo

@@ -7,6 +7,7 @@ import {
   doc,
   getDoc,
   updateDoc,
+  deleteField,
   increment,
   serverTimestamp,
   writeBatch,
@@ -15,9 +16,10 @@ import { db } from "../firebase/firebaseConfig";
 
 // Cadastra (ou reivindica) a placa para o usuário logado.
 // Cria o documento no formato exato que o firmware espera encontrar:
-// ativo/vagaAtual/horaEntrada/saldo. Campos extras (ownerUid etc.) são
-// ignorados pelo totem, servem só ao painel.
-export async function registrarVeiculo({ uid, nome, placa }) {
+// ativo/vagaAtual/horaEntrada/saldo. ownerUid é ignorado pelo totem e serve
+// só às regras e ao painel. O nome do dono não vai para o veículo: qualquer
+// totem lê esse documento, e o nome já está no perfil (users/{uid}).
+export async function registrarVeiculo({ uid, placa }) {
   const ref = doc(db, "veiculos", placa);
   const snap = await getDoc(ref);
   const atual = snap.exists() ? snap.data() : {};
@@ -40,7 +42,6 @@ export async function registrarVeiculo({ uid, nome, placa }) {
       estacionamentoId: "",
       tarifaHoraEntrada: 0,
       ownerUid: uid,
-      ownerNome: String(nome || ""),
       atualizadoEm: serverTimestamp(),
     });
   } else {
@@ -49,7 +50,7 @@ export async function registrarVeiculo({ uid, nome, placa }) {
     // Também não reescrevemos os dados de uma estadia que possa estar aberta.
     batch.update(ref, {
       ownerUid: uid,
-      ownerNome: String(nome || ""),
+      ownerNome: deleteField(),
       atualizadoEm: serverTimestamp(),
     });
   }
@@ -64,6 +65,8 @@ export async function adicionarSaldo(placa, valor) {
   if (!(valor > 0)) throw new Error("Valor de recarga inválido.");
   await updateDoc(doc(db, "veiculos", placa), {
     saldo: increment(valor),
+    // Limpa o nome gravado por versões antigas do painel.
+    ownerNome: deleteField(),
     atualizadoEm: serverTimestamp(),
   });
 }

@@ -117,7 +117,9 @@
   color: var(--text-secondary);
 }
 .auth-footer a { color: var(--accent-text); font-weight: 700; }
-.auth-footer a:hover { text-decoration: underline; }
+@media (hover: hover) {
+  .auth-footer a:hover { text-decoration: underline; }
+}
 
 /* ---- campo com botão dentro (mostrar/ocultar senha) ---- */
 .input-com-acao { position: relative; display: flex; }
@@ -131,14 +133,16 @@
   padding: 0.4rem 0.7rem;
   border-radius: var(--radius-sm);
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-secondary);
   transition: color 0.2s, background 0.2s;
 }
-.input-acao:hover { color: var(--accent-text); background: var(--accent-soft); }
+@media (hover: hover) {
+  .input-acao:hover { color: var(--accent-text); background: var(--accent-soft); }
+}
 
 /* ---- erro / sucesso ---- */
 .auth-page .error-text {
@@ -183,9 +187,11 @@
   text-align: left;
   transition: border-color 0.2s, background 0.2s, transform 0.2s var(--mola);
 }
-.role-option:hover, .auth-check label:hover {
-  border-color: var(--border-strong);
-  transform: translateY(-2px);
+@media (hover: hover) {
+  .role-option:hover, .auth-check label:hover {
+    border-color: var(--border-strong);
+    transform: translateY(-2px);
+  }
 }
 .role-option.active {
   border-color: var(--accent);
@@ -193,6 +199,7 @@
 }
 /* o rótulo também muda de peso: o estado não é só a cor */
 .role-option.active .role-titulo { color: var(--accent-text); }
+.role-option-link { color: inherit; text-decoration: none; }
 
 .auth-check input { position: absolute; opacity: 0; pointer-events: none; }
 .auth-check label:has(input:checked) {
@@ -225,7 +232,7 @@
   font-family: var(--font-mono);
   font-size: var(--t-mini);
   font-weight: 700;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
   display: block;
@@ -283,7 +290,7 @@
 .etapa-rotulo {
   font-family: var(--font-mono);
   font-size: var(--t-mini);
-  letter-spacing: 0.14em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
@@ -298,9 +305,9 @@
   gap: 0.6rem;
   margin-top: 0.45rem;
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
@@ -330,7 +337,8 @@
 .forca-barra.n0::after { width: 0; }
 
 /* ---- endereço via CEP ---- */
-.cep-row { display: grid; grid-template-columns: 1fr auto; gap: 0.6rem; align-items: end; }
+/* Topo alinhado: a dica sob o CEP não pode empurrar o campo Número para baixo. */
+.cep-row { display: grid; grid-template-columns: 1fr auto; gap: 0.6rem; align-items: start; }
 
 .endereco-preview {
   padding: 0.9rem 1rem;
@@ -343,7 +351,7 @@
 .endereco-label {
   font-family: var(--font-mono);
   font-size: var(--t-mini);
-  letter-spacing: 0.14em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
   display: block;
@@ -372,13 +380,38 @@
    RESPONSIVO
    ========================================================================== */
 @media (max-width: 560px) {
+  .auth-page { padding-block: 1rem 2rem; }
+  .auth-card,
+  .auth-card-larga {
+    width: min(calc(100% - 1.5rem), 660px);
+    padding: 1.25rem;
+  }
+  .auth-logo { margin-bottom: 1.1rem; }
+  .auth-page .subtitle { margin-bottom: 1.3rem; }
   .auth-check { grid-template-columns: 1fr; }
   .cep-row { grid-template-columns: 1fr; }
   .acoes-etapa { flex-direction: column-reverse; }
+  .acoes-etapa .btn { width: 100%; }
   .etapas-trilha {
     width: min(100%, 220px);
     justify-content: space-between;
     margin-inline: auto;
   }
   .etapa-rotulo { display: none; }
+
+  .resumo-cadastro .endereco-linha,
+  .resumo-cadastro li,
+  .resumo-cadastro div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .resumo-cadastro strong,
+  .resumo-cadastro dd { overflow-wrap: anywhere; }
+}
+
+@media (max-width: 480px) {
+  .role-switch { grid-template-columns: 1fr; }
+  .role-option { min-height: 92px; }
 }
