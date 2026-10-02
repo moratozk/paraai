@@ -25,7 +25,7 @@ const livre = { ativo: true, vagaAtual: 0, horaEntrada: 0, saldo: 100,
 const aberta = { ...livre, vagaAtual: 1, horaEntrada: entrada, estacionamentoId: 'EST-A', tarifaHoraEntrada: 8.5 };
 const saida = { vagaAtual: 0, horaEntrada: 0, estacionamentoId: '', tarifaHoraEntrada: 0, saldo: 91.5 };
 const recibo = { placa: 'ABC1D23', vaga: 1, entrada, saida: entrada + 3600,
-  duracaoMinutos: 60, valorCobrado: 8.5, tarifaHora: 8.5, estacionamentoId: 'EST-A' };
+  duracaoMinutos: 60, valorCobrado: 8.5, valorPendente: 0, tarifaHora: 8.5, estacionamentoId: 'EST-A' };
 const disponibilidade = { ultimaAtualizacao: entrada, vagasLivres: 3, vagasEmOperacao: 4 };
 const vagaLogica = placa => ({ placa, ocupada: placa !== '', origemOcupacao: 'registro' });
 const db = uid => env.authenticatedContext(uid).firestore();
@@ -246,11 +246,34 @@ test('servidor rejeita débito sem recibo e recibo sem saída', async () => {
   await assertFails(setDoc(ref('totem-a', `historico/ABC1D23_${entrada}`), recibo));
 });
 test('servidor rejeita tarifa, valor, duração e ID adulterados', async () => {
-  for (const alteracao of [{ tarifaHora: 9 }, { valorCobrado: 9 }, { duracaoMinutos: 65 }, { entrada: entrada - 1 }]) {
+  for (const alteracao of [{ tarifaHora: 9 }, { valorCobrado: 9 }, { duracaoMinutos: 65 }, { entrada: entrada - 1 },
+    { valorPendente: 1 }, { valorPendente: -1 }]) {
     await assertFails(loteSaida(db('totem-a'), { ...recibo, ...alteracao }).commit());
   }
   assert.equal((await getDoc(ref('motorista-a', 'veiculos/ABC1D23'))).data().saldo, 100);
 });
+test('saída sem saldo suficiente registra a pendência exata desta estadia', async () => {
+  await env.withSecurityRulesDisabled(c => updateDoc(doc(c.firestore(), 'veiculos/ABC1D23'), { saldo: 5 }));
+  const lote = valorPendente => loteSaida(db('totem-a'), { ...recibo, valorPendente }, { ...saida, saldo: -3.5 });
+  for (const errado of [0, 1, 8.5]) await assertFails(lote(errado).commit());
+  await assertSucceeds(lote(3.5).commit());
+  assert.equal((await getDoc(ref('motorista-a', 'veiculos/ABC1D23'))).data().saldo, -3.5);
+  assert.equal((await getDoc(ref('operador-a', `historico/ABC1D23_${entrada}`))).data().valorPendente, 3.5);
+});
+test('dívida anterior não entra na pendência da estadia atual', async () => {
+  await env.withSecurityRulesDisabled(c => updateDoc(doc(c.firestore(), 'veiculos/ABC1D23'), { saldo: -2 }));
+  const lote = valorPendente => loteSaida(db('totem-a'), { ...recibo, valorPendente }, { ...saida, saldo: -10.5 });
+  await assertFails(lote(10.5).commit());
+  await assertSucceeds(lote(8.5).commit());
+});
+test('pendência bloqueia nova entrada até a recarga do motorista', async () => {
+  await env.withSecurityRulesDisabled(c => updateDoc(doc(c.firestore(), 'veiculos/XYZ1234'), { saldo: -3.5 }));
+  await assertFails(loteEntrada(db('totem-a')).commit());
+  await assertSucceeds(updateDoc(ref('motorista-b', 'veiculos/XYZ1234'), { saldo: increment(3.499), atualizadoEm: Timestamp.now() }));
+  // Resíduo abaixo de meio centavo não é pendência.
+  await assertSucceeds(loteEntrada(db('totem-a')).commit());
+});
+
 test('recibo imutável: repetição da saída não debita outra vez', async () => {
   const d = db('totem-a');
   await assertSucceeds(loteSaida(d).commit());

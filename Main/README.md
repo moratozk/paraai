@@ -111,7 +111,7 @@ veiculos/{PLACA}
 
 historico/{PLACA_horaEntrada}
   placa, vaga, entrada, saida, duracaoMinutos, valorCobrado,
-  tarifaHora, estacionamentoId
+  valorPendente, tarifaHora, estacionamentoId
 ```
 
 Vagas são listadas em páginas de 16 documentos para limitar RAM. Uma vaga
@@ -126,7 +126,10 @@ uma fotografia periódica, não uma medição física em tempo real.
 - **Concorrência:** precondições updateTime/exists impedem sobrescrever recarga,
   atribuir a mesma vaga a dois veículos ou recriar recibo da estadia.
 - **Cobrança acadêmica:** proporcional aos segundos, arredondada a centavos.
-  Pode gerar saldo negativo, como no modelo anterior. Não é pagamento real.
+  Não é pagamento real. Sem catraca, a saída é sempre registrada: se o saldo
+  não cobre, o recibo guarda `valorPendente`, o totem mostra SAIDA COM
+  PENDENCIA (sem exibir o saldo) e uma nova entrada fica bloqueada até o saldo
+  voltar a zero ou mais. A regra do Firestore confere a mesma fórmula.
 - **Offline:** não confirma nem enfileira operações para cobrar depois.
   Firestore é a fonte das estadias, inclusive após reiniciar o equipamento.
 - **Catálogo:** só publica ultimaAtualizacao, vagasLivres e vagasEmOperacao
@@ -185,7 +188,7 @@ No Windows, criar .runtime com New-Item, se necessário, e usar a extensão .exe
 Esta revisão usou zig c++ 0.14.1 portátil ([distribuição oficial](https://ziglang.org/download/)).
 
 O emulador só aceita demo-paraai em 127.0.0.1:8180. Testes C++ incluem o código
-real da lógica e da interface, não uma reescrita em JavaScript. Geram 16 SVGs
+real da lógica e da interface, não uma reescrita em JavaScript. Geram 18 SVGs
 com Adafruit_GFX e fontes reais para inspeção em http://127.0.0.1:4174.
 Periféricos são simulados: não valida ruído, pressão, alimentação, SPI, TLS
 ou calibração do painel físico.

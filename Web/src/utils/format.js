@@ -48,6 +48,20 @@ export function formatarMoeda(valor) {
   });
 }
 
+// Parte da cobrança que o saldo não cobriu. Recibos antigos não têm o campo e
+// contam como pagos. Meio centavo é a mesma tolerância do totem e das regras.
+const TOLERANCIA_SALDO = 0.005;
+export function valorPendente(recibo) {
+  const pendente = Number(recibo?.valorPendente) || 0;
+  return pendente >= TOLERANCIA_SALDO ? pendente : 0;
+}
+export function valorRecebido(recibo) {
+  return Math.max(0, (Number(recibo?.valorCobrado) || 0) - valorPendente(recibo));
+}
+export function saldoEmPendencia(saldo) {
+  return (Number(saldo) || 0) <= -TOLERANCIA_SALDO;
+}
+
 // Timestamps do totem são Unix em SEGUNDOS
 export function formatarDataHora(timestampSegundos) {
   const ts = Number(timestampSegundos);

@@ -8,6 +8,8 @@ import {
   formatarMoeda,
   formatarDataHora,
   formatarDuracao,
+  valorPendente,
+  valorRecebido,
 } from "../utils/format";
 import "./Pages.css";
 
@@ -25,10 +27,8 @@ export default function Historico() {
   const { historico, loading } =
     role === "operador" ? porEst : porPlaca;
 
-  const totalValor = historico.reduce(
-    (soma, item) => soma + (Number(item.valorCobrado) || 0),
-    0
-  );
+  const totalValor = historico.reduce((soma, item) => soma + valorRecebido(item), 0);
+  const totalPendente = historico.reduce((soma, item) => soma + valorPendente(item), 0);
 
   const semVinculo = role === "motorista" ? !placa : !estId;
 
@@ -81,6 +81,12 @@ export default function Historico() {
                 {role === "operador" ? "Total recebido" : "Total pago"}
               </span>
               <span className="stat-value accent">{formatarMoeda(totalValor)}</span>
+              {totalPendente > 0 && (
+                <span className="muted-note fat-pendente">
+                  {role === "operador" ? "A receber" : "Pendente"}:{" "}
+                  {formatarMoeda(totalPendente)}
+                </span>
+              )}
             </div>
           </div>
 
@@ -108,7 +114,17 @@ export default function Historico() {
                     <td>{formatarDataHora(item.entrada)}</td>
                     <td>{formatarDataHora(item.saida)}</td>
                     <td>{formatarDuracao(item.duracaoMinutos)}</td>
-                    <td className="money">{formatarMoeda(item.valorCobrado)}</td>
+                    <td className="money">
+                      {formatarMoeda(item.valorCobrado)}
+                      {valorPendente(item) > 0 && (
+                        <span
+                          className="status-pill warning pill-pendente"
+                          title={`${formatarMoeda(valorPendente(item))} não coberto pelo saldo`}
+                        >
+                          pendente
+                        </span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

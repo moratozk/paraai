@@ -33,7 +33,16 @@ inline bool pinConfere(const char* digitado, const char* esperado) {
   return digitado && pinFormatoValido(esperado) && std::strcmp(digitado, esperado) == 0;
 }
 
-struct Cobranca { int64_t segundos = 0; double valor = 0; double saldoFinal = 0; };
+// Meio centavo absorve resíduo de ponto flutuante de recargas e débitos.
+// O mesmo limite está em firestore.rules (entrada com saldo pendente).
+constexpr double TOLERANCIA_SALDO = 0.005;
+inline bool entradaPermitida(double saldo) {
+  return std::isfinite(saldo) && saldo > -TOLERANCIA_SALDO;
+}
+
+// pendente: parte desta cobrança que o saldo não cobriu. Sem catraca, a saída
+// sempre é registrada; a dívida fica visível no app e bloqueia nova entrada.
+struct Cobranca { int64_t segundos = 0; double valor = 0; double saldoFinal = 0; double pendente = 0; };
 inline bool calcularCobranca(int64_t entrada, int64_t saida, double tarifa,
                             double saldo, Cobranca& resultado) {
   resultado = {};
@@ -42,6 +51,9 @@ inline bool calcularCobranca(int64_t entrada, int64_t saida, double tarifa,
   resultado.segundos = saida - entrada;
   resultado.valor = std::round(resultado.segundos / 3600.0 * tarifa * 100.0) / 100.0;
   resultado.saldoFinal = saldo - resultado.valor; // Não arredondar créditos legados.
+  // Mesma fórmula de historicoCorrespondeAEstadia em firestore.rules.
+  resultado.pendente = resultado.saldoFinal >= 0 ? 0
+    : resultado.saldoFinal + resultado.valor <= 0 ? resultado.valor : -resultado.saldoFinal;
   return std::isfinite(resultado.valor) && std::isfinite(resultado.saldoFinal);
 }
 } // namespace paraai

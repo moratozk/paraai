@@ -112,6 +112,10 @@ service cloud.firestore {
       return totemCadastrado()
         && resource.data.ativo == true
         && resource.data.vagaAtual == 0
+        // Saldo negativo é pendência de uma estadia anterior: regularizar
+        // antes de entrar. Meio centavo absorve resíduo de ponto flutuante.
+        && resource.data.saldo is number
+        && resource.data.saldo > -0.005
         && (!('estacionamentoId' in resource.data)
           || resource.data.estacionamentoId == '')
         && request.resource.data.vagaAtual is int
@@ -253,7 +257,8 @@ service cloud.firestore {
 
     function historicoValido(dados) {
       return dados.keys().hasOnly(['placa', 'vaga', 'entrada', 'saida',
-          'duracaoMinutos', 'valorCobrado', 'tarifaHora', 'estacionamentoId'])
+          'duracaoMinutos', 'valorCobrado', 'valorPendente', 'tarifaHora',
+          'estacionamentoId'])
         && dados.placa is string
         && dados.placa.matches('^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$')
         && dados.vaga is int && dados.vaga >= 1 && dados.vaga <= 200
@@ -262,6 +267,7 @@ service cloud.firestore {
         && horarioAtual(dados.saida)
         && dados.duracaoMinutos is int && dados.duracaoMinutos >= 0
         && dados.valorCobrado is number && dados.valorCobrado >= 0
+        && dados.valorPendente is number && dados.valorPendente >= 0
         && dados.tarifaHora is number && dados.tarifaHora >= 0 && dados.tarifaHora <= 10000;
     }
 
@@ -278,7 +284,18 @@ service cloud.firestore {
         && vagaDepois.placa == '' && vagaDepois.ocupada == false
         && vagaDepois.origemOcupacao == 'registro'
         && dados.duracaoMinutos == int((dados.saida - dados.entrada) / 60)
-        && math.abs(dados.valorCobrado - math.round((dados.saida - dados.entrada) / 3600.0 * dados.tarifaHora * 100) / 100.0) < 0.000001;
+        && math.abs(dados.valorCobrado - math.round((dados.saida - dados.entrada) / 3600.0 * dados.tarifaHora * 100) / 100.0) < 0.000001
+        && pendenteConfere(dados, depois.saldo);
+    }
+
+    // Parte desta cobrança que o saldo não cobriu (0 quando cobriu tudo).
+    // Dívida anterior não entra: no máximo o próprio valor da estadia.
+    function pendenteConfere(dados, saldoDepois) {
+      return (saldoDepois >= 0 && dados.valorPendente < 0.000001)
+        || (saldoDepois < 0 && saldoDepois + dados.valorCobrado <= 0
+          && math.abs(dados.valorPendente - dados.valorCobrado) < 0.000001)
+        || (saldoDepois < 0 && saldoDepois + dados.valorCobrado > 0
+          && math.abs(dados.valorPendente + saldoDepois) < 0.000001);
     }
 
     function placaDeMotoristaValida() {

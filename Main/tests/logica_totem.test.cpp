@@ -37,12 +37,21 @@ int main() {
   assert(calcularCobranca(entrada, entrada + 3600, 0, 20, c) && c.saldoFinal == 20);
   // Carteira acadêmica admite dívida; não inventar quitação quando falta saldo.
   assert(calcularCobranca(entrada, entrada + 3600, 8.5, 0, c) && c.saldoFinal == -8.5);
+  assert(c.pendente == 8.5);
+  assert(calcularCobranca(entrada, entrada + 3600, 8.5, 5, c) && c.saldoFinal == -3.5 && c.pendente == 3.5);
+  assert(calcularCobranca(entrada, entrada + 3600, 8.5, 8.5, c) && c.saldoFinal == 0 && c.pendente == 0);
+  // Dívida anterior não entra no pendente desta estadia.
+  assert(calcularCobranca(entrada, entrada + 3600, 8.5, -2, c) && c.saldoFinal == -10.5 && c.pendente == 8.5);
+  assert(calcularCobranca(entrada, entrada + 3600, 8.5, 100, c) && c.pendente == 0);
+  assert(entradaPermitida(0) && entradaPermitida(10) && entradaPermitida(-0.004));
+  assert(!entradaPermitida(-0.005) && !entradaPermitida(-8.5));
+  assert(!entradaPermitida(NAN) && !entradaPermitida(-INFINITY));
   assert(calcularCobranca(entrada, entrada + 3600, 8.5, 100.123456, c));
   assert(std::abs(c.saldoFinal - 91.623456) < 1e-9);
   assert(calcularCobranca(entrada, entrada + 86400, 8.5, 300, c) && c.valor == 204);
   assert(calcularCobranca(PRIMEIRO_TIMESTAMP_VALIDO, PRIMEIRO_TIMESTAMP_VALIDO, 0, 0, c));
   assert(!calcularCobranca(0, entrada, 8.5, 100, c));
-  assert(c.segundos == 0 && c.valor == 0 && c.saldoFinal == 0);
+  assert(c.segundos == 0 && c.valor == 0 && c.saldoFinal == 0 && c.pendente == 0);
   assert(!calcularCobranca(entrada, entrada - 1, 8.5, 100, c));
   assert(!calcularCobranca(entrada, entrada + 1, -1, 100, c));
   assert(!calcularCobranca(entrada, entrada + 1, NAN, 100, c));

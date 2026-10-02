@@ -48,7 +48,9 @@ totem e a tabela de movimentações.
 
 **Motorista** — cadastra a placa (padrão antigo ABC1234 ou Mercosul ABC1D23),
 recarrega a carteira e usa qualquer estacionamento da rede: digita a placa no
-totem, estaciona, e na saída o valor é debitado do saldo. No painel vê onde o
+totem, estaciona, e na saída o valor é debitado do saldo. Se o saldo não
+cobrir a estadia, a saída é registrada com pendência e uma nova entrada só é
+aceita depois da recarga. No painel vê onde o
 carro está, o custo estimado ao vivo, os últimos acessos e todos os recibos.
 Também encontra estacionamentos da rede por nome, bairro, cidade, tarifa e
 disponibilidade na página **Estacionamentos**.
@@ -74,8 +76,8 @@ veiculos/{PLACA}                          -- GLOBAL: carteira única na rede
   ownerUid, ownerNome, atualizadoEm       -- gravados pelo painel
 
 historico/{PLACA_horaEntrada}              -- novo firmware: ID da estadia
-  placa, vaga, entrada, saida, duracaoMinutos, valorCobrado, tarifaHora,
-  estacionamentoId
+  placa, vaga, entrada, saida, duracaoMinutos, valorCobrado,
+  valorPendente (parte não coberta pelo saldo), tarifaHora, estacionamentoId
 
 totems/{FIREBASE_AUTH_UID}
   estacionamentoId, nome, email, ativo       -- identidade do equipamento

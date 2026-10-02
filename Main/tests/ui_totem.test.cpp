@@ -108,6 +108,14 @@ int main(int argc, char** argv) {
   desenharTelaPin("PIN INCORRETO"); tft.salvar(destino + "/15-pin-incorreto.svg");
   desenharTelaPortalWifi("ParaAi-123456", "abcDEF123456", "192.168.4.1", "Conecte pelo celular");
   tft.salvar(destino + "/16-wifi.svg");
+  // Mensagens do atendimento precisam caber na largura da tela.
+  const auto cabe = [](const char* texto, const GFXfont* fonte) { return larguraTexto(texto, fonte, 1) <= TELA_W - 16; };
+  assert(cabe("SAIDA COM PENDENCIA", FONTE_GRANDE) && cabe("R$ 1234,50 | 1440 min", FONTE_GRANDE));
+  assert(cabe("Regularize no app | ABC1D23", FONTE_MEDIA) && cabe("Regularize no app para entrar", FONTE_MEDIA));
+  desenharTelaResultado(RESULTADO_ALERTA, "SAIDA COM PENDENCIA", "R$ 1234,50 | 1440 min", "Regularize no app | ABC1D23");
+  desenharBotaoConcluir(); tft.salvar(destino + "/17-saida-pendente.svg");
+  desenharTelaResultado(RESULTADO_ALERTA, "SALDO PENDENTE", "ABC1D23", "Regularize no app para entrar");
+  desenharBotaoConcluir(); tft.salvar(destino + "/18-entrada-bloqueada.svg");
   assert(calibracaoTouchPlausivel(200,3700,200,3700));
   assert(calibracaoTouchPlausivel(3700,200,3700,200));
   assert(!calibracaoTouchPlausivel(200,200,200,3700));
@@ -116,5 +124,5 @@ int main(int argc, char** argv) {
   assert(x==159 && y==119);
   mapearToqueBruto(-500,8000,200,3700,200,3700,x,y);
   assert(x==0 && y==239);
-  std::puts("DisplayUI real: teclado, antirrepeticao, confirmacao, animacao e mapeamento aprovados; PIN de manutencao conferido; 16 telas exportadas.");
+  std::puts("DisplayUI real: teclado, antirrepeticao, confirmacao, animacao e mapeamento aprovados; PIN de manutencao e mensagens conferidos; 18 telas exportadas.");
 }

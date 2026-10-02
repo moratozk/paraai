@@ -220,6 +220,9 @@ RespostaTotem executar(const Solicitacao& pedido) {
   if (pedido.tipo != PedidoTotem::SAIDA) {
     if (numeroVaga != 0 || !local.isEmpty())
       return resposta(TipoResposta::ALERTA, "ENTRADA JA REGISTRADA", placa, "Use SAIDA ao terminar");
+    // Uma estadia sem saldo vira pendência; outra só depois de regularizar.
+    if (!paraai::entradaPermitida(saldo))
+      return resposta(TipoResposta::ALERTA, "SALDO PENDENTE", placa, "Regularize no app para entrar");
     estado(ConexaoTotem::PRONTO, "Verificando disponibilidade...");
     MapaVagas mapa;
     if (!configurarPatio() || !mapaVagas(mapa)) return falhaRede();
@@ -267,6 +270,7 @@ RespostaTotem executar(const Solicitacao& pedido) {
   recibo.set("fields/saida/integerValue", String(static_cast<long long>(agora)));
   recibo.set("fields/duracaoMinutos/integerValue", String(static_cast<long long>(cobranca.segundos / 60)));
   recibo.set("fields/valorCobrado/doubleValue", cobranca.valor);
+  recibo.set("fields/valorPendente/doubleValue", cobranca.pendente);
   recibo.set("fields/tarifaHora/doubleValue", congelada);
   recibo.set("fields/estacionamentoId/stringValue", ESTACIONAMENTO_ID);
   std::vector<firebase_firestore_document_write_t> lote;
@@ -276,8 +280,14 @@ RespostaTotem executar(const Solicitacao& pedido) {
   estado(ConexaoTotem::PRONTO, "Registrando saida...");
   if (!Firebase.Firestore.commitDocument(&fb, PROJECT_ID, "", lote, "")) return falhaRede();
   sincronizado = false;
+  const String minutos = String(static_cast<long long>(cobranca.segundos / 60)) + " min";
+  // Sem catraca, a saída é sempre registrada. O valor da pendência não é
+  // exibido: o saldo é do dono da placa, não de quem está no totem.
+  if (cobranca.pendente >= paraai::TOLERANCIA_SALDO)
+    return resposta(TipoResposta::ALERTA, "SAIDA COM PENDENCIA", "R$ " + valorEmReais(cobranca.valor) + " | " + minutos,
+      "Regularize no app | " + placa);
   return resposta(TipoResposta::SUCESSO, "SAIDA CONFIRMADA", "R$ " + valorEmReais(cobranca.valor),
-    String(static_cast<long long>(cobranca.segundos / 60)) + " min | " + placa);
+    minutos + " | " + placa);
 }
 
 void tarefa(void*) {
