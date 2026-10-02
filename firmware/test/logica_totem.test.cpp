@@ -1,4 +1,4 @@
-#include "../LogicaTotem.h"
+#include "../totem/LogicaTotem.h"
 #include <cassert>
 #include <cstdio>
 #include <limits>

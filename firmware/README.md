@@ -1,25 +1,29 @@
 # ParaAí — totem de atendimento
 
-Firmware Arduino para **ESP32 + ILI9341 320 × 240 + touch XPT2046**.
+Firmware Arduino para a placa **ESP32 CYD de 2,8" (ESP32-2432S028R: ILI9341
+320 × 240 + touch XPT2046)**.
 Gabinete previsto em impressão 3D; sem sensores, servo ou catraca física.
 Vaga ocupada significa **estadia registrada**, não carro detectado. A maquete
 virtual e a evolução do site ficam para a próxima etapa.
 
 ## Organização
 
-| Arquivo | Responsabilidade |
+| Caminho | Responsabilidade |
 |---|---|
-| Main.ino | Máquina de estados, eventos de toque, reconexão e manutenção |
-| DisplayUI.ino | Tela, calibração, antirrepetição e animação |
-| Atendimento.h / Atendimento.cpp | Mensagens e tarefa exclusiva do Firebase |
-| LogicaTotem.h | Validação de placa, capacidade, tarifa e cálculo de cobrança |
-| ConfiguracaoWiFi.ino | Portal local, teste da rede e persistência |
-| Credenciais.example.h | Modelo; Credenciais.h real permanece fora do Git |
-| tests/ | Regras no emulador, lógica C++ e interface com periféricos simulados |
-| Ferramentas/ | Geração das fontes existentes |
+| totem/totem.ino | Máquina de estados, eventos de toque, reconexão e manutenção |
+| totem/DisplayUI.ino | Tela, calibração, antirrepetição e animação |
+| totem/Atendimento.h / Atendimento.cpp | Mensagens e tarefa exclusiva do Firebase |
+| totem/LogicaTotem.h | Validação de placa, capacidade, tarifa e cálculo de cobrança |
+| totem/ConfiguracaoWiFi.ino | Portal local, teste da rede e persistência |
+| totem/Credenciais.example.h | Modelo; Credenciais.h real permanece fora do Git |
+| touch-calibration/ | Sketch avulso para medir o touch |
+| test/ | Lógica C++ e interface com periféricos simulados, rodando no PC |
+| tools/ | Geração das fontes existentes |
+
+As regras do Firestore e os testes delas no emulador ficam em `../firebase/`.
 
 Os módulos .ino têm guardas porque a Arduino IDE também os concatena ao
-sketch. Atendimento.cpp é compilado separadamente. tests/host só participa
+sketch. Atendimento.cpp é compilado separadamente. test/host só participa
 dos testes no computador, nunca do firmware. Sensores.ino foi removido;
 o código anterior continua recuperável no Git.
 
@@ -157,19 +161,25 @@ Referência: [operações atômicas no Firestore](https://firebase.google.com/do
 
 ## Montagem e configuração
 
-| Ligação mantida | GPIO |
+Placa: **ESP32-2432S028R ("CYD", 2,8")**, com tela e touch já ligados na
+própria placa. Pinos usados pelo firmware:
+
+| Função | GPIO |
 |---|---|
 | TFT SCLK / MOSI / MISO / CS | 14 / 13 / 12 / 15 |
 | TFT DC / LED | 2 / 21 |
 | TFT RST | EN do ESP32 (RST = -1 no código) |
-| Touch CS / CLK / DIN / DO | 33 / 25 / 32 / 36 |
+| Touch CS / CLK / DIN / OUT | 33 / 25 / 32 / 39 |
 
-Tela e touch usam SPI separado, conforme a fiação existente. Os antigos pinos
-de servo/sensores não são configurados nem acionados.
+Tela e touch usam SPI separado, como na placa. O T_IRQ (GPIO36) não é usado:
+o toque é lido por varredura. Na montagem anterior, com ESP32 e módulo de tela
+avulsos, o T_DO ficava no GPIO36; para voltar àquela fiação, trocar
+`TOUCH_MISO` para 36 no firmware e em `touch-calibration/`. Os antigos pinos de
+servo/sensores não são configurados nem acionados.
 
 Bibliotecas: Firebase ESP Client, Adafruit GFX, Adafruit ILI9341 e
 XPT2046_Touchscreen; instalar pelo Library Manager da Arduino IDE. Neste PC,
-../libraries é o cache local, ignorado pelo Git. ESP32Servo não é mais
+`libraries/`, na raiz do repositório, é o cache local, ignorado pelo Git. ESP32Servo não é mais
 dependência do firmware; a cópia antiga do cache local foi preservada.
 
 Copiar Credenciais.example.h para Credenciais.h **só se ainda não existir**,
@@ -178,7 +188,7 @@ Nunca sobrescrever um arquivo real com o modelo nem versioná-lo.
 Selecionar ESP32 Dev Module, core usado nos testes 3.3.10, partição
 **Huge APP (3MB No OTA/1MB SPIFFS)**. Não oferece atualização OTA.
 
-Antes de desenhar o gabinete 3D, medir a placa e o módulo reais. Preservar
+Antes de desenhar o gabinete 3D, medir a placa real. Preservar
 acesso USB/reset, suporte do display, espaço dos fios e fixação sem pressionar
 o touch. Recalibrar já com a tela fixada. Nenhum STL foi criado nesta etapa.
 
@@ -187,17 +197,22 @@ W/C só na inicial. Não existem comandos de catraca.
 
 ## Verificação e instalação controlada
 
-Em Main/tests, com Node 22+, Java 21+ e compilador C++17:
+Testes no PC, em `firmware/test/`, com compilador C++17:
 
 ```sh
-npm ci
-npm test
 mkdir -p .runtime
 g++ -std=c++17 -Wall -Wextra -Werror logica_totem.test.cpp -o .runtime/logica-test
 .runtime/logica-test
 g++ -std=c++17 -DARDUINO=100 -Ihost -I../../libraries/Adafruit_GFX_Library ui_totem.test.cpp ../../libraries/Adafruit_GFX_Library/Adafruit_GFX.cpp -o .runtime/ui-test
 .runtime/ui-test .runtime/preview
 node preview.mjs
+```
+
+Regras no emulador, em `firebase/test/`, com Node 22+ e Java 21+:
+
+```sh
+npm ci
+npm test
 ```
 
 No Windows, criar .runtime com New-Item, se necessário, e usar a extensão .exe.
@@ -209,14 +224,14 @@ com Adafruit_GFX e fontes reais para inspeção em http://127.0.0.1:4174.
 Periféricos são simulados: não valida ruído, pressão, alimentação, SPI, TLS
 ou calibração do painel físico.
 
-O workflow firebase-ci.yml baixa Adafruit GFX 1.12.6 do repositório oficial,
+O workflow firmware.yml baixa Adafruit GFX 1.12.6 do repositório oficial,
 fixada no commit ac6d7c3869a693d406f77b9bfcd486b0673169f0, para não depender
-do cache deste PC. Executa as três suítes e guarda as telas como artefato em
-PRs. Não usa credenciais reais, publica regras ou grava hardware.
-Compilação ESP é separada, a partir de Main/:
+do cache deste PC. Executa as suítes C++ e guarda as telas como artefato em
+PRs; as regras rodam no firebase.yml. Não usa credenciais reais, publica regras ou grava hardware.
+Compilação ESP é separada, a partir de firmware/totem/:
 
 ```sh
-arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=huge_app --libraries ../libraries --build-path .codex-build .
+arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=huge_app --libraries ../../libraries --build-path .codex-build .
 ```
 
 **Migração exige manutenção autorizada, sem atendimentos durante a troca.**

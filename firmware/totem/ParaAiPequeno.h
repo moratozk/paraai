@@ -1,4 +1,4 @@
-// Gerado por Ferramentas/gerar_fonte.py a partir de Bahnschrift 19px.
+// Gerado por firmware/tools/gerar_fonte.py a partir de Bahnschrift 19px.
 // Não editar à mão — rode o script de novo para regerar.
 #pragma once
 #include <Adafruit_GFX.h>

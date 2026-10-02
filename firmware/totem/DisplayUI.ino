@@ -25,7 +25,7 @@
 // da sinalização rodoviária). As FreeSans que vêm na biblioteca são derivadas
 // das URW de 1996 e ficam largas e mal espaçadas nesta tela; a condensada
 // cabe mais texto no mesmo espaço e se lê melhor de longe.
-// Para regerar: python Ferramentas/gerar_fonte.py
+// Para regerar: python firmware/tools/gerar_fonte.py
 #include "ParaAiGrande.h"
 #include "ParaAiMedio.h"
 #include "ParaAiPequeno.h"
@@ -38,7 +38,8 @@
 #define FONTE_PLACA   (&FreeMonoBold12pt7b)    // mono, como placa de veículo
 
 // -------------------------------------------------------------------------
-// PINOS DA TELA + TOUCH (confirmados na fiação física real)
+// PINOS DA TELA + TOUCH - placa ESP32-2432S028R ("CYD", 2,8")
+// Tela e touch já vêm ligados na própria placa; não há fiação a fazer.
 // -------------------------------------------------------------------------
 #define TFT_SCLK   14
 #define TFT_MOSI   13
@@ -49,12 +50,12 @@
 #define TFT_LED    21   // backlight - precisa ligar em HIGH por código
 #define TOUCH_CS   33
 
-// T_CLK, T_DIN e T_DO do touch são fios FISICAMENTE separados do
-// SCK/SDI/SDO da tela neste módulo - por isso usam um segundo SPI (HSPI),
-// independente do da tela (VSPI). Validado pelo TesteTouch.ino.
-#define TOUCH_SCLK 25   // T_CLK do módulo
-#define TOUCH_MOSI 32   // T_DIN do módulo (precisa ser GPIO de saída - NAO usar VN/39)
-#define TOUCH_MISO 36   // T_DO do módulo (pino "VP" do ESP32)
+// O touch tem barramento próprio na placa, separado do SCK/SDI/SDO da tela -
+// por isso usa um segundo SPI (HSPI), independente do da tela (VSPI).
+#define TOUCH_SCLK 25   // T_CLK
+#define TOUCH_MOSI 32   // T_DIN (precisa ser GPIO de saída)
+#define TOUCH_MISO 39   // T_OUT. Na montagem anterior (ESP32 + módulo avulso) era o 36;
+                        // na CYD o 36 é o T_IRQ, que não é usado: o toque é lido por varredura.
 
 #define TFT_SPI_FREQ 40000000UL
 
@@ -854,7 +855,7 @@ void definirOperacaoVisual(Operacao operacao) { operacaoVisual = operacao; }
 // MARCA
 // -------------------------------------------------------------------------
 void desenharLogoP(int cx, int cy, int lado) {
-  // Aproximação da marca (Marca/logo.png) nas primitivas do Adafruit_GFX.
+  // Aproximação da marca (docs/brand/logo.png) nas primitivas do Adafruit_GFX.
   // Aqui não dá para carregar o PNG: a tela desenha por retângulos e
   // círculos, então a marca é reconstruída — badge âmbar, haste sólida com
   // faixa tracejada por dentro, e a barriga do P.
