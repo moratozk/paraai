@@ -25,6 +25,28 @@ int main() {
   assert(!pinConfere(nullptr, "482915"));
   assert(!pinConfere("12", "12")); // PIN configurado fora do formato nunca libera.
 
+  {
+    constexpr int64_t agora = 1788800000;
+    EstadoVaga v[MAX_VAGAS + 1] = {};
+    assert(escolherVaga(v, 4, 0, agora) == 1);
+    v[1].usada = true;
+    v[2].especial = true;
+    v[3].reservadaAte = agora + 600; // reserva de outra pessoa, valendo
+    assert(escolherVaga(v, 4, 0, agora) == 4);
+    assert(escolherVaga(v, 4, 3, agora) == 3);  // a própria reserva
+    assert(escolherVaga(v, 4, 2, agora) == 2);  // especial, só por reserva
+    v[3].reservadaAte = agora;                  // venceu agora
+    assert(escolherVaga(v, 4, 0, agora) == 3);
+    v[3].usada = v[4].usada = true;
+    assert(escolherVaga(v, 4, 0, agora) == 0);  // sobra só a especial
+    assert(escolherVaga(v, 4, 1, agora) == 0);  // reservada ocupada, sem outra comum
+    assert(escolherVaga(v, 4, 9, agora) == 0);  // reserva fora da capacidade
+    assert(contarLivres(v, 4, agora) == 1);     // a especial conta como livre
+    v[2].reservadaAte = agora + 1;
+    assert(contarLivres(v, 4, agora) == 0);
+    assert(escolherVaga(nullptr, 4, 0, agora) == 0 && contarLivres(v, 0, agora) == 0);
+  }
+
   constexpr int64_t entrada = 1788800000;
   Cobranca c;
   assert(calcularCobranca(entrada, entrada + 3600, 8.5, 100, c));
@@ -58,5 +80,5 @@ int main() {
   assert(!calcularCobranca(entrada, entrada + 1, 8.5, INFINITY, c));
   assert(!calcularCobranca(entrada, entrada + 1, 8.5, NAN, c));
   assert(!calcularCobranca(std::numeric_limits<int64_t>::min(), entrada, 8.5, 100, c));
-  std::puts("LogicaTotem: placas, capacidade, tarifa, cobranca e PIN aprovados.");
+  std::puts("LogicaTotem: placas, capacidade, tarifa, cobranca, PIN e escolha de vaga aprovados.");
 }

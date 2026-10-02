@@ -33,6 +33,35 @@ inline bool pinConfere(const char* digitado, const char* esperado) {
   return digitado && pinFormatoValido(esperado) && std::strcmp(digitado, esperado) == 0;
 }
 
+// Estado de cada vaga para decidir onde o totem coloca o carro.
+struct EstadoVaga {
+  bool usada = false;         // há placa na vaga operacional
+  bool especial = false;      // PcD, idoso ou gestante (classificação da administração)
+  uint32_t reservadaAte = 0;  // segundos Unix; a reserva vale enquanto for maior que agora
+};
+
+// Vaga da entrada: a reservada pelo dono da placa, se ainda livre; senão, a
+// primeira vaga comum, livre e sem reserva valendo. Vaga especial só é usada
+// por quem a reservou no app. Retorna 0 quando não há vaga.
+inline int escolherVaga(const EstadoVaga* vagas, int capacidade, int reservada, int64_t agora) {
+  if (!vagas || capacidade < 1) return 0;
+  if (capacidade > MAX_VAGAS) capacidade = MAX_VAGAS;
+  if (reservada >= 1 && reservada <= capacidade && !vagas[reservada].usada) return reservada;
+  for (int n = 1; n <= capacidade; ++n)
+    if (!vagas[n].usada && !vagas[n].especial && vagas[n].reservadaAte <= agora) return n;
+  return 0;
+}
+
+// Vagas livres na vitrine: sem placa e sem reserva valendo.
+inline int contarLivres(const EstadoVaga* vagas, int capacidade, int64_t agora) {
+  if (!vagas || capacidade < 1) return 0;
+  if (capacidade > MAX_VAGAS) capacidade = MAX_VAGAS;
+  int livres = 0;
+  for (int n = 1; n <= capacidade; ++n)
+    if (!vagas[n].usada && vagas[n].reservadaAte <= agora) ++livres;
+  return livres;
+}
+
 // Meio centavo absorve resíduo de ponto flutuante de recargas e débitos.
 // O mesmo limite está em firestore.rules (entrada com saldo pendente).
 constexpr double TOLERANCIA_SALDO = 0.005;

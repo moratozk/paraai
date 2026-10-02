@@ -16,7 +16,6 @@ const FORM_VAZIO = {
   nome: "",
   numVagas: 20,
   tarifaHora: 5,
-  tarifaMinuto: "",
   cep: "",
   logradouro: "",
   numero: "",
@@ -30,7 +29,6 @@ function dadosFormulario(estacionamento) {
     nome: estacionamento.nome || "",
     numVagas: estacionamento.numVagas || 1,
     tarifaHora: estacionamento.tarifaHora ?? 0,
-    tarifaMinuto: estacionamento.tarifaMinuto ?? "",
     cep: estacionamento.cep || "",
     logradouro: estacionamento.logradouro || "",
     numero: estacionamento.numero || "",
@@ -217,17 +215,6 @@ export default function PainelAdmin() {
               />
             </label>
             <label className="field">
-              <span>Tarifa por minuto (opcional)</span>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={form.tarifaMinuto}
-                onChange={(event) => atualizarCampo("tarifaMinuto", event.target.value)}
-                placeholder="Ex.: 0,22"
-              />
-            </label>
-            <label className="field">
               <span>CEP</span>
               <div className="input-com-acao">
                 <input
@@ -313,11 +300,7 @@ export default function PainelAdmin() {
                 <div><span>Vagas</span><strong>{Number(item.numVagas) || 0}</strong></div>
                 <div>
                   <span>Tarifa</span>
-                  <strong>
-                    {item.tarifaMinuto !== undefined
-                      ? `${formatarMoeda(item.tarifaMinuto)}/min`
-                      : `${formatarMoeda(item.tarifaHora)}/h`}
-                  </strong>
+                  <strong>{formatarMoeda(item.tarifaHora)}/h</strong>
                 </div>
                 <div>
                   <span>Mapa livre</span>

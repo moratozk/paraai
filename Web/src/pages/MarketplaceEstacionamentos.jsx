@@ -38,8 +38,14 @@ function prepararEstacionamento(item, agora) {
     ultimaAtualizacao > 0 &&
     agora - ultimaAtualizacao < TOTEM_OFFLINE_APOS_SEGUNDOS;
   const disponibilidadePeloMapa = item.modoDisponibilidade === "mapa";
+  // Com o totem online, o número vivo do heartbeat (já sem as reservas).
+  // Offline, o último retrato publicado do mapa, quando existe.
   const leituraVagas = Number(
-    disponibilidadePeloMapa ? item.vagasLivresMapeadas : item.vagasLivres
+    online
+      ? item.vagasLivres
+      : disponibilidadePeloMapa
+        ? item.vagasLivresMapeadas
+        : NaN
   );
   const temLeitura =
     (disponibilidadePeloMapa || online) &&
@@ -47,7 +53,6 @@ function prepararEstacionamento(item, agora) {
     leituraVagas >= 0;
   const vagasLivres = temLeitura ? leituraVagas : null;
   const tarifaHora = Number(item.tarifaHora);
-  const tarifaMinuto = Number(item.tarifaMinuto);
   const endereco = montarEnderecoLinha(item);
   const pesquisavel = normalizarBusca(
     [item.nome, item.bairro, item.cidade, item.uf, item.cep, endereco].join(" ")
@@ -61,7 +66,6 @@ function prepararEstacionamento(item, agora) {
     vagasLivres,
     disponivel: temLeitura && vagasLivres > 0,
     tarifaHora: Number.isFinite(tarifaHora) ? tarifaHora : 0,
-    tarifaMinuto: Number.isFinite(tarifaMinuto) ? tarifaMinuto : null,
     endereco,
     pesquisavel,
   };
@@ -261,10 +265,8 @@ export default function MarketplaceEstacionamentos() {
                       <div>
                         <span>Tarifa</span>
                         <strong>
-                          {item.tarifaMinuto !== null
-                            ? formatarMoeda(item.tarifaMinuto)
-                            : formatarMoeda(item.tarifaHora)}
-                          <small>{item.tarifaMinuto !== null ? "/min" : "/hora"}</small>
+                          {formatarMoeda(item.tarifaHora)}
+                          <small>/hora</small>
                         </strong>
                       </div>
                       <div>
@@ -315,6 +317,7 @@ export default function MarketplaceEstacionamentos() {
                           uid: user?.uid,
                           placa,
                           saldo: Number(veiculo?.saldo) || 0,
+                          estacionado: Number(veiculo?.vagaAtual) > 0,
                         }}
                         onFechar={() => setMapaAberto(null)}
                       />

@@ -1,29 +1,61 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
-import { useVagasPublicas } from "../hooks/useParkingData";
+import { useReserva, useVagasPublicas } from "../hooks/useParkingData";
 import { obterTipoVaga } from "../utils/mapaVagas";
-import { formatarMoeda } from "../utils/format";
+import { formatarMoeda, saldoEmPendencia } from "../utils/format";
 import {
-  iniciarEstadiaApp,
-  TARIFA_MINUTO_FATEC,
-} from "../services/estadiasApp";
+  cancelarReserva,
+  DURACAO_RESERVA_S,
+  reservaAtiva,
+  reservarVaga,
+} from "../services/reservas";
 
+function horaCurta(segundos) {
+  return new Date(segundos * 1000).toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function numeroVaga(numero) {
+  return String(numero).padStart(2, "0");
+}
+
+// Mapa do estacionamento para o motorista. Reservar é gratuito e segura a
+// vaga por 30 minutos; ao chegar, o totem usa a vaga reservada e a cobrança
+// começa na entrada. Sem reserva, o totem escolhe a vaga.
 export default function MapaVagasPublico({ estacionamento, rota, motorista, onFechar }) {
   const { vagas, loading, erro } = useVagasPublicas(
     estacionamento.id,
     estacionamento.numVagas
   );
+  const { reserva } = useReserva(motorista?.uid);
   const [vagaSelecionada, setVagaSelecionada] = useState(null);
   const [etapa, setEtapa] = useState("mapa");
-  const [modoPagamento, setModoPagamento] = useState("agora");
   const [processando, setProcessando] = useState(false);
-  const [erroPagamento, setErroPagamento] = useState("");
+  const [erroReserva, setErroReserva] = useState("");
   const [resultado, setResultado] = useState(null);
-  const tarifaMinuto =
-    Number(estacionamento.tarifaMinuto) || TARIFA_MINUTO_FATEC;
+  const tarifaHora = Number(estacionamento.tarifaHora) || 0;
+  const minutosReserva = DURACAO_RESERVA_S / 60;
+  const temReserva = reservaAtiva(reserva);
 
   const metade = Math.ceil(vagas.length / 2);
+  const selecionada = vagas.find((vaga) => vaga.numero === vagaSelecionada);
+  const tipoSelecionada = selecionada
+    ? obterTipoVaga(selecionada.tipo, selecionada.numero)
+    : null;
+
+  // O que impede a reserva, explicado antes do clique.
+  const impedimento = !motorista?.placa
+    ? "Cadastre a placa do veículo em Perfil para reservar."
+    : motorista.estacionado
+      ? "Seu veículo já está estacionado. Registre a saída no totem antes de reservar outra vaga."
+      : saldoEmPendencia(motorista.saldo)
+        ? "Há um saldo pendente. Regularize em Perfil para reservar."
+        : temReserva
+          ? `Você já reservou a vaga ${numeroVaga(reserva.vaga)} até ${horaCurta(reserva.expiraEm)}. Cancele para escolher outra.`
+          : "";
 
   useEffect(() => {
     const overflowAnterior = document.body.style.overflow;
@@ -41,51 +73,69 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
   function renderizarVaga(vaga) {
     const classificacao = obterTipoVaga(vaga.tipo, vaga.numero);
     const especial = classificacao.tipo === "comum" ? null : classificacao;
-    const selecionada = vagaSelecionada === vaga.numero;
+    const escolhida = vagaSelecionada === vaga.numero;
+    const estado = vaga.ocupadaFisica
+      ? "Ocupada"
+      : vaga.reservada
+        ? "Reservada"
+        : !vaga.publicada
+          ? "Indisponível"
+          : "Livre";
+    const classes = [
+      "mapa-publico-vaga",
+      vaga.ocupadaFisica ? "ocupada" : vaga.reservada ? "reservada" : "livre",
+      !vaga.publicada ? "sem-mapa" : "",
+      especial ? especial.tipo : "",
+      escolhida ? "selecionada" : "",
+    ];
     return (
       <button
         key={vaga.id}
         type="button"
-        className={`mapa-publico-vaga ${vaga.ocupada ? "ocupada" : "livre"} ${
-          especial ? especial.tipo : ""
-        } ${selecionada ? "selecionada" : ""}`}
-        disabled={vaga.ocupada}
-        aria-pressed={selecionada}
-        aria-label={`Vaga ${vaga.numero}, ${
-          vaga.ocupada ? "ocupada" : "livre"
-        }${especial ? `, reservada para ${especial.rotulo}` : ""}`}
+        className={classes.filter(Boolean).join(" ")}
+        disabled={vaga.ocupada || !vaga.publicada}
+        aria-pressed={escolhida}
+        aria-label={`Vaga ${vaga.numero}, ${estado.toLowerCase()}${
+          especial ? `, para ${especial.rotulo}` : ""
+        }`}
         onClick={() => {
           setVagaSelecionada(vaga.numero);
-          setErroPagamento("");
-          setEtapa("pagamento");
+          setErroReserva("");
+          setEtapa("reserva");
         }}
       >
-        <span>{String(vaga.numero).padStart(2, "0")}</span>
-        <small>{vaga.ocupada ? "Ocupada" : especial?.icone || "Livre"}</small>
+        <span>{numeroVaga(vaga.numero)}</span>
+        <small>{estado === "Livre" ? especial?.icone || "Livre" : estado}</small>
       </button>
     );
   }
 
-  async function confirmarPagamento() {
-    setErroPagamento("");
-    if (!motorista?.placa) {
-      setErroPagamento("Cadastre a placa do veículo antes de escolher uma vaga.");
-      return;
-    }
+  async function confirmarReserva() {
+    setErroReserva("");
     setProcessando(true);
     try {
-      const iniciado = await iniciarEstadiaApp({
+      const reservada = await reservarVaga({
         uid: motorista.uid,
         placa: motorista.placa,
         estacionamentoId: estacionamento.id,
         vaga: vagaSelecionada,
-        modoPagamento,
-        tarifaMinuto,
       });
-      setResultado(iniciado);
+      setResultado(reservada);
       setEtapa("sucesso");
     } catch (err) {
-      setErroPagamento(err.message || "Não foi possível iniciar o estacionamento.");
+      setErroReserva(err.message);
+    } finally {
+      setProcessando(false);
+    }
+  }
+
+  async function cancelarAtual() {
+    setErroReserva("");
+    setProcessando(true);
+    try {
+      await cancelarReserva({ uid: motorista.uid, reserva });
+    } catch (err) {
+      setErroReserva(err.message);
     } finally {
       setProcessando(false);
     }
@@ -126,12 +176,13 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
             <div className="mapa-publico-topo">
               <div>
                 <strong>Escolha uma vaga</strong>
-                <span>Como em uma sala de cinema: toque em uma posição livre.</span>
+                <span>Toque em uma vaga livre para reservar por {minutosReserva} minutos.</span>
               </div>
             </div>
 
             <div className="mapa-publico-legenda" aria-label="Legenda das vagas">
               <span><i className="livre" />Livre</span>
+              <span><i className="reservada" />Reservada</span>
               <span><i className="ocupada" />Ocupada</span>
               <span><i className="pcd" />PCD</span>
               <span><i className="idoso" />60+</span>
@@ -154,11 +205,11 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
 
             <footer className="mapa-publico-rodape">
               <p className="mapa-publico-aviso">
-                Selecione uma vaga livre para continuar ao pagamento.
+                Reservar é opcional: sem reserva, o totem escolhe a vaga quando você chegar.
               </p>
             </footer>
           </div>
-        ) : etapa === "pagamento" ? (
+        ) : etapa === "reserva" ? (
           <div className="checkout-vaga">
             <button
               className="checkout-voltar"
@@ -170,92 +221,64 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
             <div className="checkout-resumo-topo">
               <div>
                 <span>Vaga escolhida</span>
-                <strong>{String(vagaSelecionada).padStart(2, "0")}</strong>
+                <strong>{numeroVaga(vagaSelecionada)}</strong>
               </div>
               <div>
-                <span>Tarifa por minuto</span>
-                <strong>{formatarMoeda(tarifaMinuto)}</strong>
+                <span>Tarifa</span>
+                <strong>{formatarMoeda(tarifaHora)}/h</strong>
               </div>
               <div>
-                <span>Saldo na carteira</span>
-                <strong>{formatarMoeda(motorista?.saldo)}</strong>
+                <span>Reserva</span>
+                <strong>{minutosReserva} min</strong>
               </div>
             </div>
 
-            <div className="checkout-explicacao">
-              <strong>Você não precisa escolher o tempo.</strong>
-              <p>
-                O cronômetro começa ao confirmar. Cada minuto iniciado acrescenta
-                {` ${formatarMoeda(tarifaMinuto)}`} e o total é fechado ao
-                encerrar a permanência.
-              </p>
-            </div>
-
-            <fieldset className="checkout-opcoes">
-              <legend>Quando deseja pagar?</legend>
-              <label className={modoPagamento === "agora" ? "selecionada" : ""}>
-                <input
-                  type="radio"
-                  name="modoPagamento"
-                  value="agora"
-                  checked={modoPagamento === "agora"}
-                  onChange={() => setModoPagamento("agora")}
-                />
-                <span>
-                  <strong>Pagar agora pelo aplicativo</strong>
-                  <small>
-                    Debita o primeiro minuto agora e o restante ao encerrar.
-                  </small>
-                </span>
-                <b>{formatarMoeda(tarifaMinuto)}</b>
-              </label>
-              <label className={modoPagamento === "depois" ? "selecionada" : ""}>
-                <input
-                  type="radio"
-                  name="modoPagamento"
-                  value="depois"
-                  checked={modoPagamento === "depois"}
-                  onChange={() => setModoPagamento("depois")}
-                />
-                <span>
-                  <strong>Pagar depois</strong>
-                  <small>O valor completo será descontado ao encerrar.</small>
-                </span>
-                <b>R$ 0,00 agora</b>
-              </label>
-            </fieldset>
-
-            {!motorista?.placa && (
+            {tipoSelecionada && tipoSelecionada.tipo !== "comum" && (
               <p className="checkout-aviso">
-                Cadastre uma placa em Perfil para usar o estacionamento.
+                Vaga para {tipoSelecionada.rotulo}: reserve somente se você tem direito a ela.
               </p>
             )}
-            {erroPagamento && <p className="error-text">{erroPagamento}</p>}
+
+            <div className="checkout-explicacao">
+              <strong>A reserva é gratuita.</strong>
+              <p>
+                Ela segura a vaga por {minutosReserva} minutos. Ao chegar, digite a
+                placa {motorista?.placa || "do veículo"} no totem: ele usa esta vaga e
+                a cobrança começa na entrada, a {formatarMoeda(tarifaHora)} por hora.
+              </p>
+            </div>
+
+            {impedimento && <p className="checkout-aviso">{impedimento}</p>}
+            {temReserva && (
+              <button
+                className="btn btn-outline btn-block"
+                type="button"
+                disabled={processando}
+                onClick={cancelarAtual}
+              >
+                Cancelar reserva da vaga {numeroVaga(reserva.vaga)}
+              </button>
+            )}
+            {erroReserva && <p className="error-text">{erroReserva}</p>}
             <button
               className="btn btn-primary btn-block"
               type="button"
-              disabled={processando || !motorista?.placa}
-              onClick={confirmarPagamento}
+              disabled={processando || Boolean(impedimento)}
+              onClick={confirmarReserva}
             >
-              {processando
-                ? "Confirmando…"
-                : modoPagamento === "agora"
-                  ? "Pagar agora e iniciar"
-                  : "Iniciar e pagar depois"}
+              {processando ? "Reservando…" : `Reservar vaga ${numeroVaga(vagaSelecionada)}`}
             </button>
             <p className="muted-note">
-              Cobrança simulada para demonstração acadêmica, usando o saldo da carteira ParaAí.
+              Projeto acadêmico: a cobrança é simulada com o saldo da carteira ParaAí.
             </p>
           </div>
         ) : (
           <div className="checkout-sucesso">
             <span aria-hidden="true">✓</span>
-            <h3>Vaga {String(vagaSelecionada).padStart(2, "0")} confirmada</h3>
+            <h3>Vaga {numeroVaga(resultado?.vaga ?? vagaSelecionada)} reservada</h3>
             <p>
-              {resultado?.valorAntecipado > 0
-                ? `${formatarMoeda(resultado.valorAntecipado)} foi descontado da carteira. `
-                : "Nenhum valor foi descontado agora. "}
-              O total continuará aumentando em {formatarMoeda(tarifaMinuto)} por minuto.
+              Válida até {resultado ? horaCurta(resultado.expiraEm) : "—"}. Ao chegar,
+              digite a placa {motorista?.placa} no totem; a cobrança começa na entrada.
             </p>
             <div className="checkout-sucesso-acoes">
               {rota && (
@@ -263,8 +286,8 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
                   Abrir rota
                 </a>
               )}
-              <Link className="btn btn-outline" to="/historico" onClick={onFechar}>
-                Acompanhar em Meus acessos
+              <Link className="btn btn-outline" to="/dashboard" onClick={onFechar}>
+                Ver no meu painel
               </Link>
             </div>
           </div>

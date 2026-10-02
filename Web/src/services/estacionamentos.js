@@ -13,10 +13,11 @@ import {
   getDocs,
   setDoc,
   serverTimestamp,
+  updateDoc,
   writeBatch,
 } from "firebase/firestore";
 import { db } from "../firebase/firebaseConfig";
-import { tipoVagaValido } from "../utils/mapaVagas";
+import { obterTipoVaga, tipoVagaValido } from "../utils/mapaVagas";
 
 // Tarifa padrão usada até o dono definir a dele no painel.
 export const TARIFA_PADRAO = 5;
@@ -45,10 +46,6 @@ function dadosPublicos(estacionamento) {
     uf: estacionamento.uf || "",
   };
 
-  const tarifaMinuto = Number(estacionamento.tarifaMinuto);
-  if (Number.isFinite(tarifaMinuto) && tarifaMinuto >= 0) {
-    dados.tarifaMinuto = tarifaMinuto;
-  }
   if (typeof estacionamento.ativo === "boolean") {
     dados.ativo = estacionamento.ativo;
   }
@@ -187,7 +184,6 @@ export async function criarEstacionamentoAdmin({
   nome,
   numVagas,
   tarifaHora = TARIFA_PADRAO,
-  tarifaMinuto = "",
   cep = "",
   logradouro = "",
   numero = "",
@@ -202,15 +198,11 @@ export async function criarEstacionamentoAdmin({
 
   const vagas = Number(numVagas);
   const hora = Number(tarifaHora);
-  const minuto = tarifaMinuto === "" ? null : Number(tarifaMinuto);
   if (!String(nome || "").trim()) throw new Error("Informe o nome.");
   if (!Number.isInteger(vagas) || vagas < 1 || vagas > 200) {
     throw new Error("Número de vagas deve ser de 1 a 200.");
   }
   if (!Number.isFinite(hora) || hora < 0) throw new Error("Tarifa por hora inválida.");
-  if (minuto !== null && (!Number.isFinite(minuto) || minuto < 0)) {
-    throw new Error("Tarifa por minuto inválida.");
-  }
 
   let id = gerarIdEstacionamento();
   while ((await getDoc(doc(db, "estacionamentos", id))).exists()) {
@@ -221,7 +213,6 @@ export async function criarEstacionamentoAdmin({
     nome: String(nome).trim(),
     numVagas: vagas,
     tarifaHora: hora,
-    ...(minuto !== null && { tarifaMinuto: minuto }),
     cep,
     logradouro,
     numero,
@@ -263,19 +254,8 @@ export async function atualizarEstacionamentoAdmin(estId, campos) {
     if (!Number.isFinite(tarifa) || tarifa < 0) throw new Error("Tarifa por hora inválida.");
     dados.tarifaHora = tarifa;
   }
-  let removerTarifaMinuto = false;
-  if (campos.tarifaMinuto !== undefined) {
-    if (campos.tarifaMinuto === "") {
-      dados.tarifaMinuto = deleteField();
-      removerTarifaMinuto = true;
-    } else {
-      const tarifa = Number(campos.tarifaMinuto);
-      if (!Number.isFinite(tarifa) || tarifa < 0) {
-        throw new Error("Tarifa por minuto inválida.");
-      }
-      dados.tarifaMinuto = tarifa;
-    }
-  }
+  // Tarifa por minuto da versão anterior: removida, o totem cobra por hora.
+  dados.tarifaMinuto = deleteField();
   if (campos.ativo !== undefined) dados.ativo = Boolean(campos.ativo);
 
   const combinado = { ...atualSnap.data(), ...campos };
@@ -283,7 +263,7 @@ export async function atualizarEstacionamentoAdmin(estId, campos) {
     ...dadosPublicos(combinado),
     atualizadoEm: serverTimestamp(),
   };
-  if (removerTarifaMinuto) dadosCatalogo.tarifaMinuto = deleteField();
+  dadosCatalogo.tarifaMinuto = deleteField();
 
   const batch = writeBatch(db);
   batch.update(doc(db, "estacionamentos", estId), dados);
@@ -293,17 +273,18 @@ export async function atualizarEstacionamentoAdmin(estId, campos) {
   await batch.commit();
 }
 
-// Publica a disponibilidade calculada pelo mapa manual. Documentos de vaga
-// ainda inexistentes representam vagas livres, como no painel do operador.
-// Os campos ficam separados do heartbeat para um totem com menos sensores não
-// sobrescrever a disponibilidade das 20 vagas mapeadas da demonstração.
+// Publica o mapa do app a partir das vagas do totem. Grava também o tipo de
+// cada vaga (inclusive os padrões da demonstração), porque o totem só deixa
+// vagas especiais para quem as reservou e lê o tipo deste documento. A
+// reserva (reservadaAte) é do app e não é tocada aqui.
 export async function publicarMapaVagas(estId) {
   if (!estId) throw new Error("Estacionamento inválido.");
 
   const estacionamentoRef = doc(db, "estacionamentos", estId);
-  const [estacionamentoSnap, vagasSnap] = await Promise.all([
+  const [estacionamentoSnap, vagasSnap, publicasSnap] = await Promise.all([
     getDoc(estacionamentoRef),
     getDocs(collection(db, "estacionamentos", estId, "vagas")),
+    getDocs(collection(db, "catalogoEstacionamentos", estId, "vagas")),
   ]);
 
   if (!estacionamentoSnap.exists()) {
@@ -315,9 +296,13 @@ export async function publicarMapaVagas(estId) {
   const vagasOcupadas = new Set();
   vagasSnap.forEach((vaga) => {
     const numero = Number(vaga.id);
-    if (numero >= 1 && numero <= numVagas && vaga.data().ocupada === true) {
+    if (numero >= 1 && numero <= numVagas && String(vaga.data().placa || "") !== "") {
       vagasOcupadas.add(numero);
     }
+  });
+  const tiposPublicados = {};
+  publicasSnap.forEach((vaga) => {
+    tiposPublicados[vaga.id] = vaga.data().tipo;
   });
 
   const disponibilidade = {
@@ -339,33 +324,16 @@ export async function publicarMapaVagas(estId) {
   for (let numero = 1; numero <= numVagas; numero += 1) {
     batch.set(
       doc(db, "catalogoEstacionamentos", estId, "vagas", String(numero)),
-      { ocupada: vagasOcupadas.has(numero) },
+      {
+        ocupada: vagasOcupadas.has(numero),
+        tipo: obterTipoVaga(tiposPublicados[String(numero)], numero).tipo,
+      },
       { merge: true }
     );
   }
   await batch.commit();
 
   return disponibilidade.vagasLivresMapeadas;
-}
-
-// Controle manual usado na apresentação e em contingência quando o pátio não
-// está com os sensores ligados. A subcoleção já é observada por onSnapshot,
-// portanto todos os painéis abertos refletem a mudança imediatamente.
-export async function atualizarVagaManual({ estId, numero, ocupada, placa = "" }) {
-  const numeroVaga = Number(numero);
-  if (!estId || !Number.isInteger(numeroVaga) || numeroVaga < 1 || numeroVaga > 200) {
-    throw new Error("Vaga inválida.");
-  }
-
-  await setDoc(
-    doc(db, "estacionamentos", estId, "vagas", String(numeroVaga)),
-    {
-      ocupada: Boolean(ocupada),
-      placa: ocupada ? String(placa || "").trim().toUpperCase() : "",
-    },
-    { merge: true }
-  );
-  return publicarMapaVagas(estId);
 }
 
 // Classificação editável pelo administrador. O tipo fica no documento
@@ -377,13 +345,6 @@ export async function atualizarTipoVagaAdmin({ estId, numero, tipo }) {
   }
   if (!tipoVagaValido(tipo)) throw new Error("Tipo de vaga inválido.");
 
-  const vagaOperacionalRef = doc(
-    db,
-    "estacionamentos",
-    estId,
-    "vagas",
-    String(numeroVaga)
-  );
   const vagaPublicaRef = doc(
     db,
     "catalogoEstacionamentos",
@@ -391,21 +352,16 @@ export async function atualizarTipoVagaAdmin({ estId, numero, tipo }) {
     "vagas",
     String(numeroVaga)
   );
-  const [vagaOperacional, vagaPublica] = await Promise.all([
-    getDoc(vagaOperacionalRef),
-    getDoc(vagaPublicaRef),
-  ]);
-  const ocupada = Boolean(
-    (vagaOperacional.exists() && vagaOperacional.data().ocupada) ||
-      (vagaPublica.exists() && vagaPublica.data().ocupada)
-  );
-  const batch = writeBatch(db);
-  batch.set(vagaOperacionalRef, { tipo }, { merge: true });
-  batch.set(
-    vagaPublicaRef,
-    { ocupada, tipo },
-    { merge: true }
-  );
-  await batch.commit();
+  const vagaPublica = await getDoc(vagaPublicaRef);
+  if (vagaPublica.exists()) {
+    await updateDoc(vagaPublicaRef, { tipo });
+  } else {
+    // Primeira classificação de uma vaga ainda fora do mapa público.
+    const vagaOperacional = await getDoc(
+      doc(db, "estacionamentos", estId, "vagas", String(numeroVaga))
+    );
+    const ocupada = vagaOperacional.exists() && String(vagaOperacional.data().placa || "") !== "";
+    await setDoc(vagaPublicaRef, { ocupada, tipo });
+  }
   return tipo;
 }

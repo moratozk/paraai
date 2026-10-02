@@ -501,11 +501,7 @@ export default function PainelOperador() {
         </div>
       </div>
 
-      <MapaVagas
-        estId={estId}
-        vagas={vagas}
-        nomeEstacionamento={estacionamento?.nome}
-      />
+      <MapaVagas vagas={vagas} nomeEstacionamento={estacionamento?.nome} />
 
       <div className="dashboard-grid">
         <div className="dashboard-col">

@@ -130,6 +130,13 @@ uma fotografia periódica, não uma medição física em tempo real.
 
 - **Entrada:** veículo e vaga no mesmo commit; exige ocupação coerente,
   veículo livre, estacionamento autorizado e tarifa igual à configuração.
+- **Escolha da vaga:** se o dono da placa reservou no app (`reservas/{uid}`,
+  ativa, deste pátio e válida por mais de 30 s), o totem usa a vaga reservada
+  e marca a reserva como `utilizada` no mesmo commit. Sem reserva, escolhe a
+  primeira vaga comum livre e sem reserva valendo (`reservadaAte` no mapa
+  público). Vagas PCD, 60+ e gestante só são usadas por quem as reservou.
+- **Mapa público:** a entrada grava `ocupada: true, reservadaAte: 0` e a saída
+  `ocupada: false` em `catalogoEstacionamentos/{id}/vagas/{n}`, no mesmo commit.
 - **Saída:** débito, vaga livre e recibo exclusivo no mesmo commit. Usa a
   tarifa da entrada, mesmo que o preço do painel seja alterado durante a estadia.
 - **Concorrência:** precondições updateTime/exists impedem sobrescrever recarga,

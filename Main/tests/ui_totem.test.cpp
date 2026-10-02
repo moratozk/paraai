@@ -130,7 +130,7 @@ int main(int argc, char** argv) {
        "Confira o registro no painel", "Tente novamente", "Os dados mudaram agora", "Use SAIDA ao terminar",
        "Confira os caracteres", "A entrada foi em outro local", "Nenhuma saida a registrar",
        "Regularize no app para entrar", "Regularize no app - ABC1D23", "1440 min - ABC1D23",
-       "Vaga 200 - R$ 10000,00/h", "Aguarde alguns minutos", "Reiniciando o atendimento", "999 s - Aguarde a confirmacao"})
+       "Vaga 200 - R$ 10000,00/h", "Vaga reservada 200 - R$ 10000,00/h", "Aguarde alguns minutos", "Reiniciando o atendimento", "999 s - Aguarde a confirmacao"})
     assert(cabe(ajuda, FONTE_MEDIA));
   assert(!cabe("60 min | ABC1D23", FONTE_MEDIA)); // A barra não existe na fonte.
   desenharTelaResultado(RESULTADO_ALERTA, "SAIDA COM PENDENCIA", "R$ 10000,00 em 1440 min", "Regularize no app - ABC1D23");

@@ -51,11 +51,17 @@ beforeEach(async () => {
       'totems/totem-b': { estacionamentoId: 'EST-B', ativo: true },
       'totems/totem-revogado': { estacionamentoId: 'EST-A', ativo: false },
       'users/operador-a': { role: 'operador' },
-      'users/motorista-a': { role: 'motorista' },
+      'users/motorista-a': { role: 'motorista', placa: 'ABC1D23' },
+      'users/motorista-b': { role: 'motorista', placa: 'XYZ1234' },
+      'users/admin': { role: 'admin' },
       'veiculos/ABC1D23': aberta,
       'veiculos/XYZ1234': { ...livre, ownerUid: 'motorista-b' },
       'estacionamentos/EST-A/vagas/1': { ocupada: true, placa: 'ABC1D23' },
-      'estacionamentos/EST-A/vagas/2': { ocupada: false, placa: '' }
+      'estacionamentos/EST-A/vagas/2': { ocupada: false, placa: '' },
+      // Mapa público (sem placa): ocupação espelhada pelo totem e tipo da vaga.
+      'catalogoEstacionamentos/EST-A/vagas/1': { ocupada: true, tipo: 'comum' },
+      'catalogoEstacionamentos/EST-A/vagas/2': { ocupada: false, tipo: 'comum' },
+      'catalogoEstacionamentos/EST-A/vagas/3': { ocupada: false, tipo: 'pcd' }
     })) batch.set(doc(context.firestore(), path), data);
     await batch.commit();
   });
@@ -329,6 +335,119 @@ test('REST do ESP: versão antiga não sobrescreve recarga concorrente', async (
   assert.equal((await getDoc(ref('totem-a', 'estacionamentos/EST-A/vagas/1'))).data().placa, 'ABC1D23');
   assert.equal((await rest(`/historico/ABC1D23_${entrada}`, undefined, 'motorista-a')).status, 403);
 });
+// ---------------------------------------------------------------------------
+// Reserva pelo app: gratuita, 30 min; o totem usa a vaga reservada na entrada.
+// ---------------------------------------------------------------------------
+function loteReserva(d, uid, { placa = 'XYZ1234', vaga = 2, criadaEm = agora, marcarVaga = true } = {}) {
+  const batch = writeBatch(d);
+  const expiraEm = criadaEm + 1800;
+  batch.set(doc(d, `reservas/${uid}`), {
+    ownerUid: uid, placa, estacionamentoId: 'EST-A', vaga, criadaEm, expiraEm, status: 'ativa'
+  });
+  if (marcarVaga) batch.update(doc(d, `catalogoEstacionamentos/EST-A/vagas/${vaga}`), { reservadaAte: expiraEm });
+  return { batch, expiraEm };
+}
+
+test('motorista reserva vaga livre por 30 minutos sem cobrança', async () => {
+  const d = db('motorista-b');
+  const { batch, expiraEm } = loteReserva(d, 'motorista-b');
+  await assertSucceeds(batch.commit());
+  assert.equal((await getDoc(doc(d, 'catalogoEstacionamentos/EST-A/vagas/2'))).data().reservadaAte, expiraEm);
+  assert.equal((await getDoc(doc(d, 'veiculos/XYZ1234'))).data().saldo, 100);
+});
+
+test('reserva exige vaga livre, placa da própria conta, horário atual e o mapa no mesmo lote', async () => {
+  await assertFails(loteReserva(db('motorista-b'), 'motorista-b', { vaga: 1 }).batch.commit());
+  await assertFails(loteReserva(db('motorista-b'), 'motorista-b', { marcarVaga: false }).batch.commit());
+  await assertFails(updateDoc(ref('motorista-b', 'catalogoEstacionamentos/EST-A/vagas/2'), { reservadaAte: agora + 1800 }));
+  await assertFails(loteReserva(db('motorista-b'), 'motorista-b', { criadaEm: agora - 3600 }).batch.commit());
+  await assertFails(loteReserva(db('motorista-a'), 'motorista-a', { placa: 'XYZ1234' }).batch.commit());
+  await assertFails(loteReserva(db('motorista-a'), 'motorista-b').batch.commit());
+  // Carro já estacionado (ABC1D23 tem estadia aberta) não reserva.
+  await assertFails(loteReserva(db('motorista-a'), 'motorista-a', { placa: 'ABC1D23' }).batch.commit());
+});
+
+test('vaga reservada por outra pessoa só volta a aceitar reserva quando a anterior vence', async () => {
+  const vaga2 = c => doc(c.firestore(), 'catalogoEstacionamentos/EST-A/vagas/2');
+  await env.withSecurityRulesDisabled(c => updateDoc(vaga2(c), { reservadaAte: agora + 600 }));
+  await assertFails(loteReserva(db('motorista-b'), 'motorista-b').batch.commit());
+  await env.withSecurityRulesDisabled(c => updateDoc(vaga2(c), { reservadaAte: agora - 1 }));
+  await assertSucceeds(loteReserva(db('motorista-b'), 'motorista-b').batch.commit());
+});
+
+test('pendência bloqueia reserva e cada conta tem uma reserva ativa por vez', async () => {
+  const veiculo = c => doc(c.firestore(), 'veiculos/XYZ1234');
+  await env.withSecurityRulesDisabled(c => updateDoc(veiculo(c), { saldo: -1 }));
+  await assertFails(loteReserva(db('motorista-b'), 'motorista-b').batch.commit());
+  await env.withSecurityRulesDisabled(c => updateDoc(veiculo(c), { saldo: 0 }));
+  await assertSucceeds(loteReserva(db('motorista-b'), 'motorista-b').batch.commit());
+  await assertFails(loteReserva(db('motorista-b'), 'motorista-b', { vaga: 3 }).batch.commit());
+});
+
+test('cancelar libera a vaga; ninguém libera a reserva de outra conta', async () => {
+  const d = db('motorista-b');
+  await assertSucceeds(loteReserva(d, 'motorista-b').batch.commit());
+  await assertFails(updateDoc(ref('motorista-a', 'catalogoEstacionamentos/EST-A/vagas/2'), { reservadaAte: 0 }));
+  const cancelar = writeBatch(d);
+  cancelar.update(doc(d, 'reservas/motorista-b'), { status: 'cancelada' });
+  cancelar.update(doc(d, 'catalogoEstacionamentos/EST-A/vagas/2'), { reservadaAte: 0 });
+  await assertSucceeds(cancelar.commit());
+  assert.equal((await getDoc(doc(d, 'catalogoEstacionamentos/EST-A/vagas/2'))).data().reservadaAte, 0);
+});
+
+test('totem honra a reserva: entrada na vaga reservada consome a reserva no mesmo lote', async () => {
+  await assertSucceeds(loteReserva(db('motorista-b'), 'motorista-b', { vaga: 3 }).batch.commit());
+  const d = db('totem-a');
+  const lote = writeBatch(d);
+  lote.update(doc(d, 'veiculos/XYZ1234'), { vagaAtual: 3, horaEntrada: agora, estacionamentoId: 'EST-A', tarifaHoraEntrada: 8.5 });
+  lote.set(doc(d, 'estacionamentos/EST-A/vagas/3'), vagaLogica('XYZ1234'));
+  lote.update(doc(d, 'catalogoEstacionamentos/EST-A/vagas/3'), { ocupada: true, reservadaAte: 0 });
+  lote.update(doc(d, 'reservas/motorista-b'), { status: 'utilizada' });
+  await assertSucceeds(lote.commit());
+  assert.equal((await getDoc(ref('motorista-b', 'reservas/motorista-b'))).data().status, 'utilizada');
+  assert.deepEqual((await getDoc(ref('motorista-b', 'catalogoEstacionamentos/EST-A/vagas/3'))).data(),
+    { ocupada: true, reservadaAte: 0, tipo: 'pcd' });
+});
+
+test('totem: lê só reservas do próprio pátio e não apaga reserva sem ocupar a vaga', async () => {
+  await assertSucceeds(loteReserva(db('motorista-b'), 'motorista-b', { vaga: 3 }).batch.commit());
+  await assertSucceeds(getDoc(ref('totem-a', 'reservas/motorista-b')));
+  await assertFails(getDoc(ref('totem-b', 'reservas/motorista-b')));
+  await assertSucceeds(getDoc(ref('totem-a', 'reservas/sem-reserva')));
+  await assertFails(updateDoc(ref('totem-a', 'catalogoEstacionamentos/EST-A/vagas/3'), { reservadaAte: 0 }));
+  await assertFails(updateDoc(ref('totem-b', 'reservas/motorista-b'), { status: 'utilizada' }));
+  // Sem a entrada da placa na vaga reservada, o totem não marca a reserva como usada.
+  await assertFails(updateDoc(ref('totem-a', 'reservas/motorista-b'), { status: 'utilizada' }));
+});
+
+test('mapa público: motorista lê sem placa e não muda ocupação nem tipo; admin classifica', async () => {
+  await assertSucceeds(getDoc(ref('motorista-b', 'catalogoEstacionamentos/EST-A/vagas/1')));
+  await assertFails(getDoc(ref('motorista-b', 'estacionamentos/EST-A/vagas/1')));
+  await assertFails(updateDoc(ref('motorista-b', 'catalogoEstacionamentos/EST-A/vagas/2'), { ocupada: true }));
+  await assertFails(updateDoc(ref('motorista-b', 'catalogoEstacionamentos/EST-A/vagas/2'), { tipo: 'pcd' }));
+  await assertSucceeds(updateDoc(ref('admin', 'catalogoEstacionamentos/EST-A/vagas/2'), { tipo: 'idoso' }));
+  await assertFails(updateDoc(ref('admin', 'catalogoEstacionamentos/EST-A/vagas/2'), { reservadaAte: agora + 600 }));
+  await assertFails(updateDoc(ref('admin', 'estacionamentos/EST-A/vagas/2'), { placa: 'XYZ1234', ocupada: true }));
+});
+
+test('cadastro público cria só motorista; admin edita estacionamento de outra conta', async () => {
+  await assertFails(setDoc(ref('novo-operador', 'users/novo-operador'), { role: 'operador' }));
+  await assertFails(setDoc(ref('novo-admin', 'users/novo-admin'), { role: 'admin' }));
+  await assertSucceeds(setDoc(ref('novo-motorista', 'users/novo-motorista'), { role: 'motorista' }));
+  await assertSucceeds(updateDoc(ref('admin', 'estacionamentos/EST-B'), { tarifaHora: 9 }));
+  await assertFails(updateDoc(ref('operador-a', 'estacionamentos/EST-B'), { tarifaHora: 9 }));
+});
+
+test('saída espelha a vaga livre no mapa público', async () => {
+  const d = db('totem-a');
+  const lote = loteSaida(d);
+  lote.update(doc(d, 'catalogoEstacionamentos/EST-A/vagas/1'), { ocupada: false });
+  await assertSucceeds(lote.commit());
+  assert.equal((await getDoc(doc(d, 'catalogoEstacionamentos/EST-A/vagas/1'))).data().ocupada, false);
+  // Espelho falso: vaga com placa não pode aparecer livre.
+  await assertFails(updateDoc(ref('totem-a', 'catalogoEstacionamentos/EST-A/vagas/2'), { ocupada: true }));
+});
+
 test('REST do ESP: lote com versões atuais e recibo exclusivo funciona', async () => {
   const veiculo = await rest('/veiculos/ABC1D23');
   const vaga = await rest('/estacionamentos/EST-A/vagas/1');
@@ -336,6 +455,35 @@ test('REST do ESP: lote com versões atuais e recibo exclusivo funciona', async 
     escrita('veiculos/ABC1D23', saida, { updateTime: veiculo.data.updateTime }),
     escrita('estacionamentos/EST-A/vagas/1', vagaLogica(''), { updateTime: vaga.data.updateTime }),
     escrita(`historico/ABC1D23_${entrada}`, recibo, { exists: false })
+  ] });
+  assert.equal(resultado.status, 200, JSON.stringify(resultado));
+});
+
+test('REST do ESP: entrada com reserva, mapa público e precondição exists em texto', async () => {
+  await assertSucceeds(loteReserva(db('motorista-b'), 'motorista-b').batch.commit());
+  const veiculo = await rest('/veiculos/XYZ1234');
+  const vaga = await rest('/estacionamentos/EST-A/vagas/2');
+  const reserva = await rest('/reservas/motorista-b');
+  assert.equal(reserva.status, 200, JSON.stringify(reserva));
+  const resultado = await rest(':commit', { writes: [
+    escrita('veiculos/XYZ1234', { vagaAtual: 2, horaEntrada: agora, estacionamentoId: 'EST-A', tarifaHoraEntrada: 8.5 }, { updateTime: veiculo.data.updateTime }),
+    escrita('estacionamentos/EST-A/vagas/2', vagaLogica('XYZ1234'), { updateTime: vaga.data.updateTime }),
+    escrita('catalogoEstacionamentos/EST-A/vagas/2', { ocupada: true, reservadaAte: 0 }),
+    escrita('reservas/motorista-b', { status: 'utilizada' }, { updateTime: reserva.data.updateTime })
+  ] });
+  assert.equal(resultado.status, 200, JSON.stringify(resultado));
+  // Sem reserva, o totem recebe 404 (não 403) e escolhe a vaga sozinho.
+  assert.equal((await rest('/reservas/sem-reserva')).status, 404);
+});
+
+test('REST do ESP: saída com exists em texto (formato da biblioteca) e mapa público', async () => {
+  const veiculo = await rest('/veiculos/ABC1D23');
+  const vaga = await rest('/estacionamentos/EST-A/vagas/1');
+  const resultado = await rest(':commit', { writes: [
+    escrita('veiculos/ABC1D23', saida, { updateTime: veiculo.data.updateTime }),
+    escrita('estacionamentos/EST-A/vagas/1', vagaLogica(''), { updateTime: vaga.data.updateTime }),
+    escrita(`historico/ABC1D23_${entrada}`, recibo, { exists: 'false' }),
+    escrita('catalogoEstacionamentos/EST-A/vagas/1', { ocupada: false })
   ] });
   assert.equal(resultado.status, 200, JSON.stringify(resultado));
 });

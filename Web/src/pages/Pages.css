@@ -128,10 +128,10 @@
 .marketplace-chamada-painel { justify-content: space-between; }
 .marketplace-chamada-painel > div { color: var(--text-secondary); line-height: 1.5; }
 .marketplace-chamada-painel strong { color: var(--text-primary); }
-.estadia-app-ativa { justify-content: space-between; }
-.estadia-app-ativa > div { display: grid; gap: 0.2rem; color: var(--text-secondary); }
-.estadia-app-ativa > div > strong { color: var(--text-primary); font-size: 1rem; }
-.estadia-app-ativa .stat-label { color: var(--accent-text); }
+.reserva-ativa { justify-content: space-between; }
+.reserva-ativa > div { display: grid; gap: 0.2rem; color: var(--text-secondary); }
+.reserva-ativa > div > strong { color: var(--text-primary); font-size: 1rem; }
+.reserva-ativa .stat-label { color: var(--accent-text); }
 
 /* ==========================================================================
    GRADES
@@ -1075,7 +1075,7 @@
   .valores-grid { grid-template-columns: repeat(2, 1fr); }
   .destaque-aviso,
   .marketplace-chamada-painel,
-  .estadia-app-ativa {
+  .reserva-ativa {
     align-items: stretch;
     flex-direction: column;
   }

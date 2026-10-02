@@ -125,10 +125,6 @@ service cloud.firestore {
         // antes de entrar. Meio centavo absorve resíduo de ponto flutuante.
         && resource.data.saldo is number
         && resource.data.saldo > -0.005
-        && (!('ownerUid' in resource.data)
-          || !exists(/databases/$(database)/documents/estadiasApp/$(resource.data.ownerUid))
-          || get(/databases/$(database)/documents/estadiasApp/$(resource.data.ownerUid)).data.status
-            != 'ativa')
         && (!('estacionamentoId' in resource.data)
           || resource.data.estacionamentoId == '')
         && request.resource.data.vagaAtual is int
@@ -414,175 +410,147 @@ service cloud.firestore {
             ])));
       allow delete: if adminDoSistema() || donoDoEstacionamento(estId);
 
-      // Projeção do mapa para motoristas: expõe somente livre/ocupada, nunca
-      // placa, proprietário ou credencial operacional.
+      // Projeção do mapa para motoristas: livre/ocupada, reserva e tipo da
+      // vaga, nunca placa, proprietário ou credencial operacional.
       match /vagas/{vaga} {
         allow read: if signedIn();
-        allow create, update: if (adminDoSistema() || donoDoEstacionamento(estId))
-          && vagaPublicaValida(request.resource.data);
+        // Administração e dono criam o mapa e classificam as vagas. A
+        // ocupação vem do totem; a reserva, do app.
+        allow create: if (adminDoSistema() || donoDoEstacionamento(estId))
+          && vagaPublicaValida(request.resource.data)
+          && request.resource.data.get('reservadaAte', 0) == 0;
+        allow update: if (adminDoSistema() || donoDoEstacionamento(estId))
+          && vagaPublicaValida(request.resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['ocupada', 'tipo']);
+        // Totem: espelha a vaga operacional (ocupada quando tem placa) e só
+        // apaga uma reserva ao ocupar a vaga, na entrada da placa.
+        allow create: if totemDoEstacionamento(estId)
+          && vagaPublicaValida(request.resource.data)
+          && request.resource.data.ocupada == vagaOperacionalOcupada(estId, vaga)
+          && request.resource.data.get('reservadaAte', 0) == 0;
+        allow update: if totemDoEstacionamento(estId)
+          && vagaPublicaValida(request.resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['ocupada', 'reservadaAte'])
+          && request.resource.data.ocupada == vagaOperacionalOcupada(estId, vaga)
+          && (request.resource.data.get('reservadaAte', 0)
+              == resource.data.get('reservadaAte', 0)
+            || (request.resource.data.ocupada == true
+              && request.resource.data.reservadaAte == 0));
+        // Motorista: marca a vaga da própria reserva ou a libera ao cancelar.
         allow update: if signedIn()
           && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['reservada'])
-          && (
-            (request.resource.data.reservada == true
-              && resource.data.ocupada == false
-              && getAfter(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.ownerUid
-                == request.auth.uid
-              && getAfter(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.estacionamentoId
-                == estId
-              && getAfter(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.vagaId
-                == vaga
-              && getAfter(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.status
-                == 'ativa')
-            || (request.resource.data.reservada == false
-              && get(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.ownerUid
-                == request.auth.uid
-              && get(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.estacionamentoId
-                == estId
-              && get(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.vagaId
-                == vaga
-              && get(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.status
-                == 'ativa'
-              && getAfter(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.status
-                == 'finalizada')
-          );
+            .hasOnly(['reservadaAte'])
+          && (reservaMarcaVaga(estId, vaga) || cancelamentoLiberaVaga(estId, vaga));
         allow delete: if adminDoSistema() || donoDoEstacionamento(estId);
       }
     }
 
-    match /estadiasApp/{uid} {
-      // A central administrativa cruza reservas ativas com o mapa de vagas.
-      // Motoristas continuam restritos ao próprio documento.
-      allow read: if adminDoSistema()
-        || (signedIn() && request.auth.uid == uid);
+    // Reserva pelo app: segura a vaga por 30 minutos, sem cobrar. A cobrança
+    // começa quando o totem registra a entrada pela placa. O totem usa a vaga
+    // reservada; sem reserva, escolhe a primeira vaga comum livre.
+    match /reservas/{uid} {
+      allow read: if (signedIn() && request.auth.uid == uid)
+        || adminDoSistema()
+        // O totem consulta a reserva do dono da placa digitada; sem reserva, 404.
+        || (resource == null && totemCadastrado())
+        || (resource != null && totemDoEstacionamento(resource.data.estacionamentoId));
       allow create: if signedIn() && request.auth.uid == uid
-        && estadiaAppNovaValida(uid, request.resource.data);
-      allow update: if signedIn() && request.auth.uid == uid
-        && (
-          (resource.data.status == 'finalizada'
-            && estadiaAppNovaValida(uid, request.resource.data))
-          || (resource.data.ownerUid == uid
-            && request.resource.data.ownerUid == uid
-            && resource.data.status == 'ativa'
-            && request.resource.data.status == 'finalizada'
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-              'status', 'fim', 'minutosCobrados', 'valorCobrado',
-              'valorDebitadoNaSaida', 'finalizadoEm'
-            ])
-            && request.resource.data.fim is int
-            && request.resource.data.minutosCobrados is int
-            && request.resource.data.minutosCobrados >= 1
-            && request.resource.data.valorCobrado is number
-            && request.resource.data.valorCobrado >= resource.data.tarifaMinuto
-            && request.resource.data.valorDebitadoNaSaida is number
-            && request.resource.data.valorDebitadoNaSaida >= 0
-            && request.resource.data.finalizadoEm is timestamp)
-        );
+        && reservaNovaValida(uid, request.resource.data);
+      allow update: if (signedIn() && request.auth.uid == uid
+          && (((resource.data.status != 'ativa'
+                || resource.data.expiraEm * 1000 < request.time.toMillis())
+              && reservaNovaValida(uid, request.resource.data))
+            || (resource.data.status == 'ativa'
+              && request.resource.data.status == 'cancelada'
+              && request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['status']))))
+        || totemConsomeReserva();
       allow delete: if false;
     }
 
     function vagaPublicaValida(dados) {
-      return dados.keys().hasOnly(['ocupada', 'reservada', 'tipo'])
-        && dados.keys().hasAll(['ocupada'])
+      return dados.keys().hasOnly(['ocupada', 'reservadaAte', 'reservada', 'tipo'])
         && dados.ocupada is bool
+        && (!('reservadaAte' in dados) || dados.reservadaAte is int)
+        // reservada: campo da versão anterior do app, mantido só para leitura.
         && (!('reservada' in dados) || dados.reservada is bool)
         && (!('tipo' in dados)
           || (dados.tipo is string
             && dados.tipo in ['comum', 'pcd', 'idoso', 'gestante']));
     }
 
-    function estadiaAppNovaValida(uid, dados) {
-      return dados.keys().hasOnly([
-          'ownerUid', 'placa', 'estacionamentoId', 'vaga', 'vagaId',
-          'historicoId', 'inicio', 'tarifaMinuto', 'modoPagamento',
-          'valorAntecipado', 'status', 'criadoEm'
-        ])
-        && dados.keys().hasAll([
-          'ownerUid', 'placa', 'estacionamentoId', 'vaga', 'vagaId',
-          'historicoId', 'inicio', 'tarifaMinuto', 'modoPagamento',
-          'valorAntecipado', 'status', 'criadoEm'
-        ])
-        && dados.ownerUid == uid
-        && dados.placa is string
-        && get(/databases/$(database)/documents/users/$(uid)).data.placa
-          == dados.placa
-        && get(/databases/$(database)/documents/veiculos/$(dados.placa)).data.ownerUid
-          == uid
-        && get(/databases/$(database)/documents/veiculos/$(dados.placa)).data.vagaAtual
-          == 0
-        && dados.estacionamentoId is string
-        && dados.vaga is int && dados.vaga > 0 && dados.vaga <= 200
-        && dados.vagaId is string
-        && dados.historicoId is string
-        && dados.inicio is int && dados.inicio > 0
-        && dados.tarifaMinuto is number && dados.tarifaMinuto > 0
-        && ((('tarifaMinuto' in get(/databases/$(database)/documents/catalogoEstacionamentos/$(dados.estacionamentoId)).data)
-              && dados.tarifaMinuto
-                == get(/databases/$(database)/documents/catalogoEstacionamentos/$(dados.estacionamentoId)).data.tarifaMinuto)
-          || (!('tarifaMinuto' in get(/databases/$(database)/documents/catalogoEstacionamentos/$(dados.estacionamentoId)).data)
-              && dados.tarifaMinuto == 0.22))
-        && dados.modoPagamento in ['agora', 'depois']
-        && ((dados.modoPagamento == 'agora' && dados.valorAntecipado == dados.tarifaMinuto)
-          || (dados.modoPagamento == 'depois' && dados.valorAntecipado == 0))
-        && dados.status == 'ativa'
-        && dados.criadoEm is timestamp
-        && (!('ativo' in get(/databases/$(database)/documents/catalogoEstacionamentos/$(dados.estacionamentoId)).data)
-          || get(/databases/$(database)/documents/catalogoEstacionamentos/$(dados.estacionamentoId)).data.ativo
-            == true)
-        && get(/databases/$(database)/documents/catalogoEstacionamentos/$(dados.estacionamentoId)/vagas/$(dados.vagaId)).data.ocupada
-          == false
-        && getAfter(/databases/$(database)/documents/catalogoEstacionamentos/$(dados.estacionamentoId)/vagas/$(dados.vagaId)).data.reservada
-          == true
-        && getAfter(/databases/$(database)/documents/historico/$(dados.historicoId)).data.ownerUid
-          == uid
-        && getAfter(/databases/$(database)/documents/historico/$(dados.historicoId)).data.status
-          == 'ativa';
+    function vagaOperacionalOcupada(estId, vaga) {
+      return getAfter(/databases/$(database)/documents/estacionamentos/$(estId)/vagas/$(vaga)).data
+        .get('placa', '') != '';
     }
 
-    function historicoAppNovoValido(uid, registro, dados) {
+    // Folga maior que a do totem: o horário vem do celular ou computador.
+    function horarioProximo(segundos) {
+      return segundos is int
+        && segundos * 1000 >= request.time.toMillis() - 300000
+        && segundos * 1000 <= request.time.toMillis() + 300000;
+    }
+
+    function reservaNovaValida(uid, dados) {
+      let veiculo = get(/databases/$(database)/documents/veiculos/$(dados.placa)).data;
+      let catalogo = get(/databases/$(database)/documents/catalogoEstacionamentos/$(dados.estacionamentoId)).data;
+      let caminhoVaga = /databases/$(database)/documents/catalogoEstacionamentos/$(dados.estacionamentoId)/vagas/$(string(dados.vaga));
       return dados.keys().hasOnly([
-          'origem', 'ownerUid', 'placa', 'estacionamentoId', 'vaga',
-          'entrada', 'saida', 'duracaoMinutos', 'tarifaMinuto',
-          'modoPagamento', 'valorAntecipado', 'valorCobrado', 'status',
-          'criadoEm'
+          'ownerUid', 'placa', 'estacionamentoId', 'vaga', 'criadaEm', 'expiraEm', 'status'
         ])
-        && dados.keys().hasAll([
-          'origem', 'ownerUid', 'placa', 'estacionamentoId', 'vaga',
-          'entrada', 'saida', 'duracaoMinutos', 'tarifaMinuto',
-          'modoPagamento', 'valorAntecipado', 'valorCobrado', 'status',
-          'criadoEm'
-        ])
-        && dados.origem == 'aplicativo'
         && dados.ownerUid == uid
         && dados.placa is string
-        && get(/databases/$(database)/documents/users/$(uid)).data.placa
-          == dados.placa
-        && get(/databases/$(database)/documents/veiculos/$(dados.placa)).data.ownerUid
-          == uid
         && dados.estacionamentoId is string
-        && dados.vaga is int && dados.vaga > 0 && dados.vaga <= 200
-        && dados.entrada is int && dados.entrada > 0
-        && dados.saida == 0
-        && dados.duracaoMinutos == 0
-        && dados.tarifaMinuto is number && dados.tarifaMinuto > 0
-        && dados.tarifaMinuto
-          == getAfter(/databases/$(database)/documents/estadiasApp/$(uid)).data.tarifaMinuto
-        && dados.modoPagamento in ['agora', 'depois']
-        && ((dados.modoPagamento == 'agora' && dados.valorAntecipado == dados.tarifaMinuto)
-          || (dados.modoPagamento == 'depois' && dados.valorAntecipado == 0))
-        && dados.valorCobrado == dados.valorAntecipado
+        && dados.vaga is int && dados.vaga >= 1 && dados.vaga <= 200
         && dados.status == 'ativa'
-        && dados.criadoEm is timestamp
-        && getAfter(/databases/$(database)/documents/estadiasApp/$(uid)).data.historicoId
-          == registro
-        && getAfter(/databases/$(database)/documents/estadiasApp/$(uid)).data.placa
-          == dados.placa
-        && getAfter(/databases/$(database)/documents/estadiasApp/$(uid)).data.estacionamentoId
-          == dados.estacionamentoId
-        && getAfter(/databases/$(database)/documents/estadiasApp/$(uid)).data.vaga
-          == dados.vaga
-        && getAfter(/databases/$(database)/documents/estadiasApp/$(uid)).data.status
-          == 'ativa';
+        && horarioProximo(dados.criadaEm)
+        && dados.expiraEm == dados.criadaEm + 1800
+        && get(/databases/$(database)/documents/users/$(uid)).data.get('placa', '') == dados.placa
+        && veiculo.ownerUid == uid
+        && veiculo.vagaAtual == 0
+        // Pendência de uma saída anterior bloqueia reserva como bloqueia entrada.
+        && veiculo.saldo > -0.005
+        && catalogo.get('ativo', true) == true
+        && dados.vaga <= catalogo.numVagas
+        && get(caminhoVaga).data.ocupada == false
+        && get(caminhoVaga).data.get('reservadaAte', 0) * 1000 < request.time.toMillis()
+        && getAfter(caminhoVaga).data.reservadaAte == dados.expiraEm;
+    }
+
+    function reservaMarcaVaga(estId, vaga) {
+      let reserva = getAfter(/databases/$(database)/documents/reservas/$(request.auth.uid)).data;
+      return reserva.status == 'ativa'
+        && reserva.estacionamentoId == estId
+        && string(reserva.vaga) == vaga
+        && request.resource.data.reservadaAte == reserva.expiraEm;
+    }
+
+    // Só libera a vaga se ela ainda carrega esta reserva (outra pessoa pode
+    // ter reservado a mesma vaga depois que esta venceu).
+    function cancelamentoLiberaVaga(estId, vaga) {
+      let antes = get(/databases/$(database)/documents/reservas/$(request.auth.uid)).data;
+      return antes.status == 'ativa'
+        && antes.estacionamentoId == estId
+        && string(antes.vaga) == vaga
+        && resource.data.get('reservadaAte', 0) == antes.expiraEm
+        && getAfter(/databases/$(database)/documents/reservas/$(request.auth.uid)).data.status
+          == 'cancelada'
+        && request.resource.data.reservadaAte == 0;
+    }
+
+    // O totem marca a reserva como usada no mesmo lote da entrada da placa,
+    // na vaga reservada e antes de ela vencer.
+    function totemConsomeReserva() {
+      let veiculoDepois = getAfter(/databases/$(database)/documents/veiculos/$(resource.data.placa)).data;
+      return totemDoEstacionamento(resource.data.estacionamentoId)
+        && resource.data.status == 'ativa'
+        && resource.data.expiraEm * 1000 >= request.time.toMillis()
+        && request.resource.data.status == 'utilizada'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && veiculoDepois.vagaAtual == resource.data.vaga
+        && veiculoDepois.estacionamentoId == resource.data.estacionamentoId;
     }
 
     match /totems/{totemUid} {
@@ -638,45 +606,12 @@ service cloud.firestore {
       allow read: if adminDoSistema()
         || donoDoEstacionamento(resource.data.estacionamentoId)
         || donoDoVeiculo(resource.data.placa);
-      allow create: if (totemCadastrado()
-          && historicoValido(request.resource.data)
-          && historicoCorrespondeAEstadia(request.resource.data, registro)
-          && request.resource.data.estacionamentoId
-            == get(/databases/$(database)/documents/totems/$(request.auth.uid)).data.estacionamentoId)
-        || (signedIn()
-          && historicoAppNovoValido(
-            request.auth.uid,
-            registro,
-            request.resource.data
-          ));
-      allow update: if signedIn()
-        && resource.data.origem == 'aplicativo'
-        && resource.data.ownerUid == request.auth.uid
-        && request.resource.data.ownerUid == request.auth.uid
-        && resource.data.status == 'ativa'
-        && request.resource.data.status == 'finalizada'
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'status', 'saida', 'duracaoMinutos', 'valorCobrado',
-          'valorDebitadoNaSaida', 'finalizadoEm'
-        ])
-        && request.resource.data.saida is int
-        && request.resource.data.duracaoMinutos is int
-        && request.resource.data.duracaoMinutos >= 1
-        && request.resource.data.valorCobrado is number
-        && request.resource.data.valorCobrado >= resource.data.tarifaMinuto
-        && request.resource.data.valorDebitadoNaSaida is number
-        && request.resource.data.valorDebitadoNaSaida >= 0
-        && request.resource.data.finalizadoEm is timestamp
-        && getAfter(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.historicoId
-          == registro
-        && getAfter(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.status
-          == 'finalizada'
-        && getAfter(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.fim
-          == request.resource.data.saida
-        && getAfter(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.minutosCobrados
-          == request.resource.data.duracaoMinutos
-        && getAfter(/databases/$(database)/documents/estadiasApp/$(request.auth.uid)).data.valorCobrado
-          == request.resource.data.valorCobrado;
+      allow create: if totemCadastrado()
+        && historicoValido(request.resource.data)
+        && historicoCorrespondeAEstadia(request.resource.data, registro)
+        && request.resource.data.estacionamentoId
+          == get(/databases/$(database)/documents/totems/$(request.auth.uid)).data.estacionamentoId;
+      allow update: if false;
       allow delete: if false;
     }
 

@@ -447,6 +447,10 @@
   background: var(--bg-input);
 }
 .mapa-publico-legenda i.ocupada { background: var(--danger); }
+.mapa-publico-legenda i.reservada {
+  border: 1px dashed var(--accent-text);
+  background: var(--accent-soft);
+}
 .mapa-publico-legenda i.pcd { border-color: #2878d0; background: #2878d0; }
 .mapa-publico-legenda i.idoso { border-color: #7a5bc7; background: #7a5bc7; }
 .mapa-publico-legenda i.gestante { border-color: #c24f87; background: #c24f87; }
@@ -493,6 +497,20 @@
   color: var(--danger);
   cursor: not-allowed;
   opacity: 0.72;
+}
+
+/* Reservada por outra pessoa: indisponível, mas diferente de ocupada. */
+.mapa-publico-vaga.reservada {
+  border-style: dashed;
+  border-color: var(--accent-text);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  cursor: not-allowed;
+}
+/* Vaga ainda sem documento no mapa público: não aceita reserva. */
+.mapa-publico-vaga.sem-mapa {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .mapa-publico-vaga.pcd {

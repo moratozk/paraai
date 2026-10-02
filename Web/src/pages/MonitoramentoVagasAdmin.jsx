@@ -4,15 +4,10 @@ import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import {
   useEstacionamento,
-  useEstadiasAppAdmin,
   useVagas,
   useVagasPublicas,
 } from "../hooks/useParkingData";
-import {
-  formatarDataHora,
-  formatarDuracaoAoVivo,
-  formatarMoeda,
-} from "../utils/format";
+import { formatarDataHora, formatarDuracaoAoVivo } from "../utils/format";
 import { atualizarTipoVagaAdmin } from "../services/estacionamentos";
 import { obterTipoVaga, TIPOS_VAGA_EDITAVEIS } from "../utils/mapaVagas";
 import "./Pages.css";
@@ -37,8 +32,11 @@ function rotuloStatus(status) {
   return "Livre";
 }
 
-function minutosIniciados(inicio, agora) {
-  return Math.max(1, Math.ceil(Math.max(0, agora - Number(inicio || 0)) / 60));
+function horaCurta(segundos) {
+  return new Date(segundos * 1000).toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export default function MonitoramentoVagasAdmin() {
@@ -58,11 +56,6 @@ export default function MonitoramentoVagasAdmin() {
     loading: loadingPublico,
     erro: erroVagasPublicas,
   } = useVagasPublicas(estId, estacionamento?.numVagas);
-  const {
-    estadias,
-    loading: loadingEstadias,
-    erro: erroEstadias,
-  } = useEstadiasAppAdmin(estId);
   const [filtro, setFiltro] = useState("todas");
   const [busca, setBusca] = useState("");
   const [vagaSelecionada, setVagaSelecionada] = useState(null);
@@ -104,24 +97,11 @@ export default function MonitoramentoVagasAdmin() {
     };
   }, [telaCheiaAlternativa]);
 
-  const estadiasAtivas = useMemo(
-    () => estadias.filter((estadia) => estadia.status === "ativa"),
-    [estadias]
-  );
-  const estadiasPorVaga = useMemo(() => {
-    const mapa = new Map();
-    estadiasAtivas.forEach((estadia) => {
-      const id = String(estadia.vagaId || estadia.vaga || "");
-      if (id) mapa.set(id, estadia);
-    });
-    return mapa;
-  }, [estadiasAtivas]);
-
+  // Ocupação vem do totem (vaga operacional); reserva, do app (projeção pública).
   const vagas = useMemo(
     () =>
       vagasOperacionais.map((operacional, indice) => {
         const publica = vagasPublicas[indice] || {};
-        const estadia = estadiasPorVaga.get(operacional.id) || null;
         const ocupada = Boolean(operacional.ocupada || publica.ocupadaFisica);
         const classificacao = obterTipoVaga(
           operacional.tipo || publica.tipo,
@@ -130,14 +110,14 @@ export default function MonitoramentoVagasAdmin() {
         return {
           ...operacional,
           ocupada,
-          reservada: !ocupada && Boolean(publica.reservada || estadia),
-          placa: operacional.placa || estadia?.placa || "",
-          estadia,
+          reservada: !ocupada && Boolean(publica.reservada),
+          reservadaAte: Number(publica.reservadaAte) || 0,
+          placa: operacional.placa || "",
           tipo: classificacao.tipo,
           especial: classificacao.tipo === "comum" ? null : classificacao,
         };
       }),
-    [estadiasPorVaga, vagasOperacionais, vagasPublicas]
+    [vagasOperacionais, vagasPublicas]
   );
 
   const resumo = useMemo(() => {
@@ -176,7 +156,7 @@ export default function MonitoramentoVagasAdmin() {
   const metade = Math.ceil(vagasComVisibilidade.length / 2);
   const selecionada = vagas.find((vaga) => vaga.id === vagaSelecionada) || null;
   const loading =
-    loadingEstacionamento || loadingOperacional || loadingPublico || loadingEstadias;
+    loadingEstacionamento || loadingOperacional || loadingPublico;
   const mapaEmTelaCheia = telaCheiaNativa || telaCheiaAlternativa;
 
   if (!admin) return <Navigate to="/dashboard" replace />;
@@ -339,8 +319,8 @@ export default function MonitoramentoVagasAdmin() {
         </span>
       </div>
 
-      {(erroVagasPublicas || erroEstadias) && (
-        <p className="error-text" role="alert">{erroVagasPublicas || erroEstadias}</p>
+      {erroVagasPublicas && (
+        <p className="error-text" role="alert">{erroVagasPublicas}</p>
       )}
 
       {loading ? (
@@ -418,23 +398,22 @@ export default function MonitoramentoVagasAdmin() {
                   </div>
                   <div>
                     <dt>Origem</dt>
-                    <dd>{selecionada.estadia ? "Reserva pelo aplicativo" : selecionada.ocupada ? "Sensor ou controle local" : "—"}</dd>
+                    <dd>
+                      {selecionada.ocupada
+                        ? "Entrada registrada no totem"
+                        : selecionada.reservada
+                          ? "Reserva pelo aplicativo"
+                          : "—"}
+                    </dd>
                   </div>
-                  {selecionada.estadia && (
-                    <>
-                      <div>
-                        <dt>Tempo</dt>
-                        <dd>{formatarDuracaoAoVivo(agora - Number(selecionada.estadia.inicio || agora))}</dd>
-                      </div>
-                      <div>
-                        <dt>Valor atual</dt>
-                        <dd>{formatarMoeda(minutosIniciados(selecionada.estadia.inicio, agora) * Number(selecionada.estadia.tarifaMinuto || 0))}</dd>
-                      </div>
-                      <div>
-                        <dt>Pagamento</dt>
-                        <dd>{selecionada.estadia.modoPagamento === "agora" ? "Primeiro minuto antecipado" : "Cobrança na saída"}</dd>
-                      </div>
-                    </>
+                  {selecionada.reservada && (
+                    <div>
+                      <dt>Reserva</dt>
+                      <dd>
+                        até {horaCurta(selecionada.reservadaAte)} (faltam{" "}
+                        {formatarDuracaoAoVivo(Math.max(0, selecionada.reservadaAte - agora))})
+                      </dd>
+                    </div>
                   )}
                 </dl>
                 <form className="monitor-tipo-editor" onSubmit={salvarTipoVaga}>
@@ -512,8 +491,12 @@ export default function MonitoramentoVagasAdmin() {
                   <button type="button" key={vaga.id} onClick={() => selecionarVaga(vaga)}>
                     <strong>Vaga {String(vaga.numero).padStart(2, "0")}</strong>
                     <span className="placa-tag placa-tag-sm">{vaga.placa || "SEM PLACA"}</span>
-                    <span>{vaga.reservada ? "Reserva no aplicativo" : "Ocupação detectada"}</span>
-                    <b>{vaga.estadia ? formatarDuracaoAoVivo(agora - Number(vaga.estadia.inicio || agora)) : "Ver detalhes"}</b>
+                    <span>{vaga.reservada ? "Reserva no aplicativo" : "Entrada pelo totem"}</span>
+                    <b>
+                      {vaga.reservada
+                        ? `até ${horaCurta(vaga.reservadaAte)}`
+                        : "Ver detalhes"}
+                    </b>
                   </button>
                 ))}
             </div>

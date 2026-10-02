@@ -68,15 +68,16 @@ estacionamentos/{id}/vagas/{1..N}
                                           -- ocupação lógica registrada pelo totem
 
 catalogoEstacionamentos/{EST-XXXXXX}
-  nome, endereço, tarifaHora, tarifaMinuto?, numVagas,
+  nome, endereço, tarifaHora, numVagas,
   ultimaAtualizacao, vagasLivres          -- vitrine segura do motorista
 
-catalogoEstacionamentos/{id}/vagas/{1..N}
-  ocupada, reservada?, tipo?              -- mapa público, sem placa
+catalogoEstacionamentos/{id}/vagas/{1..N}  -- mapa público, sem placa
+  ocupada (espelho do totem), reservadaAte (fim da reserva, Unix s),
+  tipo: comum | pcd | idoso | gestante
 
-estadiasApp/{UID_MOTORISTA}
-  placa, estacionamentoId, vaga, inicio, tarifaMinuto,
-  modoPagamento, valorAntecipado, status  -- cobrança simulada pelo app
+reservas/{UID_MOTORISTA}                  -- reserva gratuita de 30 min
+  placa, estacionamentoId, vaga, criadaEm, expiraEm,
+  status: ativa | cancelada | utilizada   -- o totem usa a vaga reservada
 
 veiculos/{PLACA}                          -- GLOBAL: carteira única na rede
   ativo, vagaAtual (0=fora), horaEntrada (Unix s), saldo,
@@ -88,9 +89,8 @@ historico/{PLACA_horaEntrada}              -- novo firmware: ID da estadia
   placa, vaga, entrada, saida, duracaoMinutos, valorCobrado,
   valorPendente (parte não coberta pelo saldo), tarifaHora, estacionamentoId
 
-historico/{ID_GERADO_PELO_APP}
-  origem="aplicativo", ownerUid, placa, vaga, entrada, saida,
-  duracaoMinutos, tarifaMinuto, valorAntecipado, valorCobrado, status
+historico/{ID_GERADO_PELO_APP}             -- versão anterior (só leitura)
+  origem="aplicativo": estadias cobradas pelo app antes da reserva
 
 totems/{FIREBASE_AUTH_UID}
   estacionamentoId, nome, email, ativo       -- identidade do equipamento
@@ -135,9 +135,10 @@ antes de autorizar publicação/gravação.
   equipamentos autorizados às operações necessárias de entrada e saída.
 - A recarga de saldo é **simulada** (crédito direto no banco), sem gateway de
   pagamento.
-- A escolha e cobrança de vaga pelo aplicativo também são simuladas. O total
-  usa a tarifa por minuto do estacionamento e é debitado da carteira interna
-  quando o motorista encerra a permanência.
+- O app só reserva a vaga (grátis, 30 minutos). Na entrada, o totem usa a
+  vaga reservada; sem reserva, escolhe a primeira vaga comum livre. Vagas
+  especiais (PCD, 60+, gestante) só são usadas por quem as reservou. A
+  cobrança acontece no totem, da entrada até a saída, pela tarifa por hora.
 - O totem registra até 200 vagas lógicas, conforme a capacidade do painel.
   Não mede presença física. O simulador legado `/totem.html` não reflete o
   firmware atual.
