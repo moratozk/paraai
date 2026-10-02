@@ -117,7 +117,9 @@
   color: var(--text-secondary);
 }
 .auth-footer a { color: var(--accent-text); font-weight: 700; }
-.auth-footer a:hover { text-decoration: underline; }
+@media (hover: hover) {
+  .auth-footer a:hover { text-decoration: underline; }
+}
 
 /* ---- campo com botão dentro (mostrar/ocultar senha) ---- */
 .input-com-acao { position: relative; display: flex; }
@@ -131,14 +133,16 @@
   padding: 0.4rem 0.7rem;
   border-radius: var(--radius-sm);
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-secondary);
   transition: color 0.2s, background 0.2s;
 }
-.input-acao:hover { color: var(--accent-text); background: var(--accent-soft); }
+@media (hover: hover) {
+  .input-acao:hover { color: var(--accent-text); background: var(--accent-soft); }
+}
 
 /* ---- erro / sucesso ---- */
 .auth-page .error-text {
@@ -183,9 +187,11 @@
   text-align: left;
   transition: border-color 0.2s, background 0.2s, transform 0.2s var(--mola);
 }
-.role-option:hover, .auth-check label:hover {
-  border-color: var(--border-strong);
-  transform: translateY(-2px);
+@media (hover: hover) {
+  .role-option:hover, .auth-check label:hover {
+    border-color: var(--border-strong);
+    transform: translateY(-2px);
+  }
 }
 .role-option.active {
   border-color: var(--accent);
@@ -226,7 +232,7 @@
   font-family: var(--font-mono);
   font-size: var(--t-mini);
   font-weight: 700;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
   display: block;
@@ -284,7 +290,7 @@
 .etapa-rotulo {
   font-family: var(--font-mono);
   font-size: var(--t-mini);
-  letter-spacing: 0.14em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
@@ -299,9 +305,9 @@
   gap: 0.6rem;
   margin-top: 0.45rem;
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
@@ -345,7 +351,7 @@
 .endereco-label {
   font-family: var(--font-mono);
   font-size: var(--t-mini);
-  letter-spacing: 0.14em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
   display: block;

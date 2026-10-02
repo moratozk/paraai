@@ -33,7 +33,7 @@
   font-family: var(--font-mono);
   font-size: var(--t-mini);
   font-weight: 800;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--accent-text);
 }
@@ -140,16 +140,23 @@
   border-radius: 100px;
   background: var(--bg-input);
   color: var(--text-secondary);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 800;
   white-space: nowrap;
 }
 
-.marketplace-filtros button:hover,
 .marketplace-filtros button.ativo {
   border-color: var(--accent);
   background: var(--accent-soft);
   color: var(--accent-text);
+}
+
+@media (hover: hover) {
+  .marketplace-filtros button:hover {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent-text);
+  } 
 }
 
 .marketplace-ordem {
@@ -161,9 +168,9 @@
 
 .marketplace-ordem span {
   font-family: var(--font-mono);
-  font-size: 0.64rem;
+  font-size: 0.75rem;
   font-weight: 800;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
@@ -199,10 +206,12 @@
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.marketplace-card:hover {
-  transform: translateY(-4px);
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-card), var(--glow-accent);
+@media (hover: hover) {
+  .marketplace-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-card), var(--glow-accent);
+  } 
 }
 
 .marketplace-card-visual {
@@ -269,7 +278,7 @@
   padding: 0.3rem 0.55rem;
   border: 1px solid var(--border);
   border-radius: 100px;
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -314,15 +323,15 @@
 
 .marketplace-card-dados span {
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   font-weight: 800;
-  letter-spacing: 0.11em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
 
 .marketplace-card-dados strong { font-size: 1rem; color: var(--text-primary); }
-.marketplace-card-dados small { font-size: 0.67rem; font-weight: 500; color: var(--text-muted); }
+.marketplace-card-dados small { font-size: 0.75rem; font-weight: 500; color: var(--text-muted); }
 .marketplace-card-acoes {
   display: grid;
   gap: 0.55rem;
@@ -340,7 +349,14 @@
   backdrop-filter: blur(10px);
 }
 
+.mapa-publico-overlay { animation: fundo-escurecer var(--dur-rapida) ease-out both; }
+.mapa-publico-overlay.saindo { animation: fundo-clarear var(--dur-rapida) ease-in both; }
+@keyframes fundo-escurecer { from { opacity: 0; } }
+@keyframes fundo-clarear { to { opacity: 0; } }
+
 .mapa-publico-modal {
+  animation: modal-surgir var(--dur-mola) var(--mola-critica) both;
+  overscroll-behavior: contain;
   width: min(960px, 100%);
   max-height: calc(100dvh - clamp(1.4rem, 6vw, 4rem));
   overflow-y: auto;
@@ -393,9 +409,11 @@
   line-height: 1;
 }
 
-.mapa-publico-fechar:hover {
-  border-color: var(--accent);
-  color: var(--accent-text);
+@media (hover: hover) {
+  .mapa-publico-fechar:hover {
+    border-color: var(--accent);
+    color: var(--accent-text);
+  } 
 }
 
 .mapa-publico {
@@ -434,7 +452,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.7rem;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
 }
 
@@ -483,12 +501,20 @@
   color: var(--text-primary);
 }
 
-.mapa-publico-vaga:hover:not(:disabled),
 .mapa-publico-vaga.selecionada {
   border-color: var(--accent);
   background: var(--accent);
   color: var(--accent-contrast);
   transform: translateY(-2px);
+}
+
+@media (hover: hover) {
+  .mapa-publico-vaga:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--accent-contrast);
+    transform: translateY(-2px);
+  } 
 }
 
 .mapa-publico-vaga.ocupada {
@@ -540,7 +566,7 @@
   font-weight: 700;
   letter-spacing: -0.04em;
 }
-.mapa-publico-vaga small { font-size: 0.58rem; }
+.mapa-publico-vaga small { font-size: 0.7rem; }
 
 .mapa-publico-corredor {
   display: flex;
@@ -551,7 +577,7 @@
   border: 1px dashed var(--border-strong);
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 0.55rem;
+  font-size: 0.75rem;
   letter-spacing: 0.05em;
 }
 
@@ -600,7 +626,7 @@
 .checkout-resumo-topo span {
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -651,7 +677,7 @@
 
 .checkout-opcoes input { accent-color: var(--accent); }
 .checkout-opcoes label > span { display: grid; gap: 0.18rem; }
-.checkout-opcoes small { color: var(--text-muted); font-size: 0.72rem; }
+.checkout-opcoes small { color: var(--text-muted); font-size: 0.75rem; }
 .checkout-opcoes label > b { color: var(--accent-text); font-size: 0.78rem; text-align: right; }
 .checkout-aviso { color: var(--danger); font-size: 0.78rem; }
 
@@ -727,6 +753,8 @@
   .marketplace-lista-topo { flex-direction: column; gap: 0.25rem; }
   .mapa-publico-overlay { place-items: end center; padding: 0; }
   .mapa-publico-modal {
+    animation-name: folha-subir;
+    padding-bottom: env(safe-area-inset-bottom);
     width: 100%;
     max-height: 94dvh;
     border-radius: var(--radius) var(--radius) 0 0;
@@ -764,3 +792,21 @@
 @media (prefers-reduced-motion: reduce) {
   .marketplace-card { transition: none; }
 }
+
+@keyframes modal-surgir { from { opacity: 0; transform: translateY(12px) scale(0.97); } }
+@keyframes modal-sumir { to { opacity: 0; transform: translateY(12px) scale(0.97); } }
+@keyframes folha-subir { from { transform: translateY(100%); } }
+@keyframes folha-descer { to { transform: translateY(100%); } }
+.mapa-publico-overlay.saindo .mapa-publico-modal {
+  animation: modal-sumir var(--dur-rapida) ease-in both;
+}
+@media (max-width: 680px) {
+  .mapa-publico-overlay.saindo .mapa-publico-modal { animation-name: folha-descer; }
+}
+
+/* Vagas do mapa do app: resposta imediata ao toque. */
+.mapa-publico-vaga {
+  transition: transform var(--dur-toque) ease-out, background var(--dur-rapida),
+    border-color var(--dur-rapida), color var(--dur-rapida);
+}
+.mapa-publico-vaga:active:not(:disabled) { transform: scale(0.95); }

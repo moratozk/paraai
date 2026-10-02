@@ -113,7 +113,7 @@
   font-family: var(--font-main);
   font-size: clamp(0.95rem, 1.9vw, 1.35rem);
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-primary);
   margin-bottom: 1.6rem;
@@ -237,7 +237,9 @@
   gap: 0.4rem;
   transition: background 0.25s;
 }
-.numero:hover { background: var(--bg-solid); }
+@media (hover: hover) {
+  .numero:hover { background: var(--bg-solid); } 
+}
 
 .numero-valor {
   font-family: var(--font-display);
@@ -249,7 +251,7 @@
 .numero-rotulo {
   font-family: var(--font-mono);
   font-size: var(--t-mini);
-  letter-spacing: 0.14em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   /* --text-muted aqui dava 3.2:1 sobre o fundo da seção; o secundário passa */
   color: var(--text-secondary);
@@ -276,7 +278,9 @@
   flex-direction: column;
   transition: transform 0.3s var(--mola), border-color 0.3s;
 }
-.publico-card:hover { transform: translateY(-6px); border-color: var(--border-strong); }
+@media (hover: hover) {
+  .publico-card:hover { transform: translateY(-6px); border-color: var(--border-strong); } 
+}
 
 .publico-foto { aspect-ratio: 16 / 9; overflow: hidden; }
 .publico-foto img,
@@ -287,9 +291,11 @@
   filter: grayscale(0.5) brightness(0.8);
   transition: transform 0.6s var(--mola), filter 0.4s;
 }
-.publico-card:hover .publico-foto img {
-  transform: scale(1.06);
-  filter: grayscale(0) brightness(0.95);
+@media (hover: hover) {
+  .publico-card:hover .publico-foto img {
+    transform: scale(1.06);
+    filter: grayscale(0) brightness(0.95);
+  } 
 }
 
 .publico-corpo {
@@ -421,7 +427,9 @@
   border-radius: var(--radius-sm);
   transition: color 0.2s, background 0.2s;
 }
-.rodape-links a:hover { color: var(--accent-text); background: var(--bg-elevated); }
+@media (hover: hover) {
+  .rodape-links a:hover { color: var(--accent-text); background: var(--bg-elevated); } 
+}
 
 .rodape-base {
   display: flex;
@@ -430,7 +438,7 @@
   flex-wrap: wrap;
   padding-top: 1.5rem;
   font-size: var(--t-mini);
-  letter-spacing: 0.1em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   /* muted dava 3.4:1 aqui; o secundário passa em AA */
   color: var(--text-secondary);

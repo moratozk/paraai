@@ -130,8 +130,9 @@ export default function MarketplaceEstacionamentos() {
           <span className="marketplace-sobrelinha">Rede ParaAí</span>
           <h1>Encontre onde parar</h1>
           <p>
-            Compare tarifas, abra o mapa e escolha uma vaga livre. O valor é
-            acompanhado por minuto no seu painel.
+            Compare tarifas, veja as vagas livres no mapa e reserve a sua por
+            30 minutos, sem custo. Sem reserva, o totem escolhe a vaga quando
+            você chegar.
           </p>
         </div>
         <div className="marketplace-resumo" aria-label="Resumo da rede">

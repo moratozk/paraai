@@ -20,7 +20,7 @@ const CAPITULOS = [
     alt: "Rampa de acesso de um estacionamento coberto",
     titulo: "Chega e para",
     texto:
-      "Você digita a placa na tela da entrada. A cancela abre em segundos e o sistema já sabe qual vaga é sua.",
+      "Você digita a placa no totem da entrada. Em segundos ele confirma e mostra a sua vaga — a que você reservou no app ou a primeira livre.",
     marca: "entrada",
   },
   {
@@ -29,7 +29,7 @@ const CAPITULOS = [
     alt: "Vagas demarcadas em piso de concreto",
     titulo: "A vaga já te espera",
     texto:
-      "O sistema sabe quais vagas estão ocupadas e quais estão livres, o tempo todo. Você não precisa dar voltas procurando.",
+      "O mapa do app mostra as vagas livres em tempo real. Se quiser, reserve a sua por 30 minutos, sem custo, e vá direto para ela.",
     marca: "ocupação",
   },
   {
@@ -38,13 +38,13 @@ const CAPITULOS = [
     alt: "Vista aérea de um estacionamento com carros",
     titulo: "Sai e pronto",
     texto:
-      "Na saída, o valor do tempo que você ficou é descontado automaticamente. Nada de procurar moeda ou guardar papel.",
+      "Na saída, digite a placa de novo: o tempo que você ficou é descontado da carteira na hora. Nada de procurar moeda ou guardar papel.",
     marca: "cobrança",
   },
 ];
 
 const NUMEROS = [
-  { valor: "4s", rotulo: "da placa até a cancela abrir" },
+  { valor: "30 min", rotulo: "de reserva grátis pelo app" },
   { valor: "0", rotulo: "filas no caixa" },
   { valor: "0", rotulo: "tickets para guardar" },
   { valor: "24h", rotulo: "funcionando todo dia" },
@@ -57,7 +57,7 @@ const PARA_QUEM = [
       "Uma carteira só para todos os estacionamentos",
       "Entra digitando a placa",
       "Recibos guardados no celular",
-      "Recarrega por PIX ou cartão",
+      "Recarga da carteira pelo app (simulada no protótipo)",
     ],
     acao: { texto: "Criar conta grátis", href: "/cadastro" },
     foto: "photo-1502877338535-766e1452684a",

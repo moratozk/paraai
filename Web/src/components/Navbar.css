@@ -11,10 +11,14 @@
   transition: background 0.3s, border-color 0.3s, backdrop-filter 0.3s;
 }
 
+/* Vidro sobre o conteúdo que rola por baixo. Em vez de um traço de 1 px,
+   uma sombra curta marca onde a barra encontra o conteúdo. */
 .navbar-rolou {
-  background: color-mix(in srgb, var(--bg-primary) 88%, transparent);
-  backdrop-filter: blur(14px) saturate(140%);
-  border-bottom-color: var(--border);
+  background: color-mix(in srgb, var(--bg-primary) 82%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  backdrop-filter: blur(16px) saturate(160%);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--border) 70%, transparent),
+    0 12px 28px -24px rgba(0, 0, 0, 0.55);
 }
 @supports not (backdrop-filter: blur(1px)) {
   .navbar-rolou { background: var(--bg-primary); }
@@ -84,7 +88,9 @@
   transition: color 0.18s, background 0.18s;
   white-space: nowrap;
 }
-.navbar-links a:hover { color: var(--text-primary); background: var(--bg-elevated); }
+@media (hover: hover) {
+  .navbar-links a:hover { color: var(--text-primary); background: var(--bg-elevated); }
+}
 
 /* rota ativa: traço âmbar embaixo, como faixa pintada no solo */
 .navbar-links a.ativo { color: var(--text-primary); }
@@ -121,10 +127,12 @@
   transition: border-color 0.18s, color 0.18s, background 0.18s;
 }
 .theme-toggle svg { width: 17px; height: 17px; }
-.theme-toggle:hover {
-  border-color: var(--accent);
-  color: var(--accent-text);
-  background: var(--accent-soft);
+@media (hover: hover) {
+  .theme-toggle:hover {
+    border-color: var(--accent);
+    color: var(--accent-text);
+    background: var(--accent-soft);
+  }
 }
 
 /* ==========================================================================
@@ -142,7 +150,10 @@
   background: var(--bg-elevated);
   transition: border-color 0.2s, background 0.2s;
 }
-.conta-botao:hover, .conta-botao.aberto { border-color: var(--accent); }
+.conta-botao.aberto { border-color: var(--accent); }
+@media (hover: hover) {
+  .conta-botao:hover { border-color: var(--accent); }
+}
 
 .avatar {
   width: 34px;
@@ -165,13 +176,13 @@
 .user-name { font-size: 0.85rem; font-weight: 700; }
 .user-papel {
   font-family: var(--font-mono);
-  font-size: 0.66rem;
-  letter-spacing: 0.1em;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
 
-.conta-seta { font-size: 0.7rem; color: var(--text-muted); transition: transform 0.25s; }
+.conta-seta { font-size: 0.75rem; color: var(--text-muted); transition: transform 0.25s; }
 .conta-seta.girada { transform: rotate(180deg); }
 
 .conta-menu {
@@ -221,11 +232,15 @@
   text-align: left;
   transition: background 0.18s, color 0.18s;
 }
-.conta-menu-lista button:hover { background: var(--bg-elevated); color: var(--text-primary); }
+@media (hover: hover) {
+  .conta-menu-lista button:hover { background: var(--bg-elevated); color: var(--text-primary); }
+}
 
 .conta-menu-rodape { padding: 0.4rem; border-top: 1px solid var(--border); }
 .conta-menu-rodape .sair { color: var(--danger); }
-.conta-menu-rodape .sair:hover { background: var(--danger-soft); }
+@media (hover: hover) {
+  .conta-menu-rodape .sair:hover { background: var(--danger-soft); }
+}
 
 /* ==========================================================================
    MENU MOBILE
@@ -254,19 +269,33 @@
 .menu-hamburguer.aberto span:nth-child(2) { opacity: 0; }
 .menu-hamburguer.aberto span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
+/* Painel do menu: sai do botão (origem no topo) e volta pelo mesmo caminho.
+   Só opacidade e transform animam; a altura nunca é animada. */
 .menu-mobile {
   display: none;
-  overflow: hidden;
-  max-height: 0;
-  background: var(--bg-solid);
-  border-bottom: 1px solid transparent;
-  transition: max-height 0.35s var(--mola), border-color 0.3s;
-}
-.menu-mobile.aberto {
-  max-height: 90vh;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
   max-height: calc(100dvh - 64px);
   overflow-y: auto;
   overscroll-behavior: contain;
+  background: var(--bg-solid);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-deep);
+  transform-origin: top center;
+  opacity: 0;
+  transform: translateY(-8px) scale(0.98);
+  visibility: hidden;
+  transition: opacity var(--dur-rapida) ease-out,
+    transform var(--dur-media) var(--mola-critica), visibility 0s var(--dur-media);
+}
+.menu-mobile.aberto {
+  opacity: 1;
+  transform: none;
+  visibility: visible;
+  transition: opacity var(--dur-rapida) ease-out,
+    transform var(--dur-media) var(--mola-critica), visibility 0s;
   border-bottom-color: var(--border);
 }
 
@@ -286,7 +315,9 @@
   border-bottom: 1px solid var(--border);
   color: var(--text-secondary);
 }
-.menu-mobile-inner a:not(.btn):hover { color: var(--accent-text); }
+@media (hover: hover) {
+  .menu-mobile-inner a:not(.btn):hover { color: var(--accent-text); }
+}
 .menu-mobile-inner .btn { margin-top: 0.4rem; }
 
 .menu-mobile-user {

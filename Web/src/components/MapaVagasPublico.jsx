@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useReserva, useVagasPublicas } from "../hooks/useParkingData";
@@ -36,6 +36,7 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
   const [processando, setProcessando] = useState(false);
   const [erroReserva, setErroReserva] = useState("");
   const [resultado, setResultado] = useState(null);
+  const [saindo, setSaindo] = useState(false);
   const tarifaHora = Number(estacionamento.tarifaHora) || 0;
   const minutosReserva = DURACAO_RESERVA_S / 60;
   const temReserva = reservaAtiva(reserva);
@@ -57,18 +58,28 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
           ? `Você já reservou a vaga ${numeroVaga(reserva.vaga)} até ${horaCurta(reserva.expiraEm)}. Cancele para escolher outra.`
           : "";
 
+  // Sai pelo mesmo caminho por onde entrou; com movimento reduzido, fecha na hora.
+  const fechar = useCallback(() => {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      onFechar();
+      return;
+    }
+    setSaindo(true);
+    setTimeout(onFechar, 180);
+  }, [onFechar]);
+
   useEffect(() => {
     const overflowAnterior = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     function fecharComEsc(event) {
-      if (event.key === "Escape") onFechar();
+      if (event.key === "Escape") fechar();
     }
     window.addEventListener("keydown", fecharComEsc);
     return () => {
       document.body.style.overflow = overflowAnterior;
       window.removeEventListener("keydown", fecharComEsc);
     };
-  }, [onFechar]);
+  }, [fechar]);
 
   function renderizarVaga(vaga) {
     const classificacao = obterTipoVaga(vaga.tipo, vaga.numero);
@@ -142,7 +153,11 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
   }
 
   return createPortal(
-    <div className="mapa-publico-overlay" role="presentation" onMouseDown={onFechar}>
+    <div
+      className={`mapa-publico-overlay${saindo ? " saindo" : ""}`}
+      role="presentation"
+      onMouseDown={fechar}
+    >
       <section
         className="mapa-publico-modal"
         role="dialog"
@@ -160,7 +175,7 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
             className="mapa-publico-fechar"
             type="button"
             aria-label="Fechar mapa de vagas"
-            onClick={onFechar}
+            onClick={fechar}
             autoFocus
           >
             ×

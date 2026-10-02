@@ -54,6 +54,8 @@
   padding: 0 4px;
 }
 
-.aviso-config-fechar:hover {
-  color: var(--text-primary);
+@media (hover: hover) {
+  .aviso-config-fechar:hover {
+    color: var(--text-primary);
+  }
 }

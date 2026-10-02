@@ -87,13 +87,15 @@
   gap: 0.3rem;
   transition: border-color 0.25s;
 }
-.stat-card:hover { border-color: var(--border-strong); border-left-color: var(--accent); }
+@media (hover: hover) {
+  .stat-card:hover { border-color: var(--border-strong); border-left-color: var(--accent); }
+}
 
 .stat-label {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
@@ -233,14 +235,16 @@
   padding: 0.42rem 0.9rem;
   border-radius: 6px;
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-secondary);
   transition: background 0.2s, color 0.2s;
 }
-.segmented button:hover, .segmented-op button:hover { color: var(--text-primary); }
+@media (hover: hover) {
+  .segmented button:hover, .segmented-op button:hover { color: var(--text-primary); }
+}
 .segmented button.ativo, .segmented-op button.ativo,
 .segmented button.active, .segmented-op button.active {
   background: var(--accent);
@@ -262,8 +266,10 @@
 .ocupacao-preenchida {
   height: 100%;
   background: var(--accent);
-  transition: width 0.7s var(--mola);
+  transform-origin: left center;
+  animation: barra-encher var(--dur-mola) var(--mola-critica) both;
 }
+@keyframes barra-encher { from { transform: scaleX(0); } }
 
 /* ==========================================================================
    PÁTIO AO VIVO — cada vaga é um cartão, não texto solto
@@ -290,7 +296,9 @@
   text-align: center;
   transition: transform 0.2s var(--mola), border-color 0.2s;
 }
-.vaga-slot:hover { transform: translateY(-2px); }
+@media (hover: hover) {
+  .vaga-slot:hover { transform: translateY(-2px); }
+}
 
 .vaga-slot.free { border-top-color: var(--success); }
 .vaga-slot.occupied { border-top-color: var(--danger); }
@@ -298,9 +306,9 @@
 /* "VAGA 3" — rótulo pequeno, nunca do tamanho de um título */
 .vaga-numero {
   font-family: var(--font-mono);
-  font-size: 0.66rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
   line-height: 1;
@@ -382,10 +390,15 @@
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  transition: height 0.7s var(--mola), background 0.2s;
+  transform-origin: bottom center;
+  animation: barra-crescer var(--dur-mola) var(--mola-critica) both;
+  transition: background var(--dur-rapida);
 }
+@keyframes barra-crescer { from { transform: scaleY(0); } }
 .chart-bar.hoje { background: var(--accent); }
-.chart-col:hover .chart-bar { background: var(--accent-strong); }
+@media (hover: hover) {
+  .chart-col:hover .chart-bar { background: var(--accent-strong); }
+}
 
 /* rótulo do valor: fica ACIMA da barra, não dentro (dentro some em barra baixa) */
 .chart-bar-value {
@@ -397,7 +410,7 @@
   background: var(--accent);
   color: var(--accent-contrast);
   font-family: var(--font-mono);
-  font-size: 0.66rem;
+  font-size: 0.75rem;
   font-weight: 700;
   white-space: nowrap;
   line-height: 1.3;
@@ -405,7 +418,7 @@
 
 .chart-col-label {
   font-family: var(--font-mono);
-  font-size: 0.64rem;
+  font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-muted);
@@ -422,7 +435,7 @@
   border: 1px solid var(--border-strong);
   color: var(--text-primary);
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
@@ -430,7 +443,9 @@
   z-index: 5;
   box-shadow: var(--shadow-card);
 }
-.chart-col:hover .chart-tooltip { opacity: 1; }
+@media (hover: hover) {
+  .chart-col:hover .chart-tooltip { opacity: 1; }
+}
 
 /* ==========================================================================
    TABELAS
@@ -456,9 +471,9 @@
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--border);
   font-family: var(--font-mono);
-  font-size: 0.64rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
   text-align: left;
@@ -472,7 +487,9 @@
 }
 
 .history-table tbody tr { transition: background 0.15s; }
-.history-table tbody tr:hover { background: var(--bg-elevated); }
+@media (hover: hover) {
+  .history-table tbody tr:hover { background: var(--bg-elevated); }
+}
 .history-table tbody tr:last-child td { border-bottom: none; }
 .history-table-completa { min-width: 1040px; }
 .history-active-pill { margin-left: 0.45rem; vertical-align: middle; }
@@ -480,7 +497,7 @@
 .history-payment small {
   color: var(--text-muted);
   font-family: var(--font-body);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -502,11 +519,18 @@
   font-weight: 800;
 }
 
-.history-filters button:hover,
 .history-filters button.ativo {
   border-color: var(--accent);
   background: var(--accent-soft);
   color: var(--accent-text);
+}
+
+@media (hover: hover) {
+  .history-filters button:hover {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent-text);
+  }
 }
 
 /* ==========================================================================
@@ -521,7 +545,7 @@
   background: #f4f6f9;
   font-family: var(--font-mono);
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.06em;
   color: #0a0c11;
   line-height: 1;
   white-space: nowrap;
@@ -535,7 +559,7 @@
   margin-right: 0.5rem;
 }
 .placa-tag { font-size: 0.9rem; padding: 0.35rem 0.6rem 0.35rem 0; }
-.placa-tag-sm { font-size: 0.72rem; padding: 0.25rem 0.45rem 0.25rem 0; }
+.placa-tag-sm { font-size: 0.75rem; padding: 0.25rem 0.45rem 0.25rem 0; }
 
 .placa-form { display: flex; gap: 0.6rem; flex-wrap: wrap; }
 .placa-form input {
@@ -543,7 +567,7 @@
   min-width: 150px;
   font-family: var(--font-mono);
   font-weight: 700;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -559,9 +583,9 @@
   border: 1px solid var(--border);
   background: var(--bg-elevated);
   font-family: var(--font-mono);
-  font-size: 0.66rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-secondary);
   white-space: nowrap;
@@ -587,9 +611,9 @@
   align-items: center;
   gap: 0.4rem;
   font-family: var(--font-mono);
-  font-size: 0.64rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--success);
   white-space: nowrap;
@@ -613,7 +637,7 @@
 
 .activity-time {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   white-space: nowrap;
   margin-left: auto;
@@ -714,16 +738,16 @@
 .info-row > span:first-child,
 .info-row > strong:first-child {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
 
 .est-id {
   font-family: var(--font-mono);
-  font-size: 0.74rem;
+  font-size: 0.75rem;
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   background: var(--bg-input);
@@ -758,9 +782,11 @@
   width: 100%;
   transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
-.config-nav button:hover, .config-nav-item:hover {
-  background: var(--bg-elevated);
-  color: var(--text-primary);
+@media (hover: hover) {
+  .config-nav button:hover, .config-nav-item:hover {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+  }
 }
 .config-nav button.ativo, .config-nav-item.ativo,
 .config-nav button.active, .config-nav-item.active {
@@ -876,7 +902,9 @@
   color: var(--text-muted);
   transition: background 0.2s, color 0.2s;
 }
-.modal-fechar:hover { background: var(--bg-elevated); color: var(--text-primary); }
+@media (hover: hover) {
+  .modal-fechar:hover { background: var(--bg-elevated); color: var(--text-primary); }
+}
 
 .modal-acoes { display: flex; gap: 0.6rem; margin-top: 1.3rem; }
 .modal-acoes .btn { flex: 1; }
@@ -899,7 +927,9 @@
   text-align: center;
   transition: border-color 0.2s, background 0.2s;
 }
-.valor:hover { border-color: var(--border-strong); }
+@media (hover: hover) {
+  .valor:hover { border-color: var(--border-strong); }
+}
 .valor.ativo, .valor.active {
   border-color: var(--accent);
   background: var(--accent-soft);
@@ -931,7 +961,9 @@
   width: 100%;
   transition: border-color 0.2s, background 0.2s;
 }
-.metodo:hover { border-color: var(--border-strong); }
+@media (hover: hover) {
+  .metodo:hover { border-color: var(--border-strong); }
+}
 .metodo.ativo, .metodo.active { border-color: var(--accent); background: var(--accent-soft); }
 .metodo-icone { font-size: 1.2rem; line-height: 1; }
 
@@ -966,7 +998,7 @@
   background: var(--bg-input);
   border: 1px dashed var(--border-strong);
   font-family: var(--font-mono);
-  font-size: 0.74rem;
+  font-size: 0.75rem;
   word-break: break-all;
   color: var(--text-secondary);
   margin-bottom: 0.9rem;
@@ -1144,9 +1176,9 @@
     content: attr(data-label);
     align-self: center;
     font-family: var(--font-mono);
-    font-size: 0.62rem;
+    font-size: 0.75rem;
     font-weight: 700;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.06em;
     text-align: left;
     text-transform: uppercase;
     color: var(--text-muted);

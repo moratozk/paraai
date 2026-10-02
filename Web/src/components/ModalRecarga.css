@@ -51,9 +51,11 @@
   transition: all 0.15s ease;
 }
 
-.modal-fechar:hover {
-  color: var(--text-primary);
-  border-color: var(--border-strong);
+@media (hover: hover) {
+  .modal-fechar:hover {
+    color: var(--text-primary);
+    border-color: var(--border-strong);
+  }
 }
 
 .modal-titulo {
@@ -81,7 +83,7 @@
 }
 
 .passo {
-  font-size: 0.66rem;
+  font-size: 0.75rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.07em;
@@ -120,9 +122,11 @@
   transition: all 0.16s ease;
 }
 
-.valor-op:hover {
-  border-color: var(--accent);
-  transform: translateY(-2px);
+@media (hover: hover) {
+  .valor-op:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
 }
 
 .valor-op.ativo {
@@ -132,7 +136,7 @@
 }
 
 .valor-cifra {
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   font-weight: 800;
   color: var(--text-muted);
 }
@@ -191,7 +195,9 @@
   transition: all 0.16s ease;
 }
 
-.metodo:hover { border-color: var(--accent); }
+@media (hover: hover) {
+  .metodo:hover { border-color: var(--accent); }
+}
 
 .metodo.ativo {
   border-color: var(--accent);
@@ -255,7 +261,7 @@
   image-rendering: pixelated;
 }
 
-.qr-carregando { color: #30343c; font-size: 0.72rem; }
+.qr-carregando { color: #30343c; font-size: 0.75rem; }
 
 .pix-codigo {
   flex: 1;
@@ -267,7 +273,7 @@
 
 .pix-codigo code {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   color: var(--text-secondary);
   background: var(--bg-solid);
   border: 1px solid var(--border);
@@ -385,7 +391,7 @@
   }
 
   .passo {
-    font-size: 0.58rem;
+    font-size: 0.75rem;
     letter-spacing: 0.02em;
   }
 
