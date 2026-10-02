@@ -22,22 +22,36 @@ sempre que o projeto for aberto.
    cd paraai
    ```
 
-5. Abra no Codex a pasta **`paraai` inteira**, e não somente `Web` ou `Main`.
+5. Abra no Codex a pasta **`paraai` inteira**, e não somente `web` ou `firmware`.
 6. Para rodar o site:
 
    ```bash
-   cd Web
+   cd web
    npm install
    npm run dev
    ```
 
-7. Copie `Web/.env.example` para `Web/.env`. Os valores reais do Firebase devem
+7. Copie `web/.env.example` para `web/.env`. Os valores reais do Firebase devem
    ser enviados em canal privado; nunca pelo GitHub, pull request ou conversa
    pública.
 
-Para o firmware, copie `Main/Credenciais.example.h` para
-`Main/Credenciais.h`. Credenciais reais de Wi-Fi e do totem também ficam apenas
-no computador que grava o equipamento.
+Para o firmware, copie `firmware/totem/Credenciais.example.h` para
+`firmware/totem/Credenciais.h`. Credenciais reais de Wi-Fi e do totem também
+ficam apenas no computador que grava o equipamento.
+
+### Já tinha o projeto clonado antes da reorganização de pastas?
+
+Em 02/10/2026 as pastas ganharam nomes padrão (`Main/` virou
+`firmware/totem/` e `Web/` virou `web/`; o mapa completo está no `ESTADO.md`).
+O `git pull` move os arquivos versionados, mas o que existe só no seu
+computador fica na pasta antiga. Depois de atualizar:
+
+1. Mova `Main/Credenciais.h` para `firmware/totem/Credenciais.h`.
+2. Se a pasta do site continuar como `Web` (W maiúsculo), feche editores e
+   terminais abertos nela e renomeie para `web`; o `.env` e o `node_modules`
+   vão junto.
+3. Apague a pasta `Main/` que sobrar (só terá arquivos de build antigos).
+4. Na Arduino IDE, abra `firmware/totem/totem.ino`.
 
 ## Rotina para qualquer alteração
 

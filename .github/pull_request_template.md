@@ -14,8 +14,8 @@ Explique os passos para a outra pessoa testar.
 - [ ] Executei `npm run lint` quando alterei o site.
 - [ ] Executei `npm run build` quando alterei o site.
 - [ ] Conferi tema claro, tema escuro e celular quando alterei a interface.
-- [ ] Validei as regras quando alterei `firestore.rules`.
-- [ ] Compilei o firmware quando alterei `Main/`.
+- [ ] Validei as regras quando alterei `firebase/firestore.rules`.
+- [ ] Compilei o firmware quando alterei `firmware/`.
 - [ ] Atualizei `ESTADO.md` quando a mudança afeta decisões ou pendências.
 
 ## Firebase e hardware

@@ -9,24 +9,53 @@ coisa parou sem precisar reler o histórico. Atualizado em **02/10/2026**.
 
 Sistema acadêmico de atendimento para estacionamentos:
 
-- **`Main/`** — firmware do totem na placa CYD de 2,8" (ESP32-2432S028R:
+- **`firmware/`** — firmware do totem na placa CYD de 2,8" (ESP32-2432S028R:
   ESP32 + tela ILI9341 320×240 + touch XPT2046), sem sensores ou servo/catraca
   física; gabinete 3D ainda a projetar
-- **`Web/`** — painel React/Vite, com Firebase Auth e Firestore
+- **`web/`** — painel React/Vite, com Firebase Auth e Firestore
+- **`firebase/`** — regras do Firestore e testes no emulador
 
 O motorista registra entrada/saída por placa. O Firebase associa vaga,
 estadia e cobrança simulada. O operador acompanha pelo painel. A ocupação é
 lógica; a maquete virtual online é uma etapa futura, não implementada.
 
 Projeto acadêmico (TCC). A `main` tem a versão integrada (PR #9, unida em
-02/10/2026). Revisão atual: `claude/firmware-cyd`, troca para a placa CYD.
+02/10/2026). Revisão atual: `claude/organiza-pastas` (reorganização de pastas), feita
+sobre `claude/firmware-cyd` (placa CYD).
+
+## Reorganização de pastas (02/10/2026)
+
+As pastas ganharam nomes padrão de mercado, que dizem o que cada parte é.
+Código não mudou além de caminhos (includes dos testes, CI e `firebase.json`).
+As seções mais antigas citam os nomes anteriores; use esta tabela:
+
+| Antes | Agora |
+|---|---|
+| `Main/` (sketch) | `firmware/totem/` |
+| `Main/Main.ino` | `firmware/totem/totem.ino` |
+| `Main/README.md` | `firmware/README.md` |
+| `Main/tests/` (C++ e prévia das telas) | `firmware/test/` |
+| `Main/tests/` (regras no emulador) | `firebase/test/` |
+| `CalibracaoTouch/` | `firmware/touch-calibration/` |
+| `Ferramentas/` | `firmware/tools/` |
+| `firestore.rules`, `firebase.test.json` | `firebase/` |
+| `Web/` | `web/` |
+| `Marca/` | `docs/brand/` |
+| `COLABORACAO.md` | `CONTRIBUTING.md` |
+| `firebase-ci.yml` | `firmware.yml` e `firebase.yml` |
+| `web-ci.yml` | `web.yml` (o job "Lint e build" manteve o nome) |
+
+Os segredos locais passaram a ser ignorados pelo `.gitignore` da raiz em
+qualquer pasta (`Credenciais.h`, `.env`). Quem já tinha o projeto clonado
+precisa mover `Main/Credenciais.h` e conferir a pasta `web/` (ver
+`CONTRIBUTING.md`).
 
 ## Placa CYD de 2,8" (02/10/2026)
 
 O totem passou a usar a placa **ESP32-2432S028R ("CYD")**, que já traz a tela
 ILI9341 320×240 e o touch XPT2046 ligados. Os pinos da tela são os mesmos da
 montagem anterior; no touch, o T_OUT (MISO) fica no GPIO39 (antes 36, que na
-CYD é o T_IRQ e não é usado). Firmware e `CalibracaoTouch/` ajustados; o
+CYD é o T_IRQ e não é usado). Firmware e `firmware/touch-calibration/` ajustados; o
 assistente de calibração mede o painel novo no primeiro boot.
 **Ainda não testado na placa.**
 
@@ -256,7 +285,7 @@ o teclado antigo. O checklist físico completo está em `Main/README.md`.
 ### Site
 
 ```bash
-cd Web
+cd web
 cp .env.example .env      # e preencha com os valores do Firebase
 npm install
 npm run dev               # http://localhost:5173
@@ -266,19 +295,19 @@ Sem o `.env` o site abre mas login e dados não funcionam — ele não está no
 Git de propósito.
 
 Existe um simulador **legado** em `/totem.html`, com teclado antigo. Para
-inspecionar o firmware atual, usar Main/tests/ui_totem.test.cpp e preview.mjs,
-conforme Main/README.md. Nenhum deles é a futura maquete virtual.
+inspecionar o firmware atual, usar firmware/test/ui_totem.test.cpp e preview.mjs,
+conforme firmware/README.md. Nenhum deles é a futura maquete virtual.
 
 ### Firmware
 
 ```bash
-cp Main/Credenciais.example.h Main/Credenciais.h   # e preencha
+cp firmware/totem/Credenciais.example.h firmware/totem/Credenciais.h   # e preencha
 ```
 
 Inclui `MANUTENCAO_PIN` (PIN das configurações do totem). O Wi-Fi pode ficar
 em branco: sem rede alguma, o totem abre a configuração na própria tela.
 
-Precisa de Wi-Fi **2,4 GHz** — o ESP32 não enxerga 5 GHz. Abrir `Main/Main.ino`
+Precisa de Wi-Fi **2,4 GHz** — o ESP32 não enxerga 5 GHz. Abrir `firmware/totem/totem.ino`
 na Arduino IDE e gravar.
 
 ---
@@ -391,7 +420,7 @@ na Arduino IDE e gravar.
 verde-oliva/terracota com tipografia serifada; foi descartada pelo dono do
 projeto, que preferiu voltar ao original. Não sugerir de novo.
 
-**A logo é um arquivo, não código.** `Web/public/logo.png`. Já se tentou
+**A logo é um arquivo, não código.** `web/public/logo.png`. Já se tentou
 redesenhá-la em SVG por aproximação e o resultado nunca bateu. Para trocar,
 substitua o arquivo. A única exceção é a tela do totem, onde não dá para
 carregar PNG e a marca é reconstruída com retângulos e círculos.
@@ -476,7 +505,7 @@ sem erro. O teste `ui_totem.test.cpp` confere caracteres e largura de todas as
 mensagens; ao criar uma mensagem nova, incluí-la lá.
 
 **Regras do Firestore precisam acompanhar o site.** O arquivo
-`firestore.rules` permite que o motorista consulte uma placa inexistente antes
+`firebase/firestore.rules` permite que o motorista consulte uma placa inexistente antes
 de criá-la e limita cada totem às transições de entrada/saída do próprio
 estacionamento. Publique as regras depois que essa alteração entrar na `main`;
 sem a publicação, o erro `Missing or insufficient permissions` ao cadastrar

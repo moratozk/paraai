@@ -1,7 +1,7 @@
 #include <cassert>
 #include <cstdio>
 #include <filesystem>
-#include "../DisplayUI.ino"
+#include "../totem/DisplayUI.ino"
 
 void soltar() {
   ts.pressionado = false;
@@ -108,7 +108,7 @@ int main(int argc, char** argv) {
   desenharTelaPin("PIN INCORRETO"); tft.salvar(destino + "/15-pin-incorreto.svg");
   desenharTelaPortalWifi("ParaAi-123456", "abcDEF123456", "192.168.4.1", "Conecte pelo celular");
   tft.salvar(destino + "/16-wifi.svg");
-  // Toda mensagem do atendimento (Atendimento.cpp e Main.ino, com os maiores
+  // Toda mensagem do atendimento (Atendimento.cpp e totem.ino, com os maiores
   // valores possíveis) precisa caber na tela e usar só glifos da fonte: fora de
   // 0x20..0x7A a Adafruit_GFX simplesmente pula o caractere.
   const auto cabe = [](const char* texto, const GFXfont* fonte) {

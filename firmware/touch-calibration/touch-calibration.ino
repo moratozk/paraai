@@ -10,7 +10,7 @@
 //   2. Abra o Monitor Serial em 115200
 //   3. Toque no CENTRO de cada mira que aparecer (são 4, nos cantos)
 //   4. No fim, o Serial mostra as 4 linhas #define prontas
-//   5. Copie essas linhas para Main/DisplayUI.ino, substituindo as antigas
+//   5. Copie essas linhas para firmware/totem/DisplayUI.ino, substituindo as antigas
 //   6. Regrave o firmware principal
 //
 // Para refazer a calibração, é só gravar este sketch de novo.
@@ -173,7 +173,7 @@ void setup() {
   Serial.println();
   Serial.println("=============================================");
   Serial.println(" PRONTO! Copie as 4 linhas abaixo para o");
-  Serial.println(" arquivo Main/DisplayUI.ino (substitua as");
+  Serial.println(" arquivo firmware/totem/DisplayUI.ino (substitua as");
   Serial.println(" linhas #define TOUCH_X_MIN ... existentes)");
   Serial.println("=============================================");
   Serial.println();

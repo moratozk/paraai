@@ -43,7 +43,7 @@ claro/escuro).
 2. `copy .env.example .env` e preencha com os dados do seu projeto Firebase
    (Console > Configurações do projeto > Geral > Seus apps > app Web).
 3. No Firebase Console, habilite **Authentication (e-mail/senha)** e
-   **Firestore**; publique as regras de [`../firestore.rules`](../firestore.rules).
+   **Firestore**; publique as regras de [`../firebase/firestore.rules`](../firebase/firestore.rules).
 4. `npm run dev`
 
 ### Recuperação de senha dentro do site
@@ -84,7 +84,7 @@ src/
 
 ## Contrato de dados com o totem
 
-O modelo completo está no [README do firmware](../Main/README.md). Pontos que
+O modelo completo está no [README do firmware](../firmware/README.md). Pontos que
 o painel precisa respeitar:
 
 - Timestamps em **segundos Unix** (o totem grava assim via REST).

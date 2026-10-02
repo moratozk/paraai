@@ -25,7 +25,7 @@
 // da sinalização rodoviária). As FreeSans que vêm na biblioteca são derivadas
 // das URW de 1996 e ficam largas e mal espaçadas nesta tela; a condensada
 // cabe mais texto no mesmo espaço e se lê melhor de longe.
-// Para regerar: python Ferramentas/gerar_fonte.py
+// Para regerar: python firmware/tools/gerar_fonte.py
 #include "ParaAiGrande.h"
 #include "ParaAiMedio.h"
 #include "ParaAiPequeno.h"
@@ -855,7 +855,7 @@ void definirOperacaoVisual(Operacao operacao) { operacaoVisual = operacao; }
 // MARCA
 // -------------------------------------------------------------------------
 void desenharLogoP(int cx, int cy, int lado) {
-  // Aproximação da marca (Marca/logo.png) nas primitivas do Adafruit_GFX.
+  // Aproximação da marca (docs/brand/logo.png) nas primitivas do Adafruit_GFX.
   // Aqui não dá para carregar o PNG: a tela desenha por retângulos e
   // círculos, então a marca é reconstruída — badge âmbar, haste sólida com
   // faixa tracejada por dentro, e a barriga do P.
