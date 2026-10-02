@@ -224,9 +224,10 @@ export default function Historico() {
               </button>
             </div>
           ) : (
-          <div className="card tabela-wrap">
+          <div className="card">
+            <div className="tabela-wrap tabela-cards">
             <table
-              className={`history-table ${
+              className={`history-table responsive-table ${
                 role === "motorista" ? "history-table-completa" : ""
               }`}
             >
@@ -247,33 +248,31 @@ export default function Historico() {
                 {acessosFiltrados.map((item) => (
                   <tr key={item.id}>
                     {role === "operador" && (
-                      <td>
+                      <td data-label="Placa">
                         <span className="placa-tag placa-tag-sm">{item.placa}</span>
                       </td>
                     )}
                     {role === "motorista" && (
-                      <td>
+                      <td data-label="Estacionamento">
                         {nomesPorEstacionamento[item.estacionamentoId] ||
                           item.estacionamentoId ||
                           "Rede ParaAí"}
                       </td>
                     )}
-                    <td>
-                      Vaga {item.vaga}
-                    </td>
-                    <td>{formatarDataHora(item.entrada)}</td>
-                    <td>
+                    <td data-label="Vaga">Vaga {item.vaga}</td>
+                    <td data-label="Entrada">{formatarDataHora(item.entrada)}</td>
+                    <td data-label="Saída">
                       {item.status === "ativa"
                         ? "Em andamento"
                         : formatarDataHora(item.saida)}
                     </td>
-                    <td>
+                    <td data-label="Duração">
                       {item.status === "ativa"
                         ? formatarDuracaoAoVivo(item.cobrancaApp.segundos)
                         : formatarDuracao(item.duracaoMinutos)}
                     </td>
                     {role === "motorista" && (
-                      <td>
+                      <td data-label="Pagamento">
                         {item.origem === "aplicativo"
                           ? item.modoPagamento === "agora"
                             ? "Aplicativo · primeiro minuto antecipado"
@@ -281,37 +280,39 @@ export default function Historico() {
                           : "Carteira no totem"}
                       </td>
                     )}
-                    <td className="money history-payment">
-                      <strong>
-                        {formatarMoeda(
-                          item.status === "ativa"
-                            ? item.cobrancaApp.valorTotal
-                            : item.valorCobrado
-                        )}
-                      </strong>
-                      {item.status === "ativa" && (
-                        <small>
-                          {formatarMoeda(item.cobrancaApp.valorDescontado)} descontado ·{" "}
-                          {formatarMoeda(item.cobrancaApp.valorPendente)} a pagar
-                        </small>
-                      )}
-                      {item.origem === "aplicativo" &&
-                        item.status !== "ativa" && (
+                    <td data-label="Valor" className="money">
+                      <div className="history-payment">
+                        <strong>
+                          {formatarMoeda(
+                            item.status === "ativa"
+                              ? item.cobrancaApp.valorTotal
+                              : item.valorCobrado
+                          )}
+                        </strong>
+                        {item.status === "ativa" && (
                           <small>
-                            {formatarMoeda(item.valorCobrado)} descontado da carteira
+                            {formatarMoeda(item.cobrancaApp.valorDescontado)} descontado ·{" "}
+                            {formatarMoeda(item.cobrancaApp.valorPendente)} a pagar
                           </small>
                         )}
-                      {role === "operador" && valorPendente(item) > 0 && (
-                        <span
-                          className="status-pill warning pill-pendente"
-                          title={`${formatarMoeda(valorPendente(item))} não coberto pelo saldo`}
-                        >
-                          pendente
-                        </span>
-                      )}
+                        {item.origem === "aplicativo" &&
+                          item.status !== "ativa" && (
+                            <small>
+                              {formatarMoeda(item.valorCobrado)} descontado da carteira
+                            </small>
+                          )}
+                        {role === "operador" && valorPendente(item) > 0 && (
+                          <span
+                            className="status-pill warning pill-pendente"
+                            title={`${formatarMoeda(valorPendente(item))} não coberto pelo saldo`}
+                          >
+                            pendente
+                          </span>
+                        )}
+                      </div>
                     </td>
                     {role === "motorista" && (
-                      <td>
+                      <td data-label="Status">
                         <span
                           className={`status-pill ${
                             item.status === "ativa" || valorPendente(item) > 0
@@ -336,6 +337,7 @@ export default function Historico() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
           )}
         </>

@@ -276,6 +276,9 @@ na Arduino IDE e gravar.
 **Site**
 - Home com fotos que acompanham a rolagem, sem dependência de animação
 - Cadastro público de motorista e acesso separado para administradores
+- Layout responsivo revisado para celulares: navegação e modais roláveis,
+  formulários e ações sem compressão, cartões reorganizados e tabelas exibidas
+  como blocos legíveis em telas estreitas
 - Recuperação e redefinição de senha
 - Recarga de saldo (PIX/cartão simulados)
 - Tema claro e escuro, ambos com contraste conferido em WCAG AA

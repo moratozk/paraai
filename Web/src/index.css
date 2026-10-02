@@ -161,6 +161,7 @@ img { height: auto; }
 
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; background: none; border: none; padding: 0; }
+input, select, textarea { min-width: 0; max-width: 100%; }
 a { color: inherit; text-decoration: none; }
 
 :focus-visible {
@@ -227,7 +228,7 @@ p { text-wrap: pretty; }
 .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
 
 .container {
-  width: min(100% - 2.5rem, var(--largura));
+  width: min(calc(100% - 2.5rem), var(--largura));
   margin-inline: auto;
 }
 
@@ -435,6 +436,25 @@ input:focus, select:focus, textarea:focus {
   text-align: center;
   padding: clamp(2rem, 6vw, 4rem) 1rem;
   color: var(--text-secondary);
+}
+
+@media (max-width: 620px) {
+  .container { width: min(calc(100% - 1.5rem), var(--largura)); }
+
+  .card { padding: 1rem; }
+
+  .btn {
+    min-height: 44px;
+    max-width: 100%;
+    padding-inline: 1rem;
+    line-height: 1.25;
+    text-align: center;
+    white-space: normal;
+  }
+
+  .btn-sm { min-height: 40px; }
+  .btn-lg { padding: 0.95rem 1.15rem; }
+  .empty-state { padding: 1.75rem 0.5rem; }
 }
 
 /* ==========================================================================

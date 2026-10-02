@@ -104,6 +104,7 @@
   align-items: center;
   gap: 0.5rem;
   flex: none;
+  margin-left: auto;
 }
 
 /* Ícone em SVG, não emoji: emoji muda de forma e de tamanho conforme o
@@ -261,7 +262,13 @@
   border-bottom: 1px solid transparent;
   transition: max-height 0.35s var(--mola), border-color 0.3s;
 }
-.menu-mobile.aberto { max-height: 90vh; border-bottom-color: var(--border); }
+.menu-mobile.aberto {
+  max-height: 90vh;
+  max-height: calc(100dvh - 64px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-bottom-color: var(--border);
+}
 
 .menu-mobile-inner {
   display: flex;
@@ -305,10 +312,18 @@
   .menu-hamburguer { display: flex; }
   .menu-mobile { display: block; }
   .navbar-actions .btn { display: none; }
-  .navbar-inner { height: 64px; }
+  .navbar-inner { height: 64px; gap: 0.65rem; }
   .logo-word { font-size: 1.2rem; }
+  .conta-menu { width: min(260px, calc(100vw - 1.5rem)); }
+
+  .menu-mobile-inner a:not(.btn),
+  .menu-mobile-inner button { min-height: 44px; }
 
   /* O botão de tema continua visível no celular — é justamente onde as
      pessoas mais trocam, e enterrá-lo no hamburger esconde o controle. */
   .theme-toggle { width: 36px; height: 36px; }
+}
+
+@media (max-width: 340px) {
+  .logo-word { display: none; }
 }
