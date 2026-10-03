@@ -1,11 +1,32 @@
-# Cache global de bibliotecas Arduino (não é dependência do projeto - é a
-# pasta de bibliotecas da IDE no PC local, ~200MB de libs de outros projetos
-# também). As bibliotecas que este firmware realmente usa estão listadas em
-# Main/README.md para instalação via Library Manager.
+# Segredos locais: nunca versionar. Os modelos versionados são
+# web/.env.example e firmware/totem/Credenciais.example.h.
+Credenciais.h
+.env
+.env.local
+.env.*.local
+
+# Dependências, builds e saídas de teste
+node_modules/
+web/dist/
+firmware/**/build/
+firmware/**/.codex-build/
+.pio/
+*.bin
+*.elf
+*.map
+firmware/test/.runtime/
+firebase/test/*debug.log
+
+# Pasta de bibliotecas da Arduino IDE neste PC (~200 MB, com libs de outros
+# projetos). As que o firmware usa estão listadas em firmware/README.md.
 libraries/
 
-# Cache local criado pelo Firebase CLI durante deploys
+# Cache do Firebase CLI durante deploys
 .firebase/
+
+# Configuração local do Claude Code e ambiente de auditoria visual do site
+.claude/
+web/.auditoria/
 
 # SO / editor
 .DS_Store

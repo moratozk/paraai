@@ -1,0 +1,93 @@
+name: Verificação do firmware
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'firmware/**'
+      - '.github/workflows/firmware.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'firmware/**'
+      - '.github/workflows/firmware.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firmware-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  host-tests:
+    name: Testes do firmware no PC
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: firmware/test
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v5
+      - name: Preparar Adafruit GFX 1.12.6 para os testes
+        uses: actions/checkout@v5
+        with:
+          repository: adafruit/Adafruit-GFX-Library
+          ref: ac6d7c3869a693d406f77b9bfcd486b0673169f0
+          path: libraries/Adafruit_GFX_Library
+          persist-credentials: false
+      - name: Testar lógica C++ compartilhada com o firmware
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror logica_totem.test.cpp -o /tmp/paraai-logica-test
+          /tmp/paraai-logica-test
+      - name: Testar interface real com periféricos simulados
+        run: |
+          g++ -std=c++17 -DARDUINO=100 -Ihost -I../../libraries/Adafruit_GFX_Library ui_totem.test.cpp ../../libraries/Adafruit_GFX_Library/Adafruit_GFX.cpp -o /tmp/paraai-ui-test
+          /tmp/paraai-ui-test .runtime/preview
+      - name: Guardar telas renderizadas para revisão
+        uses: actions/upload-artifact@v4
+        with:
+          name: telas-totem
+          path: firmware/test/.runtime/preview/*.svg
+
+  firmware-build:
+    # Os testes acima rodam no PC; este job compila o .ino de verdade, como a
+    # AGENTS.md exige, usando o modelo de credenciais (sem segredo nenhum).
+    name: Compilação do firmware (ESP32 Dev Module, Huge APP)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ARDUINO_BOARD_MANAGER_ADDITIONAL_URLS: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v5
+      - name: Conferir que RaizesGoogle.h valida o Firestore
+        run: |
+          sed -n '/BEGIN CERTIFICATE/,/END CERTIFICATE/p' firmware/totem/RaizesGoogle.h > /tmp/raizes.pem
+          echo | openssl s_client -connect firestore.googleapis.com:443 \
+            -servername firestore.googleapis.com -CAfile /tmp/raizes.pem -verify_return_error 2>&1 \
+            | grep -q 'Verify return code: 0 (ok)'
+      - name: Preparar arduino-cli
+        uses: arduino/setup-arduino-cli@v2
+      - name: Reaproveitar core ESP32 e bibliotecas
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.arduino15
+            ~/Arduino/libraries
+          key: arduino-esp32-3.3.10-firebase-4.4.17-st7789-v2
+      - name: Instalar core e bibliotecas nas versões usadas no projeto
+        run: |
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32@3.3.10
+          arduino-cli lib install --no-deps \
+            "Firebase Arduino Client Library for ESP8266 and ESP32@4.4.17" \
+            "Adafruit ST7735 and ST7789 Library@1.11.0" "Adafruit GFX Library@1.12.6" \
+            "Adafruit BusIO@1.17.4" "XPT2046_Touchscreen@1.4"
+      - name: Compilar com o modelo de credenciais
+        run: |
+          cp firmware/totem/Credenciais.example.h firmware/totem/Credenciais.h
+          arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=huge_app --warnings default firmware/totem
+      - name: Compilar o sketch de calibração do toque
+        run: arduino-cli compile --fqbn esp32:esp32:esp32 --warnings default firmware/touch-calibration

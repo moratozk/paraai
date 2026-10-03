@@ -1,0 +1,576 @@
+/* ==========================================================================
+   ParaAí — Design System
+   Conceito: "SINALIZAÇÃO VIÁRIA"
+   Âmbar viário sobre asfalto, tipografia condensada de placa de trânsito.
+   Industrial e denso, mas com o modo claro em cinzas suaves — branco puro
+   num monitor cansa a vista.
+   ========================================================================== */
+
+@import url("https://fonts.googleapis.com/css2?family=Anton&family=Archivo:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap");
+
+:root {
+  /* ---- Tipografia ---- */
+  --font-main: "Archivo", system-ui, sans-serif;
+  --font-display: "Anton", "Arial Narrow", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* ---- Superfícies: asfalto e concreto ---- */
+  --bg-primary: #0a0c11;
+  --bg-secondary: #0f1219;
+  --bg-solid: #161a22;
+  --bg-elevated: #1c212b;
+  --bg-input: #0d1017;
+  --bg-asphalt: #06070a;
+
+  /* ---- Tinta ----
+     Todos passam em AA (4.5:1) sobre qualquer superfície do tema, inclusive
+     --bg-elevated: o texto apagado é o que mais aparece em rótulos e dicas. */
+  --text-primary: #f4f6f9;
+  --text-secondary: #a5adbb;
+  --text-muted: #828a99;
+
+  /* ---- Marca: âmbar viário ---- */
+  --accent: #ffc300;
+  --accent-strong: #ffd23f;
+  --accent-deep: #c99a00;
+  --accent-soft: rgba(255, 195, 0, 0.12);
+  --accent-contrast: #0a0c11;
+  --accent-text: #ffc300;
+
+  /* ---- Apoio ---- */
+  --cyan: #35c8e8;
+  --cyan-soft: rgba(53, 200, 232, 0.12);
+  --success: #29d07e;
+  --success-soft: rgba(41, 208, 126, 0.12);
+  --danger: #ff4d5e;
+  --danger-soft: rgba(255, 77, 94, 0.12);
+  --plate-blue: #0b3a9d;
+
+  --border: #262c37;
+  --border-strong: #39414f;
+
+  --radius: 16px;
+  --radius-sm: 12px;
+
+  --glow-accent: 0 14px 34px -12px rgba(255, 195, 0, 0.5);
+  --glow-cyan: 0 14px 34px -12px rgba(53, 200, 232, 0.4);
+  --shadow-card: 0 18px 50px -22px rgba(0, 0, 0, 0.85);
+  --shadow-deep: 0 30px 80px -30px rgba(0, 0, 0, 0.95);
+
+  --dash-paint: rgba(255, 255, 255, 0.14);
+
+  /* ---- Escala fluida ---- */
+  --t-mega: clamp(3rem, 12vw, 10rem);
+  --t-hero: clamp(2.4rem, 7vw, 5.6rem);
+  --t-h1: clamp(2rem, 5vw, 3.4rem);
+  --t-h2: clamp(1.55rem, 3.4vw, 2.5rem);
+  --t-h3: clamp(1.1rem, 2vw, 1.45rem);
+  --t-mini: 0.74rem;
+
+  /* ---- Ritmo ---- */
+  --gap: clamp(1rem, 2.4vw, 1.6rem);
+  --secao: clamp(4.5rem, 11vh, 9rem);
+  --largura: 1220px;
+
+  --mola: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* ---- Espaçamento em rem: acompanha o tamanho de fonte do usuário ---- */
+  --esp-1: 0.25rem;
+  --esp-2: 0.5rem;
+  --esp-3: 0.75rem;
+  --esp-4: 1rem;
+  --esp-5: 1.5rem;
+  --esp-6: 2rem;
+  --esp-7: 3rem;
+
+  /* ---- Rótulos técnicos: o menor texto do site ---- */
+  --rotulo-tamanho: 0.75rem;
+  --rotulo-tracking: 0.06em;
+
+  /* ---- Movimento ----
+     Resposta no toque é imediata; o resto desacelera ao chegar. A mola é
+     criticamente amortecida (sem ultrapassar o alvo, resposta ~0,35 s) e
+     serve para superfícies que entram e saem, como modais. */
+  --dur-toque: 100ms;
+  --dur-rapida: 180ms;
+  --dur-media: 280ms;
+  --dur-mola: 600ms;
+  --mola-critica: linear(0, 0.075 4.2%, 0.227 8.3%, 0.39 12.5%, 0.536 16.7%,
+    0.656 20.8%, 0.75 25%, 0.821 29.2%, 0.873 33.3%, 0.911 37.5%, 0.938 41.7%,
+    0.957 45.8%, 0.971 50%, 0.98 54.2%, 0.986 58.3%, 0.991 62.5%, 0.994 66.7%,
+    0.997 75%, 0.999 83.3%, 1);
+  color-scheme: dark;
+}
+
+/* Tema claro: concreto diurno, NÃO papel branco.
+   Branco puro num monitor é luz na cara, ainda mais à noite. A base é um
+   cinza levemente quente e as superfícies sobem em degraus curtos — o
+   contraste vem da hierarquia, não do brilho. O âmbar escurece aqui para
+   continuar legível sobre fundo claro. */
+[data-theme="light"] {
+  --bg-primary: #e9e7e3;
+  --bg-secondary: #efedea;
+  --bg-solid: #f7f6f4;
+  --bg-elevated: #dfdbd5;
+  --bg-input: #fcfbfa;
+  --bg-asphalt: #d9d5cf;
+
+  --text-primary: #22252b;
+  --text-secondary: #525864;
+  --text-muted: #5a5f6b;    /* 4.6:1 até sobre --bg-elevated */
+
+  /* No claro o âmbar tem dois papéis distintos:
+     --accent      preenche superfícies e leva texto escuro por cima
+     --accent-text pinta texto/bordas âmbar sobre fundo claro
+     Usar o mesmo tom nos dois reprovaria em um dos casos. */
+  --accent: #d9a300;
+  --accent-strong: #c99700;
+  --accent-deep: #a67400;
+  --accent-soft: rgba(166, 116, 0, 0.14);
+  --accent-contrast: #0a0c11;
+  --accent-text: #7d5800;   /* 5.2:1 sobre o fundo claro */
+
+  --cyan: #0b687e;
+  --cyan-soft: rgba(11, 104, 126, 0.1);
+  --success: #0c6d42;
+  --success-soft: rgba(12, 109, 66, 0.12);
+  --danger: #ba1d31;
+  --danger-soft: rgba(186, 29, 49, 0.1);
+
+  --border: #d5d0c9;
+  --border-strong: #b9b3aa;
+
+  --glow-accent: 0 12px 28px -16px rgba(166, 116, 0, 0.35);
+  --shadow-card: 0 10px 26px -20px rgba(34, 37, 43, 0.28);
+  --shadow-deep: 0 20px 44px -28px rgba(34, 37, 43, 0.3);
+
+  --dash-paint: rgba(34, 37, 43, 0.14);
+  color-scheme: light;
+}
+
+/* ==========================================================================
+   RESET
+   ========================================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; }
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-main);
+  font-size: clamp(0.98rem, 1.05vw, 1.06rem);
+  line-height: 1.65;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+/* Grão fino sobre tudo: textura de asfalto, tira o aspecto "digital liso" */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+[data-theme="light"] body::after { opacity: 0.02; }
+
+img, svg, video { display: block; max-width: 100%; }
+img { height: auto; }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: none; padding: 0; }
+/* Toque: sem o clarão cinza do navegador e sem o atraso do zoom por duplo
+   toque. O feedback visual de cada componente substitui o clarão. */
+a, button, [role="button"], label, summary, input, select, textarea {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+input, select, textarea { min-width: 0; max-width: 100%; }
+a { color: inherit; text-decoration: none; }
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+::selection { background: var(--accent); color: var(--accent-contrast); }
+
+/* ==========================================================================
+   TIPOGRAFIA
+   ========================================================================== */
+/* A fonte display (Anton) é condensada e pesada: ótima para uma manchete de
+   marketing, agressiva demais para título de card num painel de dados. Por
+   isso os títulos usam a fonte de corpo por padrão, e o Anton entra só onde
+   é pedido explicitamente, via .display. */
+/* A display (Anton) é condensada e pesada: ótima para manchete, agressiva
+   demais para título de card num painel. Por isso os títulos usam a fonte de
+   corpo por padrão, e o Anton entra só onde é pedido, via .display. */
+/* Tracking e entrelinha mudam com o tamanho: quanto maior o título, mais
+   juntas as letras e mais curta a entrelinha. Corpo fica perto de zero. */
+h1, h2, h3, h4 {
+  font-family: var(--font-main);
+  font-weight: 700;
+  font-optical-sizing: auto;
+  text-wrap: balance;
+}
+
+h1 { font-size: var(--t-h1); line-height: 1.08; letter-spacing: -0.022em; }
+h2 { font-size: var(--t-h2); line-height: 1.14; letter-spacing: -0.016em; }
+h3 { font-size: var(--t-h3); line-height: 1.24; letter-spacing: -0.01em; }
+h4 { font-size: 1rem; line-height: 1.35; letter-spacing: -0.004em; }
+
+/* Manchete: condensada, caixa alta, bem grande. Só em hero e afins. */
+/* Manchete: condensada, caixa alta, bem grande. Só em hero e afins. */
+.display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  line-height: 0.94;
+  letter-spacing: 0.005em;
+  text-transform: uppercase;
+}
+
+p { text-wrap: pretty; }
+
+/* Etiqueta técnica — assinatura tipográfica do sistema */
+.rotulo, .eyebrow {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: var(--rotulo-tamanho);
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+/* Valores que mudam ao vivo não "dançam": algarismos de largura fixa. */
+.money, .stat-value, .fat-total { font-variant-numeric: tabular-nums; }
+.accent { color: var(--accent-text); }
+.danger { color: var(--danger); }
+.cyan { color: var(--cyan); }
+
+/* ==========================================================================
+   LAYOUT
+   ========================================================================== */
+.app-shell { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
+
+.container {
+  width: min(calc(100% - 2.5rem), var(--largura));
+  margin-inline: auto;
+}
+
+
+/* ==========================================================================
+   BOTÕES
+   ========================================================================== */
+.btn {
+  --btn-bg: var(--bg-elevated);
+  --btn-cor: var(--text-primary);
+  --btn-borda: var(--border-strong);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 44px;
+  padding: 0.75rem 1.4rem;
+  border-radius: var(--radius-sm);
+  background: var(--btn-bg);
+  color: var(--btn-cor);
+  border: 1.5px solid var(--btn-borda);
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: transform var(--dur-toque) ease-out, background var(--dur-rapida),
+    border-color var(--dur-rapida), box-shadow var(--dur-rapida), color var(--dur-rapida);
+}
+
+@media (hover: hover) {
+  .btn:hover:not(:disabled) { box-shadow: var(--shadow-card); }
+}
+/* Resposta no momento do toque, não ao soltar. */
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn-primary {
+  --btn-bg: var(--accent);
+  --btn-cor: var(--accent-contrast);
+  --btn-borda: var(--accent);
+}
+@media (hover: hover) {
+  .btn-primary:hover:not(:disabled) {
+    --btn-bg: var(--accent-strong);
+    --btn-borda: var(--accent-strong);
+    box-shadow: var(--glow-accent);
+  }
+}
+
+.btn-outline { --btn-bg: transparent; }
+@media (hover: hover) {
+  .btn-outline:hover:not(:disabled) {
+    --btn-borda: var(--accent);
+    --btn-cor: var(--accent-text);
+  }
+}
+
+.btn-ghost { --btn-bg: transparent; --btn-borda: transparent; --btn-cor: var(--text-secondary); }
+@media (hover: hover) {
+  .btn-ghost:hover:not(:disabled) { --btn-cor: var(--text-primary); --btn-bg: var(--bg-elevated); }
+}
+
+.btn-danger { --btn-bg: transparent; --btn-borda: var(--danger); --btn-cor: var(--danger); }
+@media (hover: hover) {
+  .btn-danger:hover:not(:disabled) { --btn-bg: var(--danger); --btn-cor: #fff; }
+}
+
+.btn-sm { min-height: 40px; padding: 0.5rem 1rem; font-size: 0.86rem; }
+.btn-lg { min-height: 52px; padding: 0.95rem 2rem; font-size: 1.02rem; }
+.btn-block { width: 100%; }
+
+/* ==========================================================================
+   CARTÕES
+   ========================================================================== */
+.card {
+  position: relative;
+  background: var(--bg-solid);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: clamp(1.3rem, 2.6vw, 2rem);
+  box-shadow: var(--shadow-card);
+}
+
+/* Aresta âmbar à esquerda, como marcação de vaga pintada no chão */
+.card-marcado { border-left: 3px solid var(--accent); }
+
+.card-glow { box-shadow: var(--shadow-card), var(--glow-accent); }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.32rem 0.8rem;
+  border-radius: 100px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: var(--rotulo-tamanho);
+  font-weight: 700;
+  letter-spacing: var(--rotulo-tracking);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.chip-accent { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-text); }
+.chip-ok { background: var(--success-soft); border-color: var(--success); color: var(--success); }
+.chip-erro { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
+
+/* ==========================================================================
+   FORMULÁRIOS
+   ========================================================================== */
+.field { display: flex; flex-direction: column; gap: 0.45rem; margin-bottom: 1.1rem; }
+
+.label, .field-label-row {
+  font-family: var(--font-main);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--text-secondary);
+}
+.field-label-row { display: flex; justify-content: space-between; align-items: center; }
+
+.field input, .field select, .field textarea,
+input[type="text"], input[type="email"], input[type="password"],
+input[type="tel"], input[type="number"], input[type="date"], select, textarea {
+  width: 100%;
+  min-height: 48px;
+  padding: 0.8rem 1rem;
+  background: var(--bg-input);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: max(16px, 1rem);
+  transition: border-color var(--dur-rapida), background var(--dur-rapida),
+    box-shadow var(--dur-rapida);
+}
+
+input::placeholder, textarea::placeholder { color: var(--text-muted); }
+
+.field input:focus, .field select:focus, .field textarea:focus,
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.field-hint { font-size: 0.8rem; color: var(--text-muted); }
+/* Autodeclaração (ex.: direito a vaga especial): caixa e texto alinhados.
+   O seletor com [type] vence a regra genérica de .field input. */
+.declaracao {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.declaracao input[type="checkbox"] {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  margin-top: 2px;
+  padding: 0;
+  accent-color: var(--accent);
+}
+.field-link { font-size: 0.8rem; color: var(--accent-text); font-weight: 600; }
+@media (hover: hover) {
+  .field-link:hover { text-decoration: underline; }
+}
+
+.error-text, .erro { color: var(--danger); font-size: 0.85rem; font-weight: 600; }
+
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
+@media (max-width: 620px) { .field-row { grid-template-columns: 1fr; } }
+
+/* ==========================================================================
+   PLACA DE VEÍCULO — assinatura visual da marca
+   ========================================================================== */
+.placa {
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: 5px;
+  overflow: hidden;
+  border: 2px solid #2b3242;
+  background: #f4f6f9;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+.placa::before { content: ""; width: 9px; background: var(--plate-blue); flex: none; }
+.placa span { padding: 0.34rem 0.7rem; color: #0a0c11; }
+
+/* ==========================================================================
+   ANIMAÇÃO
+   ========================================================================== */
+@keyframes surgir {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: none; }
+}
+
+.revelar { opacity: 0; animation: surgir 0.7s var(--mola) forwards; }
+
+@keyframes girar { to { transform: rotate(360deg); } }
+
+.spinner {
+  width: 34px; height: 34px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: girar 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .revelar { opacity: 1; animation: none; }
+}
+
+/* Transparência reduzida: superfícies de vidro viram sólidas. */
+@media (prefers-reduced-transparency: reduce) {
+  .navbar, .navbar-rolou, .modal-overlay, .mapa-publico-overlay, .menu-mobile {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  .navbar, .navbar-rolou, .menu-mobile { background: var(--bg-secondary) !important; }
+}
+
+/* Contraste aumentado: bordas definidas e texto secundário mais forte. */
+@media (prefers-contrast: more) {
+  :root, [data-theme="light"] {
+    --border: var(--border-strong);
+    --text-muted: var(--text-secondary);
+  }
+  .card, .btn, .chip, .status-pill { border-width: 2px; }
+}
+
+/* Troca de tema: crossfade curto em vez do salto de brilho (ver ThemeContext). */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--dur-media);
+  animation-timing-function: ease-out;
+}
+
+/* ==========================================================================
+   ESTADOS
+   ========================================================================== */
+.estado-central {
+  display: grid;
+  place-items: center;
+  gap: 0.8rem;
+  min-height: 45vh;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.empty-state {
+  text-align: center;
+  padding: clamp(2rem, 6vw, 4rem) 1rem;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 620px) {
+  .container { width: min(calc(100% - 1.5rem), var(--largura)); }
+
+  .card { padding: 1rem; }
+
+  .btn {
+    max-width: 100%;
+    padding-inline: 1rem;
+    line-height: 1.25;
+    text-align: center;
+    white-space: normal;
+  }
+  .btn-lg { padding: 0.95rem 1.15rem; }
+  .empty-state { padding: 1.75rem 0.5rem; }
+}
+
+/* ==========================================================================
+   UTILITÁRIOS
+   ========================================================================== */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 100px;
+  border: 3px solid var(--bg-primary);
+}
+@media (hover: hover) {
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+}

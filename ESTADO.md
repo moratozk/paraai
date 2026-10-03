@@ -9,16 +9,73 @@ coisa parou sem precisar reler o histórico. Atualizado em **02/10/2026**.
 
 Sistema acadêmico de atendimento para estacionamentos:
 
-- **`Main/`** — firmware do totem (ESP32 + tela ILI9341 320×240 + touch
-  XPT2046), sem sensores ou servo/catraca física; gabinete 3D ainda a projetar
-- **`Web/`** — painel React/Vite, com Firebase Auth e Firestore
+- **`firmware/`** — firmware do totem na placa CYD de 2,8" de duas portas
+  (ESP32-2432S028R: ESP32 + tela ST7789 320×240 + touch XPT2046), sem sensores
+  ou servo/catraca física; gabinete 3D ainda a projetar
+- **`web/`** — painel React/Vite, com Firebase Auth e Firestore
+- **`firebase/`** — regras do Firestore e testes no emulador
 
 O motorista registra entrada/saída por placa. O Firebase associa vaga,
 estadia e cobrança simulada. O operador acompanha pelo painel. A ocupação é
 lógica; a maquete virtual online é uma etapa futura, não implementada.
 
-Projeto acadêmico (TCC). Revisão atual: `claude/integracao` (PR #9), que
-une todas as frentes abertas.
+Projeto acadêmico (TCC). A `main` tem a versão integrada (PR #9, unida em
+02/10/2026). Revisão atual: `claude/vagas-especiais` (direito a vaga especial), feita
+sobre `claude/tela-st7789` (tela, toque e watchdog na CYD), `claude/organiza-pastas`
+(pastas) e `claude/firmware-cyd` (pinos da CYD).
+
+## Reorganização de pastas (02/10/2026)
+
+As pastas ganharam nomes padrão de mercado, que dizem o que cada parte é.
+Código não mudou além de caminhos (includes dos testes, CI e `firebase.json`).
+As seções mais antigas citam os nomes anteriores; use esta tabela:
+
+| Antes | Agora |
+|---|---|
+| `Main/` (sketch) | `firmware/totem/` |
+| `Main/Main.ino` | `firmware/totem/totem.ino` |
+| `Main/README.md` | `firmware/README.md` |
+| `Main/tests/` (C++ e prévia das telas) | `firmware/test/` |
+| `Main/tests/` (regras no emulador) | `firebase/test/` |
+| `CalibracaoTouch/` | `firmware/touch-calibration/` |
+| `Ferramentas/` | `firmware/tools/` |
+| `firestore.rules`, `firebase.test.json` | `firebase/` |
+| `Web/` | `web/` |
+| `Marca/` | `docs/brand/` |
+| `COLABORACAO.md` | `CONTRIBUTING.md` |
+| `firebase-ci.yml` | `firmware.yml` e `firebase.yml` |
+| `web-ci.yml` | `web.yml` (o job "Lint e build" manteve o nome) |
+
+Os segredos locais passaram a ser ignorados pelo `.gitignore` da raiz em
+qualquer pasta (`Credenciais.h`, `.env`). Quem já tinha o projeto clonado
+precisa mover `Main/Credenciais.h` e conferir a pasta `web/` (ver
+`CONTRIBUTING.md`).
+
+## Placa CYD de 2,8" (02/10/2026)
+
+O totem passou a usar a placa **ESP32-2432S028R ("CYD")** na versão de **duas
+portas (micro-USB + USB-C)**, que já traz tela e touch XPT2046 ligados. Os pinos
+da tela são os mesmos da montagem anterior; no touch, o T_OUT (MISO) fica no
+GPIO39 (antes 36, que na CYD é o T_IRQ e não é usado).
+
+O que a primeira gravação mostrou, e como foi resolvido:
+
+- **A tela é ST7789, não ILI9341**, embora a placa seja vendida como ILI9341
+  (a CYD de uma porta usa ILI9341). Com o driver ILI9341 a imagem saía virada e
+  com as cores invertidas. Um diagnóstico das 4 rotações nos dois controladores
+  confirmou: `Adafruit_ST7789`, `init(240, 320)`, rotação 3, sem inversão de
+  cor. O firmware e `firmware/touch-calibration/` usam essa sequência.
+- **Toque:** a calibração não fechava. O assistente agora detecta pelos cantos
+  se o painel está com os eixos trocados e grava isso junto com os limites
+  (`VERSAO_CALIBRACAO_TOUCH` 2 força uma calibração nova). Pode calibrar com o
+  plástico protetor da tela; o toque é resistivo e precisa de pressão firme.
+- **Watchdog:** com rede lenta, o login TLS da biblioteca do Firebase prendia o
+  núcleo 0 por mais de 5 s e o ESP reiniciava (backtrace em `Firebase.begin`).
+  A tarefa `paraai-cloud` passou a rodar com a prioridade da tarefa ociosa.
+
+Gravação na placa: com o esptool direto e `--before no-reset`, depois de pôr a
+placa em modo de gravação (segurar BOOT, apertar RST, soltar BOOT); o reset
+automático desta placa não entra sozinho nesse modo.
 
 ## Integração de 02/10/2026 — versão única (PR #9)
 
@@ -32,7 +89,8 @@ da `main`. O PR #9 junta tudo, com estas decisões do responsável:
 - **Reserva no app, totem decide.** Reservar é gratuito e vale 30 minutos
   (`reservas/{uid}` + `reservadaAte` na vaga pública). Na entrada, o totem usa
   a vaga reservada; sem reserva, escolhe a primeira vaga comum livre. Vagas
-  especiais só por reserva. A cobrança é uma só: no totem, da entrada à saída,
+  especiais só por reserva (substituído pela "vaga especial por direito
+  declarado", nas decisões abaixo). A cobrança é uma só: no totem, da entrada à saída,
   pela tarifa por hora. Sai a estadia cobrada pelo app (`estadiasApp`, pagar
   agora/depois, tarifa por minuto); registros antigos ficam no histórico.
 - **Ocupação só pelo totem.** A marcação manual de vagas saiu (deixava vaga e
@@ -52,13 +110,17 @@ da `main`. O PR #9 junta tudo, com estas decisões do responsável:
 
 1. Regras, firmware e site juntos, em janela de manutenção (as regras novas
    recusam o firmware e o site antigos).
-2. Limpar dados da versão anterior: estadias `ativa` em `estadiasApp`, campo
-   `reservada: true` nas vagas públicas e `tarifaMinuto` nos estacionamentos
-   (o painel do admin apaga este último ao salvar).
+2. Limpar pelo console os dados da versão anterior que as regras não deixam
+   o site nem o totem corrigirem: `veiculos` com `vagaAtual` diferente de 0
+   (estadia de teste aberta), vagas em `estacionamentos/{id}/vagas` com
+   `placa` preenchida (sobra da marcação manual; trava a vaga) e `historico`
+   com `status: ativa` (estadia pelo app que nunca terminou; o site mostra
+   "Em andamento"). O resto (`estadiasApp`, `reservada` nas vagas públicas,
+   `tarifaMinuto`) a versão nova ignora.
 3. Publicar o mapa de cada estacionamento pelo painel (grava o tipo de cada
    vaga, que o totem lê) e conferir as vagas especiais.
-4. Depois de unir o PR #9, fechar os PRs #3, #4, #5, #6, #7 e #8 como
-   incorporados.
+4. ~~Fechar os PRs #3 a #8~~ — feito em 02/10/2026: #4, #6, #7 e #8 foram
+   unidos junto com o #9; #3 e #5 fechados como substituídos.
 
 ## Revisão de 30/09 a 02/10/2026 — segurança, pendência e robustez
 
@@ -242,7 +304,7 @@ o teclado antigo. O checklist físico completo está em `Main/README.md`.
 ### Site
 
 ```bash
-cd Web
+cd web
 cp .env.example .env      # e preencha com os valores do Firebase
 npm install
 npm run dev               # http://localhost:5173
@@ -252,19 +314,19 @@ Sem o `.env` o site abre mas login e dados não funcionam — ele não está no
 Git de propósito.
 
 Existe um simulador **legado** em `/totem.html`, com teclado antigo. Para
-inspecionar o firmware atual, usar Main/tests/ui_totem.test.cpp e preview.mjs,
-conforme Main/README.md. Nenhum deles é a futura maquete virtual.
+inspecionar o firmware atual, usar firmware/test/ui_totem.test.cpp e preview.mjs,
+conforme firmware/README.md. Nenhum deles é a futura maquete virtual.
 
 ### Firmware
 
 ```bash
-cp Main/Credenciais.example.h Main/Credenciais.h   # e preencha
+cp firmware/totem/Credenciais.example.h firmware/totem/Credenciais.h   # e preencha
 ```
 
 Inclui `MANUTENCAO_PIN` (PIN das configurações do totem). O Wi-Fi pode ficar
 em branco: sem rede alguma, o totem abre a configuração na própria tela.
 
-Precisa de Wi-Fi **2,4 GHz** — o ESP32 não enxerga 5 GHz. Abrir `Main/Main.ino`
+Precisa de Wi-Fi **2,4 GHz** — o ESP32 não enxerga 5 GHz. Abrir `firmware/totem/totem.ino`
 na Arduino IDE e gravar.
 
 ---
@@ -369,6 +431,14 @@ na Arduino IDE e gravar.
 5. Projetar o gabinete 3D pelas medidas reais; depois evoluir o site e criar
    a maquete virtual, sem reintroduzir sensores/catraca no ESP.
 
+6. **Revisão visual do site publicado (observada em 02/10/2026)**, a fazer
+   depois das vagas especiais, conferindo o site inteiro:
+   - mapa de vagas do administrador: números, rótulos ("60+", "G", "♿") e
+     textos das células desalinhados, fontes de tamanhos diferentes e
+     "Disponível" cortado;
+   - Perfil: os cartões (cabeçalho, "Dados da conta", "Administração da rede")
+     ficam colados, sem espaço entre eles, e encostam na borda direita.
+
 ---
 
 ## Decisões já tomadas (não refazer sem motivo)
@@ -377,7 +447,7 @@ na Arduino IDE e gravar.
 verde-oliva/terracota com tipografia serifada; foi descartada pelo dono do
 projeto, que preferiu voltar ao original. Não sugerir de novo.
 
-**A logo é um arquivo, não código.** `Web/public/logo.png`. Já se tentou
+**A logo é um arquivo, não código.** `web/public/logo.png`. Já se tentou
 redesenhá-la em SVG por aproximação e o resultado nunca bateu. Para trocar,
 substitua o arquivo. A única exceção é a tela do totem, onde não dá para
 carregar PNG e a marca é reconstruída com retângulos e círculos.
@@ -385,6 +455,19 @@ carregar PNG e a marca é reconstruída com retângulos e círculos.
 **Reserva no app, totem decide (02/10/2026).** O app só reserva (grátis, 30
 min). Quem registra a estadia e cobra é o totem. Não reintroduzir cobrança
 pelo app nem marcação manual de vagas.
+
+**Vaga especial por direito declarado (02/10/2026).** O motorista declara no
+cadastro ou no Perfil se tem direito a vaga PCD, 60+ ou gestante
+(autodeclaração com confirmação; na vida real a credencial fica no painel do
+carro e é fiscalizada no local). O valor fica na conta e no veículo
+(`vagaEspecial`), que é o que o totem lê. Sem reserva, o totem dá a primeira
+vaga livre do tipo declarado e, se não houver, uma comum; quem não declarou
+nunca recebe vaga especial, nem pelo totem nem por reserva (as regras do
+Firestore conferem). O tipo de cada vaga segue a mesma regra no site
+(`obterTipoVaga`), no totem (`tipoDaVaga`) e nas regras (`tipoDaVaga`): o
+campo `tipo` do mapa público ou, sem ele, a tabela padrão da demonstração.
+É dado sensível: gravar só o tipo declarado, e apagar o campo quando a pessoa
+deixa de declarar.
 
 **Design segue as diretrizes da Apple dentro da identidade.** Contraste AA nos
 dois temas, texto mínimo de 12 px, hover só em `@media (hover: hover)`,
@@ -462,7 +545,7 @@ sem erro. O teste `ui_totem.test.cpp` confere caracteres e largura de todas as
 mensagens; ao criar uma mensagem nova, incluí-la lá.
 
 **Regras do Firestore precisam acompanhar o site.** O arquivo
-`firestore.rules` permite que o motorista consulte uma placa inexistente antes
+`firebase/firestore.rules` permite que o motorista consulte uma placa inexistente antes
 de criá-la e limita cada totem às transições de entrada/saída do próprio
 estacionamento. Publique as regras depois que essa alteração entrar na `main`;
 sem a publicação, o erro `Missing or insufficient permissions` ao cadastrar
