@@ -42,7 +42,7 @@ export function AuthProvider({ children }) {
 
   // O cadastro público cria apenas motoristas. Papéis privilegiados são
   // provisionados fora do cliente e nunca aceitos neste método.
-  async function register(name, email, password, role = "motorista", telefone = "") {
+  async function register(name, email, password, role = "motorista", telefone = "", vagaEspecial = "") {
     if (role !== "motorista") {
       throw new Error("Contas administrativas não podem ser criadas pelo cadastro público.");
     }
@@ -65,6 +65,9 @@ export function AuthProvider({ children }) {
           email,
           telefone,
           role,
+          // Direito a vaga especial (autodeclarado); vai para o veículo quando
+          // a placa for cadastrada. Só é gravado quando a pessoa declara.
+          ...(vagaEspecial && { vagaEspecial }),
           createdAt: serverTimestamp(),
         });
       } catch (err) {

@@ -3,7 +3,9 @@ import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useVeiculo, useEstacionamento } from "../hooks/useParkingData";
 import { Link } from "react-router-dom";
-import { registrarVeiculo } from "../services/veiculos";
+import { registrarVeiculo, atualizarDireitoVaga } from "../services/veiculos";
+import CampoDireitoVaga from "../components/CampoDireitoVaga";
+import { rotuloDireito } from "../utils/mapaVagas";
 import { criarEstacionamento } from "../services/estacionamentos";
 import {
   criarCredencialTotem,
@@ -38,6 +40,10 @@ export default function Perfil() {
     .toUpperCase();
 
   const [placaInput, setPlacaInput] = useState("");
+  // Direito a vaga especial: null = só exibindo; texto = editando.
+  const [direitoEdicao, setDireitoEdicao] = useState(null);
+  const [declarouDireito, setDeclarouDireito] = useState(false);
+  const [salvandoDireito, setSalvandoDireito] = useState(false);
   const [mensagem, setMensagem] = useState(null); // { tipo: "erro"|"ok", texto }
   const [processando, setProcessando] = useState(false);
 
@@ -183,6 +189,24 @@ export default function Perfil() {
     }
   }
 
+  async function salvarDireito(e) {
+    e.preventDefault();
+    if (direitoEdicao && !declarouDireito) {
+      toast.erro("Confirme a declaração do direito à vaga especial.");
+      return;
+    }
+    setSalvandoDireito(true);
+    try {
+      await atualizarDireitoVaga({ uid: user.uid, placa, vagaEspecial: direitoEdicao });
+      toast.sucesso("Preferência de vaga atualizada.");
+      setDireitoEdicao(null);
+    } catch (err) {
+      toast.erro(err.message || "Não foi possível salvar. Tente novamente.");
+    } finally {
+      setSalvandoDireito(false);
+    }
+  }
+
   async function handleCadastrarPlaca(e) {
     e.preventDefault();
     setMensagem(null);
@@ -199,7 +223,11 @@ export default function Perfil() {
 
     setProcessando(true);
     try {
-      await registrarVeiculo({ uid: user.uid, placa: placaNova });
+      await registrarVeiculo({
+        uid: user.uid,
+        placa: placaNova,
+        vagaEspecial: userData?.vagaEspecial || "",
+      });
       setPlacaInput("");
       setMensagem({ tipo: "ok", texto: "Veículo cadastrado com sucesso!" });
       toast.sucesso(`Placa ${placaNova} cadastrada!`);
@@ -425,6 +453,7 @@ export default function Perfil() {
         </>
         ) : null
       ) : (
+        <>
         <div className="card vehicle-card">
           <h2>Meu veículo</h2>
 
@@ -504,6 +533,56 @@ export default function Perfil() {
             </>
           )}
         </div>
+
+        <div className="card vehicle-card">
+          <h2>Vaga especial</h2>
+          {direitoEdicao === null ? (
+            <>
+              <div className="info-row">
+                <span className="label">Direito declarado</span>
+                <span>{rotuloDireito(userData?.vagaEspecial)}</span>
+              </div>
+              <p className="muted-note">
+                Com um direito declarado, o totem escolhe para você uma vaga do
+                seu tipo quando houver, e o app libera a reserva dessas vagas.
+              </p>
+              <button
+                type="button"
+                className="btn btn-outline btn-block"
+                onClick={() => {
+                  setDireitoEdicao(userData?.vagaEspecial || "");
+                  setDeclarouDireito(Boolean(userData?.vagaEspecial));
+                }}
+              >
+                Alterar
+              </button>
+            </>
+          ) : (
+            <form onSubmit={salvarDireito}>
+              <CampoDireitoVaga
+                id="direitoVaga"
+                valor={direitoEdicao}
+                onValor={setDireitoEdicao}
+                declarado={declarouDireito}
+                onDeclarado={setDeclarouDireito}
+              />
+              <div className="acoes-form">
+                <button type="submit" className="btn btn-primary" disabled={salvandoDireito}>
+                  {salvandoDireito ? "Salvando..." : "Salvar"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  disabled={salvandoDireito}
+                  onClick={() => setDireitoEdicao(null)}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+        </>
       )}
 
       {role === "operador" && !estId && (

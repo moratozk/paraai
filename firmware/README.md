@@ -136,9 +136,14 @@ uma fotografia periódica, não uma medição física em tempo real.
   veículo livre, estacionamento autorizado e tarifa igual à configuração.
 - **Escolha da vaga:** se o dono da placa reservou no app (`reservas/{uid}`,
   ativa, deste pátio e válida por mais de 30 s), o totem usa a vaga reservada
-  e marca a reserva como `utilizada` no mesmo commit. Sem reserva, escolhe a
-  primeira vaga comum livre e sem reserva valendo (`reservadaAte` no mapa
-  público). Vagas PCD, 60+ e gestante só são usadas por quem as reservou.
+  e marca a reserva como `utilizada` no mesmo commit. Sem reserva, quem
+  declarou direito a vaga especial (`vagaEspecial` no veículo: `pcd`, `idoso`
+  ou `gestante`) recebe a primeira vaga livre do seu tipo; se não houver, e
+  para quem não declarou nada, a primeira vaga comum livre e sem reserva
+  valendo (`reservadaAte` no mapa público). Quem não declarou direito nunca
+  recebe vaga especial. O tipo de cada vaga vem do campo `tipo` do mapa
+  público ou, sem ele, da tabela padrão (1-2 PCD, 9 e 11 60+, 10 gestante),
+  igual ao site e às regras (`tipoDaVaga` em `totem/LogicaTotem.h`).
 - **Mapa público:** a entrada grava `ocupada: true, reservadaAte: 0` e a saída
   `ocupada: false` em `catalogoEstacionamentos/{id}/vagas/{n}`, no mesmo commit.
 - **Saída:** débito, vaga livre e recibo exclusivo no mesmo commit. Usa a

@@ -33,40 +33,65 @@ inline bool pinConfere(const char* digitado, const char* esperado) {
   return digitado && pinFormatoValido(esperado) && std::strcmp(digitado, esperado) == 0;
 }
 
+// Tipo de vaga, e também o direito que o motorista declara no veículo
+// (campo "vagaEspecial"): COMUM no direito significa nenhum direito especial.
+enum class TipoVaga : uint8_t { COMUM, PCD, IDOSO, GESTANTE };
+
 // Estado de cada vaga para decidir onde o totem coloca o carro.
 struct EstadoVaga {
-  bool usada = false;         // há placa na vaga operacional
-  bool especial = false;      // PcD, idoso ou gestante (classificação da administração)
-  uint32_t reservadaAte = 0;  // segundos Unix; a reserva vale enquanto for maior que agora
+  bool usada = false;                // há placa na vaga operacional
+  TipoVaga tipo = TipoVaga::COMUM;   // pelo campo "tipo" ou pela tabela padrão
+  uint32_t reservadaAte = 0;         // segundos Unix; a reserva vale enquanto for maior que agora
 };
 
-// Tipo da vaga com a mesma regra do site (obterTipoVaga em
-// web/src/utils/mapaVagas.js): vale o campo "tipo" quando é um dos quatro
-// conhecidos; sem ele, a tabela da demonstração FATEC (VAGAS_ESPECIAIS). As
-// duas tabelas precisam mudar juntas, senão o site mostra uma vaga como PCD e
-// o totem a entrega como comum.
-inline bool tipoVagaConhecido(const char* tipo) {
-  return tipo && (std::strcmp(tipo, "comum") == 0 || std::strcmp(tipo, "pcd") == 0 ||
-                  std::strcmp(tipo, "idoso") == 0 || std::strcmp(tipo, "gestante") == 0);
-}
-inline bool vagaEspecialPorPadrao(int numero) {
-  return numero == 1 || numero == 2 || numero == 9 || numero == 10 || numero == 11;
-}
-// tipo nullptr = documento sem o campo "tipo".
-inline bool vagaEspecial(const char* tipo, int numero) {
-  if (tipoVagaConhecido(tipo)) return std::strcmp(tipo, "comum") != 0;
-  return vagaEspecialPorPadrao(numero);
+// Texto gravado no Firestore -> tipo. Falso para ausente (nullptr) ou desconhecido.
+inline bool lerTipoVaga(const char* texto, TipoVaga& tipo) {
+  if (!texto) return false;
+  if (std::strcmp(texto, "comum") == 0) tipo = TipoVaga::COMUM;
+  else if (std::strcmp(texto, "pcd") == 0) tipo = TipoVaga::PCD;
+  else if (std::strcmp(texto, "idoso") == 0) tipo = TipoVaga::IDOSO;
+  else if (std::strcmp(texto, "gestante") == 0) tipo = TipoVaga::GESTANTE;
+  else return false;
+  return true;
 }
 
-// Vaga da entrada: a reservada pelo dono da placa, se ainda livre; senão, a
-// primeira vaga comum, livre e sem reserva valendo. Vaga especial só é usada
-// por quem a reservou no app. Retorna 0 quando não há vaga.
-inline int escolherVaga(const EstadoVaga* vagas, int capacidade, int reservada, int64_t agora) {
+// Tipo da vaga com a mesma regra do site (obterTipoVaga em
+// web/src/utils/mapaVagas.js) e das regras do Firestore (tipoDaVaga): vale o
+// campo "tipo" quando é um dos quatro conhecidos; sem ele, a tabela da
+// demonstração FATEC (VAGAS_ESPECIAIS). As três precisam mudar juntas, senão o
+// site mostra uma vaga como PCD e o totem a entrega como comum.
+inline TipoVaga tipoVagaPorPadrao(int numero) {
+  if (numero == 1 || numero == 2) return TipoVaga::PCD;
+  if (numero == 9 || numero == 11) return TipoVaga::IDOSO;
+  if (numero == 10) return TipoVaga::GESTANTE;
+  return TipoVaga::COMUM;
+}
+// texto nullptr = documento sem o campo "tipo".
+inline TipoVaga tipoDaVaga(const char* texto, int numero) {
+  TipoVaga tipo;
+  return lerTipoVaga(texto, tipo) ? tipo : tipoVagaPorPadrao(numero);
+}
+// Direito declarado pelo motorista; ausente, vazio ou desconhecido = nenhum.
+inline TipoVaga direitoDeclarado(const char* texto) {
+  TipoVaga tipo;
+  return lerTipoVaga(texto, tipo) ? tipo : TipoVaga::COMUM;
+}
+
+// Vaga da entrada: a reservada pelo dono da placa, se ainda livre; senão, para
+// quem declarou direito, a primeira vaga livre do tipo dele; senão (ou se não
+// houver), a primeira vaga comum livre. Vaga reservada por outra pessoa e
+// valendo nunca é usada, e quem não declarou direito nunca recebe vaga
+// especial. Retorna 0 quando não há vaga.
+inline int escolherVaga(const EstadoVaga* vagas, int capacidade, int reservada, int64_t agora,
+                        TipoVaga direito = TipoVaga::COMUM) {
   if (!vagas || capacidade < 1) return 0;
   if (capacidade > MAX_VAGAS) capacidade = MAX_VAGAS;
   if (reservada >= 1 && reservada <= capacidade && !vagas[reservada].usada) return reservada;
+  if (direito != TipoVaga::COMUM)
+    for (int n = 1; n <= capacidade; ++n)
+      if (!vagas[n].usada && vagas[n].tipo == direito && vagas[n].reservadaAte <= agora) return n;
   for (int n = 1; n <= capacidade; ++n)
-    if (!vagas[n].usada && !vagas[n].especial && vagas[n].reservadaAte <= agora) return n;
+    if (!vagas[n].usada && vagas[n].tipo == TipoVaga::COMUM && vagas[n].reservadaAte <= agora) return n;
   return 0;
 }
 

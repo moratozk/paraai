@@ -20,9 +20,9 @@ estadia e cobrança simulada. O operador acompanha pelo painel. A ocupação é
 lógica; a maquete virtual online é uma etapa futura, não implementada.
 
 Projeto acadêmico (TCC). A `main` tem a versão integrada (PR #9, unida em
-02/10/2026). Revisão atual: `claude/tela-st7789` (tela, toque e watchdog na
-CYD), feita sobre `claude/organiza-pastas` (pastas) e `claude/firmware-cyd`
-(pinos da CYD).
+02/10/2026). Revisão atual: `claude/vagas-especiais` (direito a vaga especial), feita
+sobre `claude/tela-st7789` (tela, toque e watchdog na CYD), `claude/organiza-pastas`
+(pastas) e `claude/firmware-cyd` (pinos da CYD).
 
 ## Reorganização de pastas (02/10/2026)
 
@@ -89,7 +89,8 @@ da `main`. O PR #9 junta tudo, com estas decisões do responsável:
 - **Reserva no app, totem decide.** Reservar é gratuito e vale 30 minutos
   (`reservas/{uid}` + `reservadaAte` na vaga pública). Na entrada, o totem usa
   a vaga reservada; sem reserva, escolhe a primeira vaga comum livre. Vagas
-  especiais só por reserva. A cobrança é uma só: no totem, da entrada à saída,
+  especiais só por reserva (substituído pela "vaga especial por direito
+  declarado", nas decisões abaixo). A cobrança é uma só: no totem, da entrada à saída,
   pela tarifa por hora. Sai a estadia cobrada pelo app (`estadiasApp`, pagar
   agora/depois, tarifa por minuto); registros antigos ficam no histórico.
 - **Ocupação só pelo totem.** A marcação manual de vagas saiu (deixava vaga e
@@ -454,6 +455,19 @@ carregar PNG e a marca é reconstruída com retângulos e círculos.
 **Reserva no app, totem decide (02/10/2026).** O app só reserva (grátis, 30
 min). Quem registra a estadia e cobra é o totem. Não reintroduzir cobrança
 pelo app nem marcação manual de vagas.
+
+**Vaga especial por direito declarado (02/10/2026).** O motorista declara no
+cadastro ou no Perfil se tem direito a vaga PCD, 60+ ou gestante
+(autodeclaração com confirmação; na vida real a credencial fica no painel do
+carro e é fiscalizada no local). O valor fica na conta e no veículo
+(`vagaEspecial`), que é o que o totem lê. Sem reserva, o totem dá a primeira
+vaga livre do tipo declarado e, se não houver, uma comum; quem não declarou
+nunca recebe vaga especial, nem pelo totem nem por reserva (as regras do
+Firestore conferem). O tipo de cada vaga segue a mesma regra no site
+(`obterTipoVaga`), no totem (`tipoDaVaga`) e nas regras (`tipoDaVaga`): o
+campo `tipo` do mapa público ou, sem ele, a tabela padrão da demonstração.
+É dado sensível: gravar só o tipo declarado, e apagar o campo quando a pessoa
+deixa de declarar.
 
 **Design segue as diretrizes da Apple dentro da identidade.** Contraste AA nos
 dois temas, texto mínimo de 12 px, hover só em `@media (hover: hover)`,
