@@ -501,15 +501,19 @@ bool iniciarAtendimento() {
   pedidos = xQueueCreate(1, sizeof(Solicitacao));
   respostas = xQueueCreate(1, sizeof(RespostaTotem));
   statusFila = xQueueCreate(1, sizeof(StatusTotem));
-  exclusao = xSemaphoreCreateMutex();
+  // Semáforo binário, e não mutex: a tarefa segura `exclusao` durante todo o
+  // trabalho com o Firebase, e o FreeRTOS só devolve a prioridade herdada
+  // (por exemplo, a 18 do lwIP) quando a tarefa não segura mutex nenhum. Com
+  // mutex, ela ficava em 18 o login inteiro. O loop só usa take sem espera.
+  exclusao = xSemaphoreCreateBinary();
+  if (exclusao) xSemaphoreGive(exclusao);
   if (pedidos && respostas && statusFila && exclusao) {
     estado(ConexaoTotem::INICIANDO);
     // Só esta tarefa acessa Firebase. Tela, touch e manutenção pertencem ao loop.
     // Prioridade igual à da tarefa ociosa do núcleo 0: a biblioteca espera o
     // TLS num laço sem pausa (até o timeout de 8 s) e, com prioridade maior,
-    // a ociosa não rodava e o watchdog reiniciava o ESP numa rede lenta. Wi-Fi
-    // e TCP/IP têm prioridade própria, maior, e não são afetados. O mutex
-    // `exclusao` herda prioridade se o loop precisar esperar por ela.
+    // a ociosa não rodava e o watchdog reiniciava o ESP. Wi-Fi e TCP/IP têm
+    // prioridade própria, maior, e não são afetados.
     if (xTaskCreatePinnedToCore(tarefa, "paraai-cloud", 24576, nullptr, tskIDLE_PRIORITY,
                                 nullptr, 0) == pdPASS) return true;
   }
