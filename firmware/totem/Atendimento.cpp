@@ -132,6 +132,11 @@ bool configurarPatio() {
 paraai::EstadoVaga estadoVagas[paraai::MAX_VAGAS + 1];
 bool vagaExiste[paraai::MAX_VAGAS + 1];
 
+// O token de paginação vai sempre como const char*: a biblioteca (4.4.17)
+// grava o '\0' num buffer ainda não alocado quando recebe um String vazio
+// (MB_String::concat sem reserva) e o ESP trava com StoreProhibited na primeira
+// página. Com const char* ela reserva antes de copiar.
+
 // Reserva e tipo vêm da projeção pública. Vaga sem documento é comum e livre.
 bool lerVagasPublicas() {
   String token;
@@ -139,7 +144,7 @@ bool lerVagasPublicas() {
   do {
     if (++paginas > 20) return false;
     if (!Firebase.Firestore.listDocuments(&fb, PROJECT_ID, "", VAGAS_PUBLICAS,
-        16, token, "", "reservadaAte,tipo", false)) return false;
+        16, token.c_str(), "", "reservadaAte,tipo", false)) return false;
     FirebaseJson pagina;
     pagina.setJsonData(fb.payload());
     for (int i = 0; i < 16; ++i) {
@@ -177,7 +182,7 @@ bool mapaVagas(MapaVagas& mapa, int reservada = 0) {
   do {
     if (++paginas > 20) return false;
     if (!Firebase.Firestore.listDocuments(&fb, PROJECT_ID, "", String(PATIO) + "/vagas",
-        16, token, "", "placa", false)) return false;
+        16, token.c_str(), "", "placa", false)) return false;
     FirebaseJson pagina;
     pagina.setJsonData(fb.payload());
     FirebaseJsonData item;
