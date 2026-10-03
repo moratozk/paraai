@@ -25,6 +25,15 @@ int main() {
   assert(!pinConfere(nullptr, "482915"));
   assert(!pinConfere("12", "12")); // PIN configurado fora do formato nunca libera.
 
+  // Mesma regra do site (web/src/utils/mapaVagas.js): o tipo gravado manda;
+  // sem ele, as vagas 1, 2, 9, 10 e 11 são especiais.
+  assert(vagaEspecial(nullptr, 1) && vagaEspecial(nullptr, 2) && vagaEspecial(nullptr, 9));
+  assert(vagaEspecial(nullptr, 10) && vagaEspecial(nullptr, 11));
+  assert(!vagaEspecial(nullptr, 3) && !vagaEspecial(nullptr, 12));
+  assert(!vagaEspecial("comum", 1));                      // tipo gravado vence a tabela
+  assert(vagaEspecial("pcd", 3) && vagaEspecial("idoso", 3) && vagaEspecial("gestante", 3));
+  assert(vagaEspecial("outro", 2) && !vagaEspecial("outro", 4)); // tipo inválido usa a tabela
+
   {
     constexpr int64_t agora = 1788800000;
     EstadoVaga v[MAX_VAGAS + 1] = {};

@@ -430,6 +430,14 @@ na Arduino IDE e gravar.
 5. Projetar o gabinete 3D pelas medidas reais; depois evoluir o site e criar
    a maquete virtual, sem reintroduzir sensores/catraca no ESP.
 
+6. **Revisão visual do site publicado (observada em 02/10/2026)**, a fazer
+   depois das vagas especiais, conferindo o site inteiro:
+   - mapa de vagas do administrador: números, rótulos ("60+", "G", "♿") e
+     textos das células desalinhados, fontes de tamanhos diferentes e
+     "Disponível" cortado;
+   - Perfil: os cartões (cabeçalho, "Dados da conta", "Administração da rede")
+     ficam colados, sem espaço entre eles, e encostam na borda direita.
+
 ---
 
 ## Decisões já tomadas (não refazer sem motivo)

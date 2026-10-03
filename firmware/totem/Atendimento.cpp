@@ -158,8 +158,8 @@ bool lerVagasPublicas() {
         const long long ate = strtoll(bruto.c_str(), nullptr, 10);
         estadoVagas[n].reservadaAte = ate > 0 && ate < 4000000000LL ? static_cast<uint32_t>(ate) : 0;
       }
-      if (texto(pagina, prefixo + "/fields/tipo/stringValue", tipo))
-        estadoVagas[n].especial = tipo == "pcd" || tipo == "idoso" || tipo == "gestante";
+      const bool temTipo = texto(pagina, prefixo + "/fields/tipo/stringValue", tipo);
+      estadoVagas[n].especial = paraai::vagaEspecial(temTipo ? tipo.c_str() : nullptr, n);
     }
     token = "";
     texto(pagina, "nextPageToken", token);
@@ -173,7 +173,12 @@ struct MapaVagas { int livres = 0; int primeira = 0; bool existe = false; bool r
 bool mapaVagas(MapaVagas& mapa, int reservada = 0) {
   // Paginação limita o uso de RAM. Placa é a ocupação lógica; não interpretar
   // eco, GPIO ou antigos campos de sensores como presença física.
-  for (int n = 0; n <= paraai::MAX_VAGAS; ++n) { estadoVagas[n] = {}; vagaExiste[n] = false; }
+  // Vaga sem documento público segue a mesma tabela padrão do site.
+  for (int n = 0; n <= paraai::MAX_VAGAS; ++n) {
+    estadoVagas[n] = {};
+    estadoVagas[n].especial = paraai::vagaEspecial(nullptr, n);
+    vagaExiste[n] = false;
+  }
   if (!lerVagasPublicas()) return false;
   const int64_t agora = time(nullptr);
   int candidataExistente = 0;
