@@ -11,7 +11,9 @@ export const TIPOS_VAGA = {
 export const TIPOS_VAGA_EDITAVEIS = Object.values(TIPOS_VAGA);
 
 // Distribuição original da demonstração FATEC. É usada como fallback enquanto
-// uma vaga ainda não possui o campo "tipo" persistido no Firestore.
+// uma vaga ainda não possui o campo "tipo" persistido no Firestore. O totem
+// repete esta tabela em firmware/totem/LogicaTotem.h (vagaEspecialPorPadrao):
+// mude as duas juntas, senão o totem entrega como comum uma vaga especial.
 export const VAGAS_ESPECIAIS = {
   1: TIPOS_VAGA.pcd,
   2: TIPOS_VAGA.pcd,

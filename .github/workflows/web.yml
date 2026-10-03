@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: web-ci-${{ github.ref }}
+  group: web-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: Web
+        working-directory: web
 
     steps:
       - name: Baixar o código
@@ -30,7 +30,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: Web/package-lock.json
+          cache-dependency-path: web/package-lock.json
 
       - name: Instalar dependências
         run: npm ci

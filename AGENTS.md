@@ -8,11 +8,13 @@ repositório. Antes de alterar qualquer coisa, leia também `README.md` e
 
 O ParaAí é um TCC composto por:
 
-- `Web/`: painel React/Vite integrado ao Firebase, incluindo administração
+- `web/`: painel React/Vite integrado ao Firebase, incluindo administração
   central da rede.
-- `Main/`: firmware Arduino do totem de atendimento: ESP32, tela ILI9341 e
+- `firmware/`: firmware Arduino do totem de atendimento (sketch em
+  `firmware/totem/`): placa ESP32 CYD de 2,8" de duas portas, tela ST7789 e
   touch XPT2046, sem sensores nem servo/catraca física.
-- `firestore.rules`: regras de acesso do banco em produção.
+- `firebase/firestore.rules`: regras de acesso do banco em produção, com
+  testes no emulador em `firebase/test/`.
 
 Preserve o fluxo completo entre painel, Firebase e totem. Uma mudança em um
 componente não pode quebrar os outros.
@@ -32,10 +34,11 @@ componente não pode quebrar os outros.
 
 ## Segurança e dados
 
-- Nunca adicione ao Git: `Web/.env`, `Main/Credenciais.h`, senhas de Wi-Fi,
+- Nunca adicione ao Git: `web/.env`, `firmware/totem/Credenciais.h`, senhas de Wi-Fi,
   chaves, tokens, credenciais de totem ou arquivos de conta de serviço.
-- Use somente `Web/.env.example` e `Main/Credenciais.example.h` como modelos.
-- Não enfraqueça `firestore.rules`. Motoristas acessam apenas os próprios
+- Use somente `web/.env.example` e `firmware/totem/Credenciais.example.h` como
+  modelos.
+- Não enfraqueça `firebase/firestore.rules`. Motoristas acessam apenas os próprios
   dados, operadores antigos apenas o próprio estacionamento, administradores
   gerenciam a rede e totens executam somente as ações necessárias do
   equipamento autorizado. Contas `admin` nunca podem ser criadas ou promovidas
@@ -47,14 +50,14 @@ componente não pode quebrar os outros.
 
 ## Verificação mínima
 
-Quando alterar o site, execute em `Web/`:
+Quando alterar o site, execute em `web/`:
 
 ```bash
 npm run lint
 npm run build
 ```
 
-Quando alterar `firestore.rules`, valide as regras antes da publicação. Quando
+Quando alterar `firebase/firestore.rules`, valide as regras antes da publicação. Quando
 alterar o firmware, compile para `ESP32 Dev Module` com partição `Huge APP` e
 registre no pull request se o teste foi apenas compilado ou também realizado no
 hardware.
@@ -62,7 +65,7 @@ hardware.
 ## Decisões de produto que devem ser preservadas
 
 - A identidade visual aprovada é âmbar sobre asfalto e a logo oficial é
-  `Web/public/logo.png`; não redesenhe a logo por aproximação.
+  `web/public/logo.png`; não redesenhe a logo por aproximação.
 - O modo claro usa cinza quente, nunca branco puro.
 - O site fala com motoristas e donos de estacionamento sem expor jargão de
   hardware na interface.

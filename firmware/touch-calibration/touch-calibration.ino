@@ -10,7 +10,7 @@
 //   2. Abra o Monitor Serial em 115200
 //   3. Toque no CENTRO de cada mira que aparecer (são 4, nos cantos)
 //   4. No fim, o Serial mostra as 4 linhas #define prontas
-//   5. Copie essas linhas para Main/DisplayUI.ino, substituindo as antigas
+//   5. Copie essas linhas para firmware/totem/DisplayUI.ino, substituindo as antigas
 //   6. Regrave o firmware principal
 //
 // Para refazer a calibração, é só gravar este sketch de novo.
@@ -19,7 +19,7 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <Adafruit_GFX.h>
-#include <Adafruit_ILI9341.h>
+#include <Adafruit_ST7789.h>
 #include <XPT2046_Touchscreen.h>
 
 // ---- Mesma pinagem do firmware principal ----
@@ -34,11 +34,11 @@
 #define TOUCH_CS   33
 #define TOUCH_SCLK 25
 #define TOUCH_MOSI 32
-#define TOUCH_MISO 36
+#define TOUCH_MISO 39   // T_OUT da placa CYD (era 36 no módulo avulso)
 
 SPIClass spiTela(VSPI);
 SPIClass spiTouch(HSPI);
-Adafruit_ILI9341 tft = Adafruit_ILI9341(&spiTela, TFT_DC, TFT_CS, TFT_RST);
+Adafruit_ST7789 tft = Adafruit_ST7789(&spiTela, TFT_CS, TFT_DC, TFT_RST);
 XPT2046_Touchscreen ts(TOUCH_CS);
 
 const int TELA_W = 320, TELA_H = 240;
@@ -104,8 +104,10 @@ void setup() {
   digitalWrite(TFT_LED, HIGH);
 
   spiTela.begin(TFT_SCLK, TFT_MISO, TFT_MOSI, TFT_CS);
-  tft.begin(40000000UL);
+  tft.init(240, 320);              // mesma sequência do firmware principal
+  tft.setSPISpeed(40000000UL);
   tft.setRotation(3);
+  tft.invertDisplay(false);
 
   spiTouch.begin(TOUCH_SCLK, TOUCH_MISO, TOUCH_MOSI, TOUCH_CS);
   ts.begin(spiTouch);
@@ -173,7 +175,7 @@ void setup() {
   Serial.println();
   Serial.println("=============================================");
   Serial.println(" PRONTO! Copie as 4 linhas abaixo para o");
-  Serial.println(" arquivo Main/DisplayUI.ino (substitua as");
+  Serial.println(" arquivo firmware/totem/DisplayUI.ino (substitua as");
   Serial.println(" linhas #define TOUCH_X_MIN ... existentes)");
   Serial.println("=============================================");
   Serial.println();

@@ -34,7 +34,7 @@ const ref = (uid, path) => doc(db(uid), path);
 before(async () => {
   env = await initializeTestEnvironment({ projectId, firestore: {
     host: host.split(':')[0], port: 8180,
-    rules: await readFile(new URL('../../firestore.rules', import.meta.url), 'utf8')
+    rules: await readFile(new URL('../firestore.rules', import.meta.url), 'utf8')
   } });
 });
 after(async () => { await env?.cleanup(); });

@@ -40,6 +40,24 @@ struct EstadoVaga {
   uint32_t reservadaAte = 0;  // segundos Unix; a reserva vale enquanto for maior que agora
 };
 
+// Tipo da vaga com a mesma regra do site (obterTipoVaga em
+// web/src/utils/mapaVagas.js): vale o campo "tipo" quando é um dos quatro
+// conhecidos; sem ele, a tabela da demonstração FATEC (VAGAS_ESPECIAIS). As
+// duas tabelas precisam mudar juntas, senão o site mostra uma vaga como PCD e
+// o totem a entrega como comum.
+inline bool tipoVagaConhecido(const char* tipo) {
+  return tipo && (std::strcmp(tipo, "comum") == 0 || std::strcmp(tipo, "pcd") == 0 ||
+                  std::strcmp(tipo, "idoso") == 0 || std::strcmp(tipo, "gestante") == 0);
+}
+inline bool vagaEspecialPorPadrao(int numero) {
+  return numero == 1 || numero == 2 || numero == 9 || numero == 10 || numero == 11;
+}
+// tipo nullptr = documento sem o campo "tipo".
+inline bool vagaEspecial(const char* tipo, int numero) {
+  if (tipoVagaConhecido(tipo)) return std::strcmp(tipo, "comum") != 0;
+  return vagaEspecialPorPadrao(numero);
+}
+
 // Vaga da entrada: a reservada pelo dono da placa, se ainda livre; senão, a
 // primeira vaga comum, livre e sem reserva valendo. Vaga especial só é usada
 // por quem a reservou no app. Retorna 0 quando não há vaga.

@@ -10,7 +10,7 @@ muito mais legível no mesmo espaço.
 Uso:
     python gerar_fonte.py
 
-Gera os .h em Main/. Rode de novo só se quiser mudar tamanho ou fonte-base.
+Gera os .h em firmware/totem/. Rode de novo só se quiser mudar tamanho ou fonte-base.
 """
 
 from PIL import Image, ImageDraw, ImageFont
@@ -23,7 +23,7 @@ TTF = r"C:\Windows\Fonts\bahnschrift.ttf"
 
 # Bahnschrift é variável; estes eixos dão o peso/largura que queremos.
 # (PIL usa a instância padrão, então ajustamos pelo tamanho.)
-SAIDA = Path(__file__).resolve().parent.parent / "Main"
+SAIDA = Path(__file__).resolve().parent.parent / "totem"
 
 # Só os caracteres que o totem realmente desenha. Cortar o resto economiza
 # flash: a faixa ASCII inteira gastaria ~3x mais.
@@ -97,7 +97,7 @@ def glifos_da_fonte(caminho_ttf, tamanho_px):
 
 def escrever_header(nome, glifos, bitmaps, primeiro, ultimo, y_advance, tamanho_px):
     linhas = []
-    linhas.append(f"// Gerado por Ferramentas/gerar_fonte.py a partir de Bahnschrift {tamanho_px}px.")
+    linhas.append(f"// Gerado por firmware/tools/gerar_fonte.py a partir de Bahnschrift {tamanho_px}px.")
     linhas.append("// Não editar à mão — rode o script de novo para regerar.")
     linhas.append(f"#pragma once")
     linhas.append("#include <Adafruit_GFX.h>")
