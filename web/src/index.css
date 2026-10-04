@@ -46,6 +46,12 @@
   --danger-soft: rgba(255, 77, 94, 0.12);
   --plate-blue: #0b3a9d;
 
+  /* ---- Vagas especiais: uma só paleta nos três mapas (meio-tom, legível
+     nos dois temas como borda, fundo misturado e ponto de legenda) ---- */
+  --vaga-pcd: #2878d0;
+  --vaga-idoso: #7a5bc7;
+  --vaga-gestante: #c24f87;
+
   --border: #262c37;
   --border-strong: #39414f;
 
@@ -65,7 +71,18 @@
   --t-h1: clamp(2rem, 5vw, 3.4rem);
   --t-h2: clamp(1.55rem, 3.4vw, 2.5rem);
   --t-h3: clamp(1.1rem, 2vw, 1.45rem);
-  --t-mini: 0.74rem;
+  --t-mini: var(--t-legenda);   /* nome antigo, mantido por compatibilidade */
+
+  /* ---- Escala de texto (base iOS, em rem: acompanha a fonte do usuário) ----
+     Cada tamanho tem um papel; nada de valores avulsos entre eles. */
+  --t-legenda: 0.75rem;    /* 12 px: rótulos, selos, notas */
+  --t-apoio: 0.875rem;     /* 14 px: texto secundário, botões pequenos */
+  --t-corpo: 1rem;         /* 16 px: corpo, campos, botões */
+  --t-destaque: 1.125rem;  /* 18 px: textos de abertura */
+  --t-subtitulo: 1.25rem;  /* 20 px: títulos de cartão */
+  --t-titulo: 1.5rem;      /* 24 px: títulos curtos de seção */
+  --t-titulo-g: 1.75rem;   /* 28 px: valores em destaque */
+  --t-numero: 2.25rem;     /* 36 px: números de painel */
 
   /* ---- Ritmo ---- */
   --gap: clamp(1rem, 2.4vw, 1.6rem);
@@ -84,7 +101,7 @@
   --esp-7: 3rem;
 
   /* ---- Rótulos técnicos: o menor texto do site ---- */
-  --rotulo-tamanho: 0.75rem;
+  --rotulo-tamanho: var(--t-legenda);
   --rotulo-tracking: 0.06em;
 
   /* ---- Movimento ----
@@ -161,7 +178,8 @@ html {
 
 body {
   font-family: var(--font-main);
-  font-size: clamp(0.98rem, 1.05vw, 1.06rem);
+  /* Corpo em rem, sem vw: respeita o tamanho de texto escolhido pela pessoa. */
+  font-size: var(--t-corpo);
   line-height: 1.65;
   color: var(--text-primary);
   background: var(--bg-primary);
@@ -201,6 +219,9 @@ a { color: inherit; text-decoration: none; }
   outline-offset: 3px;
   border-radius: 3px;
 }
+/* Diálogo que recebe o foco só para guardá-lo (tabIndex -1): sem anel em
+   volta da janela inteira. */
+[role="dialog"][tabindex="-1"]:focus-visible { outline: none; }
 
 ::selection { background: var(--accent); color: var(--accent-contrast); }
 
@@ -226,7 +247,7 @@ h1, h2, h3, h4 {
 h1 { font-size: var(--t-h1); line-height: 1.08; letter-spacing: -0.022em; }
 h2 { font-size: var(--t-h2); line-height: 1.14; letter-spacing: -0.016em; }
 h3 { font-size: var(--t-h3); line-height: 1.24; letter-spacing: -0.01em; }
-h4 { font-size: 1rem; line-height: 1.35; letter-spacing: -0.004em; }
+h4 { font-size: var(--t-corpo); line-height: 1.35; letter-spacing: -0.004em; }
 
 /* Manchete: condensada, caixa alta, bem grande. Só em hero e afins. */
 /* Manchete: condensada, caixa alta, bem grande. Só em hero e afins. */
@@ -246,7 +267,7 @@ p { text-wrap: pretty; }
   font-family: var(--font-mono);
   font-size: var(--rotulo-tamanho);
   font-weight: 500;
-  letter-spacing: 0.12em;
+  letter-spacing: var(--rotulo-tracking);
   text-transform: uppercase;
   color: var(--accent-text);
 }
@@ -288,7 +309,7 @@ p { text-wrap: pretty; }
   color: var(--btn-cor);
   border: 1.5px solid var(--btn-borda);
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: var(--t-corpo);
   letter-spacing: -0.005em;
   white-space: nowrap;
   user-select: none;
@@ -335,8 +356,12 @@ p { text-wrap: pretty; }
   .btn-danger:hover:not(:disabled) { --btn-bg: var(--danger); --btn-cor: #fff; }
 }
 
-.btn-sm { min-height: 40px; padding: 0.5rem 1rem; font-size: 0.86rem; }
-.btn-lg { min-height: 52px; padding: 0.95rem 2rem; font-size: 1.02rem; }
+.btn-sm { min-height: 40px; padding: 0.5rem 1rem; font-size: var(--t-apoio); }
+.btn-lg { min-height: 52px; padding: 0.95rem 2rem; font-size: var(--t-destaque); }
+/* No toque o botão pequeno continua pequeno no texto, não na área: 44 px. */
+@media (pointer: coarse) {
+  .btn-sm { min-height: 44px; }
+}
 .btn-block { width: 100%; }
 
 /* ==========================================================================
@@ -350,6 +375,9 @@ p { text-wrap: pretty; }
   padding: clamp(1.3rem, 2.6vw, 2rem);
   box-shadow: var(--shadow-card);
 }
+
+/* Título direto no cartão: respiro padrão antes do conteúdo. */
+.card > h2 { margin-bottom: var(--esp-4); }
 
 /* Aresta âmbar à esquerda, como marcação de vaga pintada no chão */
 .card-marcado { border-left: 3px solid var(--accent); }
@@ -382,7 +410,7 @@ p { text-wrap: pretty; }
 
 .label, .field-label-row {
   font-family: var(--font-main);
-  font-size: 0.875rem;
+  font-size: var(--t-apoio);
   font-weight: 600;
   letter-spacing: 0;
   color: var(--text-secondary);
@@ -391,7 +419,8 @@ p { text-wrap: pretty; }
 
 .field input, .field select, .field textarea,
 input[type="text"], input[type="email"], input[type="password"],
-input[type="tel"], input[type="number"], input[type="date"], select, textarea {
+input[type="tel"], input[type="number"], input[type="date"], input[type="search"],
+select, textarea {
   width: 100%;
   min-height: 48px;
   padding: 0.8rem 1rem;
@@ -413,14 +442,14 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
-.field-hint { font-size: 0.8rem; color: var(--text-muted); }
+.field-hint { font-size: var(--t-apoio); color: var(--text-muted); }
 /* Autodeclaração (ex.: direito a vaga especial): caixa e texto alinhados.
    O seletor com [type] vence a regra genérica de .field input. */
 .declaracao {
   display: flex;
   align-items: flex-start;
   gap: 0.6rem;
-  font-size: 0.875rem;
+  font-size: var(--t-apoio);
   color: var(--text-secondary);
   cursor: pointer;
 }
@@ -433,12 +462,12 @@ input:focus, select:focus, textarea:focus {
   padding: 0;
   accent-color: var(--accent);
 }
-.field-link { font-size: 0.8rem; color: var(--accent-text); font-weight: 600; }
+.field-link { font-size: var(--t-apoio); color: var(--accent-text); font-weight: 600; }
 @media (hover: hover) {
   .field-link:hover { text-decoration: underline; }
 }
 
-.error-text, .erro { color: var(--danger); font-size: 0.85rem; font-weight: 600; }
+.error-text, .erro { color: var(--danger); font-size: var(--t-apoio); font-weight: 600; }
 
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
 @media (max-width: 620px) { .field-row { grid-template-columns: 1fr; } }
@@ -480,6 +509,39 @@ input:focus, select:focus, textarea:focus {
   border-radius: 50%;
   animation: girar 0.8s linear infinite;
 }
+
+/* Usados por várias páginas (Redefinir senha, Cadastro, Perfil, recarga):
+   ficam aqui para não depender de qual página carregou o CSS antes. */
+.spinner-grande {
+  width: 56px; height: 56px;
+  margin: 0 auto;
+  border: 3px solid var(--border-strong);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: girar 0.85s linear infinite;
+}
+
+.input-spinner {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 17px;
+  height: 17px;
+  margin-top: -8.5px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: girar 0.8s linear infinite;
+}
+
+/* Janelas modais: o véu escurece e a janela surge; saem pelo mesmo caminho.
+   No celular a janela vira folha que sobe da base. */
+@keyframes fundo-escurecer { from { opacity: 0; } }
+@keyframes fundo-clarear { to { opacity: 0; } }
+@keyframes modal-surgir { from { opacity: 0; transform: translateY(12px) scale(0.97); } }
+@keyframes modal-sumir { to { opacity: 0; transform: translateY(12px) scale(0.97); } }
+@keyframes folha-subir { from { transform: translateY(100%); } }
+@keyframes folha-descer { to { transform: translateY(100%); } }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }

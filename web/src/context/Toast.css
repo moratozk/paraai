@@ -45,7 +45,7 @@
   align-items: center;
   justify-content: center;
   font-weight: 900;
-  font-size: 0.78rem;
+  font-size: var(--t-legenda);
   background: var(--accent);
   color: var(--accent-contrast);
 }
@@ -58,7 +58,7 @@
 
 .toast-texto {
   flex: 1;
-  font-size: 0.9rem;
+  font-size: var(--t-apoio);
   line-height: 1.4;
   color: var(--text-primary);
 }
@@ -68,7 +68,7 @@
   background: none;
   border: none;
   color: var(--text-muted);
-  font-size: 1.3rem;
+  font-size: var(--t-subtitulo);
   line-height: 1;
   padding: 0 2px;
 }

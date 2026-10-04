@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
@@ -7,6 +7,7 @@ import {
   useHistoricoPlaca,
   useEstacionamentoPublico,
   useReserva,
+  useCatalogoEstacionamentos,
 } from "../hooks/useParkingData";
 import {
   formatarMoeda,
@@ -64,6 +65,12 @@ export default function PainelMotorista() {
   const custoEstimado = (segundosEstacionado / 3600) * tarifaAtual;
 
   const ultimosAcessos = historico.slice(0, 5);
+  // O motorista vê o nome do estacionamento, nunca o identificador interno.
+  const { estacionamentos } = useCatalogoEstacionamentos();
+  const nomesPorEstacionamento = useMemo(
+    () => Object.fromEntries(estacionamentos.map((item) => [item.id, item.nome])),
+    [estacionamentos]
+  );
   const totalGasto = historico.reduce(
     (soma, h) => soma + (Number(h.valorCobrado) || 0),
     0
@@ -278,7 +285,9 @@ export default function PainelMotorista() {
                   <div className="activity-item" key={item.id}>
                     <div>
                       <strong>Vaga {item.vaga}</strong>
-                      {item.estacionamentoId ? ` · ${item.estacionamentoId}` : ""}
+                      {item.estacionamentoId
+                        ? ` · ${nomesPorEstacionamento[item.estacionamentoId] || "Rede ParaAí"}`
+                        : ""}
                       <div className="activity-time">
                         {item.status === "ativa"
                           ? "Em andamento"

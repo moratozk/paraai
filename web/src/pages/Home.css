@@ -111,7 +111,7 @@
    assinatura, não compete com o título. */
 .hero-lema {
   font-family: var(--font-main);
-  font-size: clamp(0.95rem, 1.9vw, 1.35rem);
+  font-size: clamp(var(--t-corpo), 0.85rem + 0.6vw, 1.35rem);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -133,7 +133,7 @@
 }
 
 .hero-sub {
-  font-size: clamp(1.02rem, 1.5vw, 1.28rem);
+  font-size: clamp(var(--t-corpo), 0.9rem + 0.4vw, var(--t-subtitulo));
   color: var(--text-secondary);
   max-width: 52ch;
   margin-bottom: 2.2rem;
@@ -211,7 +211,7 @@
 .capitulo-texto h2 { font-size: var(--t-h1); margin: 0.7rem 0 1rem; }
 .capitulo-texto p {
   color: var(--text-secondary);
-  font-size: clamp(1rem, 1.3vw, 1.15rem);
+  font-size: clamp(var(--t-corpo), 0.9rem + 0.3vw, var(--t-destaque));
   max-width: 46ch;
 }
 
@@ -250,7 +250,7 @@
 
 .numero-rotulo {
   font-family: var(--font-mono);
-  font-size: var(--t-mini);
+  font-size: var(--t-legenda);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   /* --text-muted aqui dava 3.2:1 sobre o fundo da seção; o secundário passa */
@@ -320,7 +320,7 @@
   position: relative;
   padding-left: 1.6rem;
   color: var(--text-secondary);
-  font-size: 0.94rem;
+  font-size: var(--t-corpo);
 }
 .publico-corpo li::before {
   content: "";
@@ -336,11 +336,14 @@
 /* ==========================================================================
    CHAMADA FINAL
    ========================================================================== */
+/* Fundo escuro de reserva: se a foto não carregar, o texto claro continua
+   legível sobre o véu. */
 .chamada {
   position: relative;
   padding-block: clamp(5rem, 14vh, 9rem);
   overflow: hidden;
   isolation: isolate;
+  background: #11151a;
   text-align: center;
 }
 
@@ -372,7 +375,6 @@
 .chamada-titulo { font-size: var(--t-h1); margin-bottom: 1rem; }
 
 .chamada-conteudo > p {
-  color: var(--text-secondary);
   max-width: 46ch;
   margin: 0 auto 2rem;
 }
@@ -382,6 +384,18 @@
   gap: 0.9rem;
   justify-content: center;
   flex-wrap: wrap;
+}
+/* Botão de contorno sobre o fundo sempre escuro: claro nos dois temas (no
+   tema claro herdava o texto escuro e sumia). */
+.chamada .btn-outline {
+  --btn-cor: #f5f3ee;
+  --btn-borda: rgba(245, 243, 238, 0.45);
+}
+@media (hover: hover) {
+  .chamada .btn-outline:hover:not(:disabled) {
+    --btn-cor: var(--accent);
+    --btn-borda: var(--accent);
+  }
 }
 
 /* ==========================================================================
@@ -407,11 +421,11 @@
 .rodape-marca div { display: flex; flex-direction: column; line-height: 1.3; }
 .rodape-marca strong {
   font-family: var(--font-display);
-  font-size: 1.25rem;
+  font-size: var(--t-subtitulo);
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
-.rodape-marca span { font-size: var(--t-mini); color: var(--text-secondary); }
+.rodape-marca span { font-size: var(--t-legenda); color: var(--text-secondary); }
 
 .rodape-links { display: flex; gap: 0.8rem; flex-wrap: wrap; }
 
@@ -420,9 +434,11 @@
 .rodape-links a {
   display: inline-flex;
   align-items: center;
-  min-height: 40px;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0 0.5rem;
-  font-size: 0.88rem;
+  font-size: var(--t-apoio);
   color: var(--text-secondary);
   border-radius: var(--radius-sm);
   transition: color 0.2s, background 0.2s;
@@ -437,7 +453,7 @@
   gap: 1rem;
   flex-wrap: wrap;
   padding-top: 1.5rem;
-  font-size: var(--t-mini);
+  font-size: var(--t-legenda);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   /* muted dava 3.4:1 aqui; o secundário passa em AA */

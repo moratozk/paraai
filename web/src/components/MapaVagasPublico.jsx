@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useReserva, useVagasPublicas } from "../hooks/useParkingData";
+import { useFocoNoModal } from "../hooks/useFocoNoModal";
 import { obterTipoVaga } from "../utils/mapaVagas";
 import { formatarMoeda, saldoEmPendencia } from "../utils/format";
 import {
@@ -37,6 +38,8 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
   const [erroReserva, setErroReserva] = useState("");
   const [resultado, setResultado] = useState(null);
   const [saindo, setSaindo] = useState(false);
+  const modalRef = useRef(null);
+  useFocoNoModal(modalRef);
   const tarifaHora = Number(estacionamento.tarifaHora) || 0;
   const minutosReserva = DURACAO_RESERVA_S / 60;
   const temReserva = reservaAtiva(reserva);
@@ -123,8 +126,17 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
           setEtapa("reserva");
         }}
       >
-        <span>{numeroVaga(vaga.numero)}</span>
-        <small>{estado === "Livre" ? especial?.icone || "Livre" : estado}</small>
+        {/* O tipo vai num selo ao lado do número: o estado ("Livre") nunca
+            some, nem nas vagas especiais. */}
+        <span>
+          {numeroVaga(vaga.numero)}
+          {especial && (
+            <i className="mapa-publico-tipo" aria-hidden="true">
+              {especial.icone}
+            </i>
+          )}
+        </span>
+        <small>{estado}</small>
       </button>
     );
   }
@@ -167,6 +179,8 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
       onMouseDown={fechar}
     >
       <section
+        ref={modalRef}
+        tabIndex={-1}
         className="mapa-publico-modal"
         role="dialog"
         aria-modal="true"
@@ -184,7 +198,6 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
             type="button"
             aria-label="Fechar mapa de vagas"
             onClick={fechar}
-            autoFocus
           >
             ×
           </button>

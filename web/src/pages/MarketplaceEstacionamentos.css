@@ -27,13 +27,12 @@
   pointer-events: none;
 }
 
-.marketplace-sobrelinha,
-.marketplace-localidade {
+.marketplace-sobrelinha {
   display: block;
   font-family: var(--font-mono);
-  font-size: var(--t-mini);
+  font-size: var(--t-legenda);
   font-weight: 800;
-  letter-spacing: 0.12em;
+  letter-spacing: var(--rotulo-tracking);
   text-transform: uppercase;
   color: var(--accent-text);
 }
@@ -73,7 +72,7 @@
 
 .marketplace-resumo span {
   margin-top: 0.55rem;
-  font-size: 0.78rem;
+  font-size: var(--t-legenda);
   font-weight: 700;
   color: var(--text-secondary);
 }
@@ -135,12 +134,13 @@
 
 .marketplace-filtros button {
   flex: 0 0 auto;
+  min-height: 44px;
   padding: 0.68rem 0.85rem;
   border: 1px solid var(--border);
   border-radius: 100px;
   background: var(--bg-input);
   color: var(--text-secondary);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   font-weight: 800;
   white-space: nowrap;
 }
@@ -168,7 +168,7 @@
 
 .marketplace-ordem span {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -188,7 +188,7 @@
   justify-content: space-between;
   gap: 1rem;
   margin: 1.2rem 0 0.8rem;
-  font-size: 0.78rem;
+  font-size: var(--t-legenda);
   color: var(--text-muted);
 }
 
@@ -249,7 +249,7 @@
   border-radius: 14px;
   background: var(--bg-solid);
   font-family: var(--font-display);
-  font-size: 2.2rem;
+  font-size: var(--t-numero);
   color: var(--accent-text);
   box-shadow: var(--glow-accent);
 }
@@ -263,13 +263,14 @@
   gap: 0.8rem;
 }
 
-.marketplace-card-titulo h2 { margin-top: 0.3rem; font-size: 1.05rem; }
+.marketplace-card-titulo h2 { margin-top: 0.3rem; font-size: var(--t-corpo); }
 
+/* Bairro e cidade em texto normal e quebrando linha: em caixa alta
+   monoespaçada o endereço era cortado no meio. */
 .marketplace-localidade {
-  overflow: hidden;
-  max-width: 28ch;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: block;
+  font-size: var(--t-apoio);
+  font-weight: 600;
   color: var(--text-muted);
 }
 
@@ -278,7 +279,7 @@
   padding: 0.3rem 0.55rem;
   border: 1px solid var(--border);
   border-radius: 100px;
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   font-weight: 800;
   white-space: nowrap;
 }
@@ -301,7 +302,7 @@
   min-height: 2.8em;
   margin: 0.8rem 0 1rem;
   color: var(--text-secondary);
-  font-size: 0.8rem;
+  font-size: var(--t-apoio);
   line-height: 1.45;
 }
 
@@ -323,15 +324,15 @@
 
 .marketplace-card-dados span {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
 
-.marketplace-card-dados strong { font-size: 1rem; color: var(--text-primary); }
-.marketplace-card-dados small { font-size: 0.75rem; font-weight: 500; color: var(--text-muted); }
+.marketplace-card-dados strong { font-size: var(--t-corpo); color: var(--text-primary); }
+.marketplace-card-dados small { font-size: var(--t-legenda); font-weight: 500; color: var(--text-muted); }
 .marketplace-card-acoes {
   display: grid;
   gap: 0.55rem;
@@ -351,8 +352,6 @@
 
 .mapa-publico-overlay { animation: fundo-escurecer var(--dur-rapida) ease-out both; }
 .mapa-publico-overlay.saindo { animation: fundo-clarear var(--dur-rapida) ease-in both; }
-@keyframes fundo-escurecer { from { opacity: 0; } }
-@keyframes fundo-clarear { to { opacity: 0; } }
 
 .mapa-publico-modal {
   animation: modal-surgir var(--dur-mola) var(--mola-critica) both;
@@ -392,20 +391,20 @@
 .mapa-publico-modal-header p {
   margin-top: 0.45rem;
   color: var(--text-secondary);
-  font-size: 0.78rem;
+  font-size: var(--t-legenda);
 }
 
 .mapa-publico-fechar {
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   border: 1px solid var(--border-strong);
   border-radius: 50%;
   background: var(--bg-input);
   color: var(--text-primary);
-  font-size: 1.6rem;
+  font-size: var(--t-titulo);
   line-height: 1;
 }
 
@@ -430,12 +429,12 @@
 }
 
 .mapa-publico-topo > div { display: grid; gap: 0.18rem; }
-.mapa-publico-topo strong { font-size: 1.05rem; }
+.mapa-publico-topo strong { font-size: var(--t-corpo); }
 .mapa-publico-topo span,
 .mapa-publico-aviso,
 .mapa-publico-carregando {
   color: var(--text-muted);
-  font-size: 0.78rem;
+  font-size: var(--t-legenda);
   line-height: 1.45;
 }
 
@@ -452,7 +451,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.7rem;
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   color: var(--text-muted);
 }
 
@@ -469,9 +468,9 @@
   border: 1px dashed var(--accent-text);
   background: var(--accent-soft);
 }
-.mapa-publico-legenda i.pcd { border-color: #2878d0; background: #2878d0; }
-.mapa-publico-legenda i.idoso { border-color: #7a5bc7; background: #7a5bc7; }
-.mapa-publico-legenda i.gestante { border-color: #c24f87; background: #c24f87; }
+.mapa-publico-legenda i.pcd { border-color: var(--vaga-pcd); background: var(--vaga-pcd); }
+.mapa-publico-legenda i.idoso { border-color: var(--vaga-idoso); background: var(--vaga-idoso); }
+.mapa-publico-legenda i.gestante { border-color: var(--vaga-gestante); background: var(--vaga-gestante); }
 
 .mapa-publico-fileira {
   display: grid;
@@ -517,12 +516,13 @@
   } 
 }
 
+/* Esmaecida, mas legível: abaixo de 0.9 o "Ocupada" perdia o contraste 4.5:1. */
 .mapa-publico-vaga.ocupada {
   border-color: color-mix(in srgb, var(--danger) 55%, var(--border));
   background: var(--danger-soft);
   color: var(--danger);
   cursor: not-allowed;
-  opacity: 0.72;
+  opacity: 0.9;
 }
 
 /* Reservada por outra pessoa: indisponível, mas diferente de ocupada. */
@@ -540,20 +540,20 @@
 }
 
 .mapa-publico-vaga.pcd {
-  border-color: #2878d0;
-  background: color-mix(in srgb, #2878d0 24%, var(--bg-input));
+  border-color: var(--vaga-pcd);
+  background: color-mix(in srgb, var(--vaga-pcd) 24%, var(--bg-input));
 }
 .mapa-publico-vaga.idoso {
-  border-color: #7a5bc7;
-  background: color-mix(in srgb, #7a5bc7 24%, var(--bg-input));
+  border-color: var(--vaga-idoso);
+  background: color-mix(in srgb, var(--vaga-idoso) 24%, var(--bg-input));
 }
 .mapa-publico-vaga.gestante {
-  border-color: #c24f87;
-  background: color-mix(in srgb, #c24f87 24%, var(--bg-input));
+  border-color: var(--vaga-gestante);
+  background: color-mix(in srgb, var(--vaga-gestante) 24%, var(--bg-input));
 }
 .mapa-publico-vaga.ocupada.pcd,
 .mapa-publico-vaga.ocupada.idoso,
-.mapa-publico-vaga.ocupada.gestante { opacity: 0.8; filter: saturate(0.72); }
+.mapa-publico-vaga.ocupada.gestante { opacity: 0.9; filter: saturate(0.72); }
 .mapa-publico-vaga.pcd.selecionada,
 .mapa-publico-vaga.idoso.selecionada,
 .mapa-publico-vaga.gestante.selecionada {
@@ -562,11 +562,18 @@
 }
 .mapa-publico-vaga span {
   font-family: var(--font-main);
-  font-size: 1.05rem;
+  font-size: var(--t-corpo);
   font-weight: 700;
   letter-spacing: -0.04em;
 }
-.mapa-publico-vaga small { font-size: 0.7rem; }
+.mapa-publico-vaga small { font-size: var(--t-legenda); }
+.mapa-publico-tipo {
+  margin-left: 0.25rem;
+  font-style: normal;
+  font-size: var(--t-legenda);
+  font-weight: 700;
+  letter-spacing: 0;
+}
 
 .mapa-publico-corredor {
   display: flex;
@@ -577,7 +584,7 @@
   border: 1px dashed var(--border-strong);
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   letter-spacing: 0.05em;
 }
 
@@ -626,13 +633,13 @@
 .checkout-resumo-topo span {
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.checkout-resumo-topo strong { color: var(--accent-text); font-size: 1.2rem; }
+.checkout-resumo-topo strong { color: var(--accent-text); font-size: var(--t-subtitulo); }
 
 .checkout-explicacao {
   padding: 1rem;
@@ -643,7 +650,7 @@
 .checkout-explicacao p {
   margin-top: 0.3rem;
   color: var(--text-secondary);
-  font-size: 0.82rem;
+  font-size: var(--t-apoio);
 }
 
 .checkout-opcoes {
@@ -677,9 +684,9 @@
 
 .checkout-opcoes input { accent-color: var(--accent); }
 .checkout-opcoes label > span { display: grid; gap: 0.18rem; }
-.checkout-opcoes small { color: var(--text-muted); font-size: 0.75rem; }
-.checkout-opcoes label > b { color: var(--accent-text); font-size: 0.78rem; text-align: right; }
-.checkout-aviso { color: var(--danger); font-size: 0.78rem; }
+.checkout-opcoes small { color: var(--text-muted); font-size: var(--t-legenda); }
+.checkout-opcoes label > b { color: var(--accent-text); font-size: var(--t-legenda); text-align: right; }
+.checkout-aviso { color: var(--danger); font-size: var(--t-legenda); }
 
 .checkout-sucesso {
   justify-items: center;
@@ -696,11 +703,11 @@
   border-radius: 50%;
   background: var(--success-soft);
   color: var(--success);
-  font-size: 2.3rem;
+  font-size: var(--t-numero);
   font-weight: 900;
 }
 
-.checkout-sucesso h3 { font-size: 1.4rem; }
+.checkout-sucesso h3 { font-size: var(--t-titulo); }
 .checkout-sucesso p { max-width: 55ch; color: var(--text-secondary); }
 .checkout-sucesso-acoes { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.7rem; }
 
@@ -723,7 +730,7 @@
   border: 2px solid var(--border-strong);
   border-radius: 12px;
   font-family: var(--font-display);
-  font-size: 2rem;
+  font-size: var(--t-titulo-g);
   color: var(--text-muted);
 }
 
@@ -772,11 +779,7 @@
 @media (max-width: 400px) {
   .marketplace-card-titulo { flex-direction: column; }
   .marketplace-status { align-self: flex-start; }
-  .marketplace-localidade {
-    max-width: 100%;
-    white-space: normal;
-    overflow-wrap: anywhere;
-  }
+  .marketplace-localidade { overflow-wrap: anywhere; }
 }
 
 @media (max-width: 340px) {
@@ -793,10 +796,6 @@
   .marketplace-card { transition: none; }
 }
 
-@keyframes modal-surgir { from { opacity: 0; transform: translateY(12px) scale(0.97); } }
-@keyframes modal-sumir { to { opacity: 0; transform: translateY(12px) scale(0.97); } }
-@keyframes folha-subir { from { transform: translateY(100%); } }
-@keyframes folha-descer { to { transform: translateY(100%); } }
 .mapa-publico-overlay.saindo .mapa-publico-modal {
   animation: modal-sumir var(--dur-rapida) ease-in both;
 }

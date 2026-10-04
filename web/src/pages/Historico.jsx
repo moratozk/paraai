@@ -146,9 +146,7 @@ export default function Historico() {
                         )}
                         {role === "motorista" && (
                           <td data-label="Estacionamento">
-                            {nomesPorEstacionamento[item.estacionamentoId] ||
-                              item.estacionamentoId ||
-                              "Rede ParaAí"}
+                            {nomesPorEstacionamento[item.estacionamentoId] || "Rede ParaAí"}
                           </td>
                         )}
                         <td data-label="Vaga">Vaga {item.vaga}</td>
