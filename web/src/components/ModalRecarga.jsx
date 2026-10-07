@@ -1,10 +1,31 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { adicionarSaldo } from "../services/veiculos";
 import { formatarMoeda } from "../utils/format";
+import { useFocoNoModal } from "../hooks/useFocoNoModal";
 import "./ModalRecarga.css";
 
 const VALORES = [10, 25, 50, 100];
+
+function IconeQr() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <rect x="4" y="4" width="6" height="6" rx="1" />
+      <rect x="14" y="4" width="6" height="6" rx="1" />
+      <rect x="4" y="14" width="6" height="6" rx="1" />
+      <path d="M14 14h2v2h-2zM18 18h2v2h-2zM14 18v2M18 14h2" />
+    </svg>
+  );
+}
+
+function IconeCartao() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <rect x="3" y="5.5" width="18" height="13" rx="2" />
+      <path d="M3 10h18M7 15h4" />
+    </svg>
+  );
+}
 
 // Fluxo de recarga em 3 etapas: valor → pagamento → confirmação.
 // ATENÇÃO (TCC): não há cobrança real. O "pagamento" é simulado e o saldo
@@ -19,13 +40,26 @@ export default function ModalRecarga({ placa, saldoAtual, aoFechar, aoConcluir }
   const [copiado, setCopiado] = useState(false);
   const [qrCode, setQrCode] = useState("");
   const [erroQr, setErroQr] = useState("");
+  const modalRef = useRef(null);
+  const [saindo, setSaindo] = useState(false);
+  useFocoNoModal(modalRef);
+
+  // Sai pelo mesmo caminho por onde entrou; com movimento reduzido, fecha na hora.
+  const fechar = useCallback(() => {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      aoFechar();
+      return;
+    }
+    setSaindo(true);
+    setTimeout(aoFechar, 180);
+  }, [aoFechar]);
 
   // fecha com ESC
   useEffect(() => {
-    const onKey = (e) => e.key === "Escape" && etapa !== "processando" && aoFechar();
+    const onKey = (e) => e.key === "Escape" && etapa !== "processando" && fechar();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [aoFechar, etapa]);
+  }, [fechar, etapa]);
 
   const valorFinal = valorLivre ? Number(valorLivre.replace(",", ".")) : valor;
   const valorValido = valorFinal > 0 && valorFinal <= 1000;
@@ -90,8 +124,13 @@ export default function ModalRecarga({ placa, saldoAtual, aoFechar, aoConcluir }
   }
 
   return (
-    <div className="modal-overlay" onClick={() => etapa !== "processando" && aoFechar()}>
+    <div
+      className={`modal-overlay${saindo ? " saindo" : ""}`}
+      onClick={() => etapa !== "processando" && fechar()}
+    >
       <div
+        ref={modalRef}
+        tabIndex={-1}
         className="modal-recarga card"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
@@ -99,7 +138,7 @@ export default function ModalRecarga({ placa, saldoAtual, aoFechar, aoConcluir }
         aria-label="Adicionar saldo"
       >
         {etapa !== "processando" && etapa !== "ok" && (
-          <button className="modal-fechar" onClick={aoFechar} aria-label="Fechar">
+          <button className="modal-fechar" onClick={fechar} aria-label="Fechar">
             ×
           </button>
         )}
@@ -197,7 +236,9 @@ export default function ModalRecarga({ placa, saldoAtual, aoFechar, aoConcluir }
                 className={`metodo ${metodo === "pix" ? "ativo" : ""}`}
                 onClick={() => setMetodo("pix")}
               >
-                <span className="metodo-icone">⚡</span>
+                <span className="metodo-icone">
+                  <IconeQr />
+                </span>
                 <span>
                   <strong>PIX</strong>
                   <small>Demonstração com QR escaneável</small>
@@ -207,7 +248,9 @@ export default function ModalRecarga({ placa, saldoAtual, aoFechar, aoConcluir }
                 className={`metodo ${metodo === "cartao" ? "ativo" : ""}`}
                 onClick={() => setMetodo("cartao")}
               >
-                <span className="metodo-icone">💳</span>
+                <span className="metodo-icone">
+                  <IconeCartao />
+                </span>
                 <span>
                   <strong>Cartão de crédito</strong>
                   <small>Em até 1x sem juros</small>
@@ -296,7 +339,7 @@ export default function ModalRecarga({ placa, saldoAtual, aoFechar, aoConcluir }
               <br />
               Novo saldo: {formatarMoeda((Number(saldoAtual) || 0) + valorFinal)}
             </p>
-            <button className="btn btn-primary btn-block" onClick={aoFechar}>
+            <button className="btn btn-primary btn-block" onClick={fechar}>
               Concluir
             </button>
           </div>

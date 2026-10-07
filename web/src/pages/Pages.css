@@ -33,7 +33,7 @@
 
 .page-header p {
   color: var(--text-secondary);
-  font-size: 0.88rem;
+  font-size: var(--t-apoio);
   margin-top: 0.45rem;
 }
 
@@ -44,7 +44,7 @@
 .card h2, .card h3 {
   font-family: var(--font-main);
   font-weight: 700;
-  font-size: 1.02rem;
+  font-size: var(--t-corpo);
   letter-spacing: -0.01em;
   line-height: 1.3;
   text-transform: none;
@@ -93,7 +93,7 @@
 
 .stat-label {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -117,8 +117,8 @@
 }
 
 .money { font-variant-numeric: tabular-nums; }
-.mini { font-size: 0.78rem; color: var(--text-muted); }
-.muted-note { font-size: 0.8rem; color: var(--text-muted); }
+.mini { font-size: var(--t-legenda); color: var(--text-muted); }
+.muted-note { font-size: var(--t-apoio); color: var(--text-muted); }
 
 .setup-pendente {
   display: grid;
@@ -132,7 +132,7 @@
 .marketplace-chamada-painel strong { color: var(--text-primary); }
 .reserva-ativa { justify-content: space-between; }
 .reserva-ativa > div { display: grid; gap: 0.2rem; color: var(--text-secondary); }
-.reserva-ativa > div > strong { color: var(--text-primary); font-size: 1rem; }
+.reserva-ativa > div > strong { color: var(--text-primary); font-size: var(--t-corpo); }
 .reserva-ativa .stat-label { color: var(--accent-text); }
 
 /* ==========================================================================
@@ -153,6 +153,8 @@
   gap: var(--gap);
   align-items: start;
 }
+/* Cartões abaixo da grade do Perfil: o mesmo respiro da grade entre eles. */
+.profile-grid ~ .card { margin-top: var(--gap); }
 
 /* ==========================================================================
    FATURAMENTO
@@ -214,7 +216,7 @@
   min-width: 92px;
 }
 .fat-p strong {
-  font-size: 1.05rem;
+  font-size: var(--t-corpo);
   font-weight: 700;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
@@ -235,7 +237,7 @@
   padding: 0.42rem 0.9rem;
   border-radius: 6px;
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -249,6 +251,11 @@
 .segmented button.active, .segmented-op button.active {
   background: var(--accent);
   color: var(--accent-contrast);
+}
+/* No toque, cada opção ganha os 44 px que o dedo precisa; no mouse o
+   seletor continua compacto. */
+@media (pointer: coarse) {
+  .segmented button, .segmented-op button, .fat-periodos button { min-height: 44px; }
 }
 
 /* ==========================================================================
@@ -306,7 +313,7 @@
 /* "VAGA 3" — rótulo pequeno, nunca do tamanho de um título */
 .vaga-numero {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -317,7 +324,7 @@
 /* "LIVRE" — o estado, em destaque */
 .vaga-free {
   font-family: var(--font-main);
-  font-size: 0.82rem;
+  font-size: var(--t-apoio);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -326,7 +333,7 @@
 }
 
 /* o emoji do carro na vaga ocupada */
-.vaga-icon { font-size: 1.3rem; line-height: 1; }
+.vaga-icon { font-size: var(--t-subtitulo); line-height: 1; }
 
 .vagas-grid.animada .vaga-slot { animation: surgir 0.4s var(--mola) backwards; }
 .vagas-grid.animada .vaga-slot:nth-child(2) { animation-delay: 0.04s; }
@@ -410,7 +417,7 @@
   background: var(--accent);
   color: var(--accent-contrast);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   font-weight: 700;
   white-space: nowrap;
   line-height: 1.3;
@@ -418,7 +425,7 @@
 
 .chart-col-label {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-muted);
@@ -435,7 +442,7 @@
   border: 1px solid var(--border-strong);
   color: var(--text-primary);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
@@ -462,7 +469,7 @@
 .history-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.85rem;
+  font-size: var(--t-apoio);
   min-width: 540px;
 }
 
@@ -471,7 +478,7 @@
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--border);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -497,7 +504,7 @@
 .history-payment small {
   color: var(--text-muted);
   font-family: var(--font-body);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -515,7 +522,7 @@
   border-radius: 999px;
   background: var(--bg-input);
   color: var(--text-secondary);
-  font-size: 0.76rem;
+  font-size: var(--t-legenda);
   font-weight: 800;
 }
 
@@ -558,8 +565,8 @@
   flex: none;
   margin-right: 0.5rem;
 }
-.placa-tag { font-size: 0.9rem; padding: 0.35rem 0.6rem 0.35rem 0; }
-.placa-tag-sm { font-size: 0.75rem; padding: 0.25rem 0.45rem 0.25rem 0; }
+.placa-tag { font-size: var(--t-apoio); padding: 0.35rem 0.6rem 0.35rem 0; }
+.placa-tag-sm { font-size: var(--t-legenda); padding: 0.25rem 0.45rem 0.25rem 0; }
 
 .placa-form { display: flex; gap: 0.6rem; flex-wrap: wrap; }
 .placa-form input {
@@ -583,7 +590,7 @@
   border: 1px solid var(--border);
   background: var(--bg-elevated);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -611,7 +618,7 @@
   align-items: center;
   gap: 0.4rem;
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -631,13 +638,13 @@
   gap: 0.8rem;
   padding: 0.75rem 0;
   border-bottom: 1px solid var(--border);
-  font-size: 0.88rem;
+  font-size: var(--t-apoio);
 }
 .activity-item:last-child { border-bottom: none; }
 
 .activity-time {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   color: var(--text-muted);
   white-space: nowrap;
   margin-left: auto;
@@ -646,16 +653,9 @@
 /* ==========================================================================
    VEÍCULO / PERFIL
    ========================================================================== */
-.vehicle-card {
-  display: block;
-  padding: 1rem;
-  border-radius: var(--radius-sm);
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
-}
+/* Mesmo cartão das outras seções, só com a aresta âmbar de vaga pintada. */
+.vehicle-card { border-left: 3px solid var(--accent); }
 
-.vehicle-card > h2 { margin-bottom: 0.75rem; }
 .vehicle-card > form,
 .vehicle-card > .muted-note,
 .vehicle-card > .error-text,
@@ -664,7 +664,6 @@
 .totem-security-card {
   display: grid;
   gap: 1rem;
-  margin-top: var(--gap);
 }
 
 .totem-security-card .card-head-row { align-items: flex-start; }
@@ -686,12 +685,12 @@
 .totem-credential-row span,
 .totem-list-item span {
   color: var(--text-muted);
-  font-size: 0.82rem;
+  font-size: var(--t-apoio);
 }
 
 .totem-credential-row code {
   overflow-wrap: anywhere;
-  font-size: 0.9rem;
+  font-size: var(--t-apoio);
 }
 
 .totem-list { display: grid; gap: 0.65rem; }
@@ -719,7 +718,7 @@
   background: var(--accent);
   color: var(--accent-contrast);
   font-family: var(--font-display);
-  font-size: 2.1rem;
+  font-size: var(--t-numero);
   object-fit: cover;
 }
 
@@ -730,7 +729,7 @@
   gap: 1rem;
   padding: 0.7rem 0;
   border-bottom: 1px solid var(--border);
-  font-size: 0.88rem;
+  font-size: var(--t-apoio);
 }
 .info-row:last-child { border-bottom: none; }
 .info-row > * { min-width: 0; }
@@ -738,7 +737,7 @@
 .info-row > span:first-child,
 .info-row > strong:first-child {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -747,7 +746,7 @@
 
 .est-id {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   background: var(--bg-input);
@@ -775,7 +774,7 @@
   padding: 0.7rem 0.85rem;
   border-radius: var(--radius-sm);
   border-left: 3px solid transparent;
-  font-size: 0.86rem;
+  font-size: var(--t-apoio);
   font-weight: 600;
   color: var(--text-secondary);
   text-align: left;
@@ -788,23 +787,25 @@
     color: var(--text-primary);
   }
 }
+/* Selecionado: fundo âmbar suave e aresta âmbar; o rótulo fica no texto
+   principal (âmbar sobre âmbar ficava abaixo de 4.5:1 no tema claro). */
 .config-nav button.ativo, .config-nav-item.ativo,
 .config-nav button.active, .config-nav-item.active {
   background: var(--accent-soft);
   border-left-color: var(--accent);
-  color: var(--accent-text);
+  color: var(--text-primary);
+  font-weight: 700;
 }
 
 .config-conteudo { display: grid; gap: var(--gap); }
 .config-rapida { display: flex; gap: 0.6rem; flex-wrap: wrap; }
 .config-rapida > form,
 .config-rapida > p { flex: 1 1 100%; min-width: 0; }
-.cartao-form { display: grid; gap: 0.2rem; }
 
 /* ==========================================================================
    AVISOS
    ========================================================================== */
-.alerta-saldo, .destaque-aviso, .aviso-simulado {
+.alerta-saldo, .destaque-aviso {
   display: flex;
   align-items: center;
   gap: 0.7rem;
@@ -814,12 +815,12 @@
   border: 1px solid var(--accent);
   border-left-width: 3px;
   color: var(--accent-text);
-  font-size: 0.86rem;
+  font-size: var(--t-apoio);
   font-weight: 600;
   margin-bottom: var(--gap);
 }
 
-.aviso-sucesso, .check-sucesso {
+.aviso-sucesso {
   display: flex;
   align-items: center;
   gap: 0.7rem;
@@ -829,7 +830,7 @@
   border: 1px solid var(--success);
   border-left-width: 3px;
   color: var(--success);
-  font-size: 0.86rem;
+  font-size: var(--t-apoio);
   font-weight: 600;
 }
 
@@ -851,181 +852,16 @@
   border-radius: var(--radius-sm);
   background: var(--bg-input);
   border: 1.5px solid var(--border);
-  font-size: 0.88rem;
+  font-size: var(--t-apoio);
 }
 
 /* ==========================================================================
-   MODAL DE RECARGA
+   AÇÕES DE FORMULÁRIO
+   O modal de recarga tem a própria folha (components/ModalRecarga.css).
    ========================================================================== */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 300;
-  display: grid;
-  place-items: center;
-  padding: 1.2rem;
-  background: rgba(6, 7, 10, 0.7);
-  backdrop-filter: blur(6px);
-  animation: surgir 0.2s var(--mola);
-}
-
-.modal-recarga {
-  width: min(100%, 460px);
-  max-height: 88vh;
-  overflow-y: auto;
-  padding: clamp(1.4rem, 3vw, 2rem);
-  background: var(--bg-solid);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-deep);
-  position: relative;
-}
-
-.modal-titulo {
-  font-family: var(--font-main);
-  font-weight: 700;
-  font-size: 1.15rem;
-  text-transform: none;
-  margin-bottom: 0.25rem;
-}
-.modal-sub { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.3rem; }
-
-.modal-fechar {
-  position: absolute;
-  top: 0.9rem;
-  right: 0.9rem;
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  transition: background 0.2s, color 0.2s;
-}
-@media (hover: hover) {
-  .modal-fechar:hover { background: var(--bg-elevated); color: var(--text-primary); }
-}
-
-.modal-acoes { display: flex; gap: 0.6rem; margin-top: 1.3rem; }
-.modal-acoes .btn { flex: 1; }
-
 /* Botões de um formulário dentro de cartão (ex.: vaga especial no Perfil). */
 .acoes-form { display: flex; flex-wrap: wrap; gap: 0.6rem; }
 .acoes-form .btn { flex: 1; }
-
-.valores-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.5rem;
-  margin-bottom: 1.1rem;
-}
-
-.valor {
-  padding: 0.75rem 0.4rem;
-  border-radius: var(--radius-sm);
-  border: 1.5px solid var(--border);
-  background: var(--bg-input);
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 0.9rem;
-  text-align: center;
-  transition: border-color 0.2s, background 0.2s;
-}
-@media (hover: hover) {
-  .valor:hover { border-color: var(--border-strong); }
-}
-.valor.ativo, .valor.active {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent-text);
-}
-
-.valor-destaque { display: flex; align-items: baseline; gap: 0.2rem; justify-content: center; }
-.valor-cifra { font-size: 0.8rem; color: var(--text-muted); }
-.valor-num {
-  font-family: var(--font-display);
-  font-size: 2rem;
-  line-height: 1;
-  color: var(--accent-text);
-}
-
-.metodos { display: grid; gap: 0.5rem; margin-bottom: 1.1rem; }
-
-.metodo {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  padding: 0.85rem 1rem;
-  border-radius: var(--radius-sm);
-  border: 1.5px solid var(--border);
-  background: var(--bg-input);
-  font-size: 0.88rem;
-  font-weight: 600;
-  text-align: left;
-  width: 100%;
-  transition: border-color 0.2s, background 0.2s;
-}
-@media (hover: hover) {
-  .metodo:hover { border-color: var(--border-strong); }
-}
-.metodo.ativo, .metodo.active { border-color: var(--accent); background: var(--accent-soft); }
-.metodo-icone { font-size: 1.2rem; line-height: 1; }
-
-.recarga-passos { display: flex; gap: 0.4rem; margin-bottom: 1.3rem; }
-.passo {
-  flex: 1;
-  height: 3px;
-  border-radius: 100px;
-  background: var(--border);
-  transition: background 0.3s;
-}
-.passo.ativo, .passo.active { background: var(--accent); }
-.passo-linha { display: flex; align-items: center; gap: 0.5rem; }
-
-.pix-area { text-align: center; }
-.pix-qr {
-  width: 170px;
-  height: 170px;
-  margin: 0 auto 1rem;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-sm);
-  background: #fff;
-  border: 1px solid var(--border);
-}
-.qr-grid { display: grid; grid-template-columns: repeat(9, 1fr); gap: 2px; width: 140px; }
-.qr-grid span { aspect-ratio: 1; border-radius: 1px; }
-
-.pix-codigo {
-  padding: 0.7rem 0.9rem;
-  border-radius: var(--radius-sm);
-  background: var(--bg-input);
-  border: 1px dashed var(--border-strong);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  word-break: break-all;
-  color: var(--text-secondary);
-  margin-bottom: 0.9rem;
-}
-
-.recarga-resumo {
-  padding: 0.9rem 1rem;
-  border-radius: var(--radius-sm);
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
-  margin-bottom: 1.1rem;
-}
-
-.spinner-grande {
-  width: 44px;
-  height: 44px;
-  margin: 1.5rem auto;
-  border: 3px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: girar 0.8s linear infinite;
-}
 
 /* ==========================================================================
    CARREGANDO
@@ -1108,7 +944,6 @@
   .segmented button { padding: 0.55rem 0.25rem; }
   .toolbar > .btn { flex: 1 1 100%; }
 
-  .valores-grid { grid-template-columns: repeat(2, 1fr); }
   .destaque-aviso,
   .marketplace-chamada-painel,
   .reserva-ativa {
@@ -1180,7 +1015,7 @@
     content: attr(data-label);
     align-self: center;
     font-family: var(--font-mono);
-    font-size: 0.75rem;
+    font-size: var(--t-legenda);
     font-weight: 700;
     letter-spacing: 0.06em;
     text-align: left;

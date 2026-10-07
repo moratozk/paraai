@@ -223,9 +223,8 @@ export default function MonitoramentoVagasAdmin() {
           {vaga.especial && <span title={vaga.especial.rotulo}>{vaga.especial.icone}</span>}
         </span>
         <span className="monitor-vaga-estado">{rotuloStatus(status)}</span>
-        <span className="monitor-vaga-placa">
-          {vaga.placa || (vaga.especial ? vaga.especial.rotulo : "Disponível")}
-        </span>
+        {/* Só a placa: "Disponível" repetia "Livre" e o tipo já está no selo. */}
+        {vaga.placa && <span className="monitor-vaga-placa">{vaga.placa}</span>}
       </button>
     );
   }
@@ -461,7 +460,7 @@ export default function MonitoramentoVagasAdmin() {
               <div className="monitor-detalhes-vazio">
                 <span className="monitor-detalhes-icone" aria-hidden="true">P</span>
                 <h2>Detalhes da vaga</h2>
-                <p>Clique em qualquer vaga do mapa para conferir placa, origem e tempo de permanência.</p>
+                <p>Toque ou clique em uma vaga do mapa para ver placa, origem e tempo de permanência.</p>
                 <div className="monitor-ocupacao-barra" aria-label={`${resumo.ocupacao}% das vagas em uso`}>
                   <span style={{ width: `${resumo.ocupacao}%` }} />
                 </div>

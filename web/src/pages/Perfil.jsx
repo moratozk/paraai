@@ -279,29 +279,25 @@ export default function Perfil() {
             </Link>
           </div>
 
-          <div className="field">
-            <label>Nome completo</label>
-            <input type="text" value={name} disabled />
+          {/* Só leitura: linhas de informação, não campos desabilitados que
+              parecem editáveis. A edição fica em Configurações. */}
+          <div className="info-row">
+            <span className="label">Nome completo</span>
+            <span>{name}</span>
           </div>
-
-          <div className="field">
-            <label>E-mail</label>
-            <input type="email" value={email} disabled />
+          <div className="info-row">
+            <span className="label">E-mail</span>
+            <span>{email}</span>
           </div>
-
-          <div className="field">
-            <label>Tipo de conta</label>
-            <input
-              type="text"
-              value={
-                role === "admin"
-                  ? "Administrador do sistema"
-                  : role === "operador"
-                    ? "Dono de estacionamento"
-                    : "Motorista"
-              }
-              disabled
-            />
+          <div className="info-row">
+            <span className="label">Tipo de conta</span>
+            <span>
+              {role === "admin"
+                ? "Administrador do sistema"
+                : role === "operador"
+                  ? "Dono de estacionamento"
+                  : "Motorista"}
+            </span>
           </div>
         </div>
       </div>

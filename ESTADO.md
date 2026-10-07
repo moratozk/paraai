@@ -1,7 +1,7 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **02/10/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **04/10/2026**.
 
 ---
 
@@ -20,9 +20,49 @@ estadia e cobrança simulada. O operador acompanha pelo painel. A ocupação é
 lógica; a maquete virtual online é uma etapa futura, não implementada.
 
 Projeto acadêmico (TCC). A `main` tem a versão integrada (PR #9, unida em
-02/10/2026). Revisão atual: `claude/vagas-especiais` (direito a vaga especial), feita
-sobre `claude/tela-st7789` (tela, toque e watchdog na CYD), `claude/organiza-pastas`
-(pastas) e `claude/firmware-cyd` (pinos da CYD).
+02/10/2026). Revisão atual: `claude/revisao-visual` (revisão visual do site), feita
+sobre `claude/vagas-especiais` (direito a vaga especial), `claude/tela-st7789` (tela,
+toque e watchdog na CYD), `claude/organiza-pastas` (pastas) e `claude/firmware-cyd`
+(pinos da CYD).
+
+## Revisão visual de 04/10/2026 (diretrizes da Apple)
+
+O site inteiro foi conferido nos dois temas, no computador e a 375 px, contra
+as diretrizes da skill `apple-design`. O que mudou:
+
+- **Escala de texto única** em `index.css`: `--t-legenda` (12 px), `--t-apoio`
+  (14), `--t-corpo` (16), `--t-destaque` (18), `--t-subtitulo` (20),
+  `--t-titulo` (24), `--t-titulo-g` (28) e `--t-numero` (36). Os 184
+  `font-size` avulsos viraram tokens; só as manchetes fluidas (`clamp`)
+  ficaram de fora. O corpo deixou de usar `vw`, para respeitar o tamanho de
+  texto escolhido pela pessoa.
+- **Cores das vagas especiais** em tokens (`--vaga-pcd`, `--vaga-idoso`,
+  `--vaga-gestante`), iguais nos três mapas (o do operador usava outra paleta).
+- **Mapa do administrador:** células de 78 px com número, selo do tipo,
+  estado em caixa normal e a placa só quando existe; nada é cortado.
+- **Mapa do motorista:** vaga especial livre mostra "Livre" e o tipo num selo
+  ao lado do número; as vagas ocupadas ficaram legíveis (4,5:1).
+- **Perfil e Configurações:** cartões com o mesmo respiro da grade, cartões
+  de veículo iguais aos demais (só a aresta âmbar) e dados só de leitura como
+  linhas de informação, em vez de campos desabilitados.
+- **Nome do estacionamento** no painel e no histórico do motorista, nunca o
+  identificador interno.
+- **Toque:** botões, links e filtros com no mínimo 44 px.
+- **Modais:** o foco do teclado fica preso na janela e volta ao botão que a
+  abriu (`hooks/useFocoNoModal.js`); a recarga entra e sai pelo mesmo
+  caminho, sem quique.
+- **Modal de recarga com uma folha só:** `Pages.css` também estilizava as
+  classes do modal e a janela saía misturada (etapas sobre o título, valores
+  em 3 colunas, aviso partido ao meio). Agora só `ModalRecarga.css` as define.
+- **Tema claro:** corrigidos o subtítulo e o botão de contorno da chamada
+  final da Home (texto escuro sobre o véu escuro), a aba ativa de
+  Configurações e o campo de busca do administrador, que estava sem estilo.
+- `.spinner-grande` e `.input-spinner` foram para o CSS global: só existiam
+  na folha de outras páginas e ficavam sem estilo em acesso direto
+  (Redefinir senha, CEP do Cadastro).
+
+Ficou pendente: servir as fotos da Home e do login pelo próprio site (hoje
+vêm do Unsplash), o que depende de baixar os arquivos.
 
 ## Reorganização de pastas (02/10/2026)
 
@@ -431,13 +471,10 @@ na Arduino IDE e gravar.
 5. Projetar o gabinete 3D pelas medidas reais; depois evoluir o site e criar
    a maquete virtual, sem reintroduzir sensores/catraca no ESP.
 
-6. **Revisão visual do site publicado (observada em 02/10/2026)**, a fazer
-   depois das vagas especiais, conferindo o site inteiro:
-   - mapa de vagas do administrador: números, rótulos ("60+", "G", "♿") e
-     textos das células desalinhados, fontes de tamanhos diferentes e
-     "Disponível" cortado;
-   - Perfil: os cartões (cabeçalho, "Dados da conta", "Administração da rede")
-     ficam colados, sem espaço entre eles, e encostam na borda direita.
+6. **Fotos da Home e do login servidas pelo próprio site.** Hoje vêm do
+   Unsplash; se o serviço falhar, as seções ficam sem foto (a chamada final
+   já tem fundo escuro de reserva). A revisão visual observada em 02/10 foi
+   feita em 04/10/2026 (ver "Revisão visual" acima).
 
 ---
 
@@ -473,7 +510,11 @@ deixa de declarar.
 dois temas, texto mínimo de 12 px, hover só em `@media (hover: hover)`,
 resposta no `:active`, animação só em `transform`/`opacity`. Ao criar um
 componente, usar os tokens de `index.css` (`--esp-*`, `--dur-*`,
-`--mola-critica`, `--rotulo-*`).
+`--mola-critica`, `--rotulo-*`). Tamanho de texto só pelos tokens `--t-*`
+(nada de `font-size` avulso), cores de vaga especial só por `--vaga-*`, área
+de toque mínima de 44 px, e cada componente com uma folha própria: nenhuma
+outra folha estiliza as classes dele (a ordem de carregamento do CSS muda
+entre páginas e entre o modo de desenvolvimento e o build).
 
 **A inicial do totem não mostra contagem de vagas.** Só ENTRADA/SAÍDA. A
 confirmação informa a vaga atribuída. Desde 09/09 não há sensores nem

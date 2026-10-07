@@ -14,9 +14,9 @@
 /* Vidro sobre o conteúdo que rola por baixo. Em vez de um traço de 1 px,
    uma sombra curta marca onde a barra encontra o conteúdo. */
 .navbar-rolou {
-  background: color-mix(in srgb, var(--bg-primary) 82%, transparent);
-  -webkit-backdrop-filter: blur(16px) saturate(160%);
-  backdrop-filter: blur(16px) saturate(160%);
+  background: color-mix(in srgb, var(--bg-primary) 90%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
   box-shadow: 0 1px 0 color-mix(in srgb, var(--border) 70%, transparent),
     0 12px 28px -24px rgba(0, 0, 0, 0.55);
 }
@@ -33,7 +33,7 @@
   height: 64px;
 }
 
-.navbar-logo { display: flex; align-items: center; flex: none; }
+.navbar-logo { display: flex; align-items: center; flex: none; min-height: 44px; }
 
 .logo-lockup { display: inline-flex; align-items: center; gap: 0.55rem; }
 
@@ -47,7 +47,7 @@
 
 .logo-word {
   font-family: var(--font-display);
-  font-size: 1.3rem;
+  font-size: var(--t-subtitulo);
   letter-spacing: 0.01em;
   text-transform: uppercase;
   color: var(--text-primary);
@@ -82,7 +82,7 @@
   position: relative;
   padding: 0.45rem 0.8rem;
   border-radius: var(--radius-sm);
-  font-size: 0.85rem;
+  font-size: var(--t-apoio);
   font-weight: 600;
   color: var(--text-secondary);
   transition: color 0.18s, background 0.18s;
@@ -115,9 +115,10 @@
 
 /* Ícone em SVG, não emoji: emoji muda de forma e de tamanho conforme o
    sistema e desalinha dentro do botão. */
+/* 44 px: o mínimo que o dedo acerta sem errar o vizinho. */
 .theme-toggle {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   border-radius: var(--radius-sm);
@@ -169,20 +170,20 @@
   background: var(--accent);
   color: var(--accent-contrast);
   font-family: var(--font-display);
-  font-size: 1rem;
+  font-size: var(--t-corpo);
 }
 
 .user-bloco { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2; }
-.user-name { font-size: 0.85rem; font-weight: 700; }
+.user-name { font-size: var(--t-apoio); font-weight: 700; }
 .user-papel {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
 
-.conta-seta { font-size: 0.75rem; color: var(--text-muted); transition: transform 0.25s; }
+.conta-seta { font-size: var(--t-legenda); color: var(--text-muted); transition: transform 0.25s; }
 .conta-seta.girada { transform: rotate(180deg); }
 
 .conta-menu {
@@ -208,9 +209,9 @@
   background: var(--bg-elevated);
 }
 .conta-menu-info { display: flex; flex-direction: column; min-width: 0; }
-.conta-menu-info strong { font-size: 0.9rem; }
+.conta-menu-info strong { font-size: var(--t-apoio); }
 .conta-menu-info span {
-  font-size: 0.76rem;
+  font-size: var(--t-legenda);
   color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -226,7 +227,7 @@
   gap: 0.7rem;
   padding: 0.65rem 0.75rem;
   border-radius: var(--radius-sm);
-  font-size: 0.87rem;
+  font-size: var(--t-apoio);
   font-weight: 600;
   color: var(--text-secondary);
   text-align: left;
@@ -250,9 +251,9 @@
   flex-direction: column;
   justify-content: center;
   gap: 5px;
-  width: 42px;
-  height: 42px;
-  padding: 0 9px;
+  width: 44px;
+  height: 44px;
+  padding: 0 10px;
   border-radius: var(--radius-sm);
   border: 1.5px solid var(--border);
   background: var(--bg-elevated);
@@ -344,15 +345,12 @@
   .menu-mobile { display: block; }
   .navbar-actions .btn { display: none; }
   .navbar-inner { height: 64px; gap: 0.65rem; }
-  .logo-word { font-size: 1.2rem; }
+  .logo-word { font-size: var(--t-subtitulo); }
   .conta-menu { width: min(260px, calc(100vw - 1.5rem)); }
 
   .menu-mobile-inner a:not(.btn),
   .menu-mobile-inner button { min-height: 44px; }
 
-  /* O botão de tema continua visível no celular — é justamente onde as
-     pessoas mais trocam, e enterrá-lo no hamburger esconde o controle. */
-  .theme-toggle { width: 36px; height: 36px; }
 }
 
 @media (max-width: 340px) {

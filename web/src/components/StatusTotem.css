@@ -37,7 +37,7 @@
 }
 
 .totem-aviso-icone {
-  font-size: 1.5rem;
+  font-size: var(--t-titulo);
   line-height: 1.2;
   flex: none;
 }
@@ -45,7 +45,7 @@
 .totem-aviso h3 {
   font-family: var(--font-main);
   font-weight: 700;
-  font-size: 1.05rem;
+  font-size: var(--t-corpo);
   text-transform: none;
   letter-spacing: -0.01em;
   margin-bottom: 0.25rem;
@@ -55,7 +55,7 @@
 
 .totem-aviso p {
   color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: var(--t-apoio);
   max-width: 62ch;
 }
 
@@ -73,7 +73,7 @@
   counter-increment: passo;
   position: relative;
   padding-left: 2.4rem;
-  font-size: 0.9rem;
+  font-size: var(--t-apoio);
   color: var(--text-secondary);
   line-height: 1.6;
 }
@@ -91,7 +91,7 @@
   background: var(--accent);
   color: var(--accent-contrast);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   font-weight: 700;
 }
 
@@ -127,7 +127,7 @@
   margin-top: 1rem;
   padding-top: 0.9rem;
   border-top: 1px solid var(--border);
-  font-size: 0.82rem !important;
+  font-size: var(--t-apoio) !important;
   color: var(--text-muted) !important;
 }
 
@@ -143,7 +143,7 @@
 .totem-checklist li {
   position: relative;
   padding-left: 1.5rem;
-  font-size: 0.88rem;
+  font-size: var(--t-apoio);
   color: var(--text-secondary);
 }
 .totem-checklist li::before {
@@ -168,7 +168,7 @@
 
 .totem-online-detalhe {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   letter-spacing: 0.06em;
   color: var(--text-muted);
 }

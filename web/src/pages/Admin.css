@@ -3,7 +3,7 @@
 .admin-localidade {
   color: var(--accent-text);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -16,7 +16,7 @@
 .admin-form .field > span {
   color: var(--text-secondary);
   font-family: var(--font-mono);
-  font-size: var(--t-mini);
+  font-size: var(--t-legenda);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -57,10 +57,10 @@
 }
 .admin-estacionamento-dados span {
   color: var(--text-muted);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
 }
 .admin-estacionamento-dados strong { color: var(--text-primary); }
-.admin-endereco { color: var(--text-secondary); font-size: 0.82rem; }
+.admin-endereco { color: var(--text-secondary); font-size: var(--t-apoio); }
 .admin-estacionamento-acoes { justify-content: flex-start; flex-wrap: wrap; }
 
 @media (max-width: 850px) {

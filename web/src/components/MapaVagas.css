@@ -5,7 +5,7 @@
 
 .mapa-vagas-cabecalho { align-items: flex-start; }
 .mapa-vagas-cabecalho h2 { margin: 0 0 0.25rem; }
-.mapa-vagas-cabecalho p { color: var(--text-secondary); font-size: 0.82rem; }
+.mapa-vagas-cabecalho p { color: var(--text-secondary); font-size: var(--t-apoio); }
 
 .mapa-legenda {
   display: flex;
@@ -14,7 +14,7 @@
   margin-bottom: 1rem;
   color: var(--text-secondary);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -23,9 +23,9 @@
 .mapa-legenda span { display: inline-flex; align-items: center; gap: 0.38rem; }
 .legenda-cor { width: 10px; height: 10px; border-radius: 3px; background: var(--success); }
 .legenda-cor.ocupada { background: var(--danger); }
-.legenda-cor.pcd { background: #3b82f6; }
-.legenda-cor.idoso { background: #a78bfa; }
-.legenda-cor.gestante { background: #ec4899; }
+.legenda-cor.pcd { background: var(--vaga-pcd); }
+.legenda-cor.idoso { background: var(--vaga-idoso); }
+.legenda-cor.gestante { background: var(--vaga-gestante); }
 
 .mapa-vagas-scroll {
   overflow-x: auto;
@@ -91,23 +91,23 @@
   border-color: color-mix(in srgb, var(--danger) 64%, var(--border));
 }
 .mapa-vaga.especial.pcd {
-  background: color-mix(in srgb, #2878d0 20%, var(--bg-solid));
-  border-color: #2878d0;
+  background: color-mix(in srgb, var(--vaga-pcd) 20%, var(--bg-solid));
+  border-color: var(--vaga-pcd);
 }
 .mapa-vaga.especial.idoso {
-  background: color-mix(in srgb, #7a5bc7 20%, var(--bg-solid));
-  border-color: #7a5bc7;
+  background: color-mix(in srgb, var(--vaga-idoso) 20%, var(--bg-solid));
+  border-color: var(--vaga-idoso);
 }
 .mapa-vaga.especial.gestante {
-  background: color-mix(in srgb, #c24f87 20%, var(--bg-solid));
-  border-color: #c24f87;
+  background: color-mix(in srgb, var(--vaga-gestante) 20%, var(--bg-solid));
+  border-color: var(--vaga-gestante);
 }
 .mapa-vaga.especial.selecionada { box-shadow: 0 0 0 3px var(--accent-soft); }
 
 .mapa-vaga-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.25rem; }
 .mapa-vaga-topo strong {
   font-family: var(--font-main);
-  font-size: 1.2rem;
+  font-size: var(--t-subtitulo);
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.04em;
@@ -117,7 +117,7 @@
   align-items: center;
   gap: 0.18rem;
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: var(--t-legenda);
   font-weight: 800;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -134,17 +134,17 @@
   background: var(--danger);
   color: #fff;
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: var(--t-legenda);
   font-weight: 800;
   letter-spacing: 0.06em;
   box-shadow: inset 0 5px rgba(255, 255, 255, 0.16), 0 5px 12px rgba(0, 0, 0, 0.22);
 }
-.mapa-livre { color: var(--success); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em; }
+.mapa-livre { color: var(--success); font-size: var(--t-legenda); font-weight: 800; letter-spacing: 0.06em; }
 .mapa-vaga-rodape {
   overflow: hidden;
   color: var(--text-secondary);
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: var(--t-legenda);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-align: center;
@@ -165,7 +165,7 @@
 .mapa-setas {
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   letter-spacing: 0.06em;
   text-align: center;
   text-transform: uppercase;
@@ -176,7 +176,7 @@
   background: var(--accent);
   color: var(--accent-contrast);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   font-weight: 900;
   letter-spacing: 0.08em;
 }
@@ -193,7 +193,7 @@
   background: var(--accent-soft);
 }
 .mapa-editor-resumo { display: grid; gap: 0.25rem; min-width: 130px; }
-.mapa-editor-resumo strong { font-size: 1rem; }
+.mapa-editor-resumo strong { font-size: var(--t-corpo); }
 .mapa-editor-resumo .status-pill.danger {
   border-color: var(--danger);
   background: var(--danger-soft);

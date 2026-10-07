@@ -8,7 +8,7 @@
   align-self: flex-end;
   display: inline-flex;
   align-items: center;
-  min-height: 36px;          /* área de toque confortável no celular */
+  min-height: 44px;          /* área de toque confortável no celular */
   padding-inline: 0.3rem;
   margin-top: 0.1rem;
 }
@@ -104,7 +104,7 @@
 .auth-page .subtitle {
   text-align: center;
   color: var(--text-secondary);
-  font-size: 0.92rem;
+  font-size: var(--t-corpo);
   margin-bottom: 1.8rem;
 }
 
@@ -113,10 +113,19 @@
   padding-top: 1.3rem;
   border-top: 1px solid var(--border);
   text-align: center;
-  font-size: 0.88rem;
+  font-size: var(--t-apoio);
   color: var(--text-secondary);
 }
-.auth-footer a { color: var(--accent-text); font-weight: 700; }
+/* Link curto, mas com a área de toque de um botão (44 px). */
+.auth-footer a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-inline: 0.25rem;
+  vertical-align: middle;
+  color: var(--accent-text);
+  font-weight: 700;
+}
 @media (hover: hover) {
   .auth-footer a:hover { text-decoration: underline; }
 }
@@ -130,12 +139,15 @@
   right: 0.4rem;
   top: 50%;
   translate: 0 -50%;
-  padding: 0.4rem 0.7rem;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 0.7rem;
   border-radius: var(--radius-sm);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--rotulo-tracking);
   text-transform: uppercase;
   color: var(--text-secondary);
   transition: color 0.2s, background 0.2s;
@@ -154,7 +166,7 @@
   border-left-width: 3px;
 }
 
-.aviso-sucesso, .check-sucesso {
+.aviso-sucesso {
   padding: 0.85rem 1rem;
   margin-bottom: 1.1rem;
   border-radius: var(--radius-sm);
@@ -162,7 +174,7 @@
   border: 1px solid var(--success);
   border-left-width: 3px;
   color: var(--success);
-  font-size: 0.88rem;
+  font-size: var(--t-apoio);
   font-weight: 600;
 }
 
@@ -215,8 +227,8 @@
   color: var(--accent-text);
 }
 .role-icone svg { width: 100%; height: 100%; }
-.role-titulo, .auth-check strong { font-size: 0.9rem; font-weight: 700; }
-.role-desc, .auth-check span { font-size: 0.76rem; color: var(--text-muted); line-height: 1.4; }
+.role-titulo, .auth-check strong { font-size: var(--t-apoio); font-weight: 700; }
+.role-desc, .auth-check span { font-size: var(--t-legenda); color: var(--text-muted); line-height: 1.4; }
 
 /* ---- resumo antes de confirmar ---- */
 .resumo-cadastro {
@@ -230,7 +242,7 @@
 
 .resumo-titulo {
   font-family: var(--font-mono);
-  font-size: var(--t-mini);
+  font-size: var(--t-legenda);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -244,7 +256,7 @@
   display: flex;
   justify-content: space-between;
   gap: 1rem;
-  font-size: 0.86rem;
+  font-size: var(--t-apoio);
 }
 .resumo-cadastro dt, .resumo-cadastro li > span:first-child { color: var(--text-muted); }
 .resumo-cadastro dd, .resumo-cadastro li > span:last-child { font-weight: 600; margin: 0; }
@@ -269,7 +281,7 @@
   border: 1.5px solid var(--border-strong);
   background: var(--bg-input);
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: var(--t-legenda);
   font-weight: 700;
   color: var(--text-muted);
   transition: background 0.25s, border-color 0.25s, color 0.25s;
@@ -289,7 +301,7 @@
 
 .etapa-rotulo {
   font-family: var(--font-mono);
-  font-size: var(--t-mini);
+  font-size: var(--t-legenda);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
@@ -305,7 +317,7 @@
   gap: 0.6rem;
   margin-top: 0.45rem;
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--t-legenda);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -320,21 +332,24 @@
   overflow: hidden;
   position: relative;
 }
+/* A barra cresce por transform (compositor), não por width: animar a
+   largura recalcula o layout a cada quadro enquanto a pessoa digita. */
 .forca-barra::after {
   content: "";
   position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: 100px;
-  transition: width 0.35s var(--mola), background 0.35s;
+  inset: 0;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.35s var(--mola), background 0.35s;
 }
 
 /* n1 fraca · n2 média · n3 forte — a cor nunca é o único sinal,
    o rótulo textual ao lado diz o mesmo */
-.forca-barra.n1::after { width: 33%; background: var(--danger); }
-.forca-barra.n2::after { width: 66%; background: var(--accent); }
-.forca-barra.n3::after { width: 100%; background: var(--success); }
-.forca-barra.n4::after { width: 100%; background: var(--success); }
-.forca-barra.n0::after { width: 0; }
+.forca-barra.n1::after { transform: scaleX(0.33); background: var(--danger); }
+.forca-barra.n2::after { transform: scaleX(0.66); background: var(--accent); }
+.forca-barra.n3::after { transform: scaleX(1); background: var(--success); }
+.forca-barra.n4::after { transform: scaleX(1); background: var(--success); }
+.forca-barra.n0::after { transform: scaleX(0); }
 
 /* ---- endereço via CEP ---- */
 /* Topo alinhado: a dica sob o CEP não pode empurrar o campo Número para baixo. */
@@ -350,14 +365,14 @@
 }
 .endereco-label {
   font-family: var(--font-mono);
-  font-size: var(--t-mini);
+  font-size: var(--t-legenda);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
   display: block;
   margin-bottom: 0.2rem;
 }
-.endereco-linha { font-size: 0.9rem; }
+.endereco-linha { font-size: var(--t-apoio); }
 
 .input-spinner {
   width: 18px;
@@ -370,7 +385,7 @@
 
 .code-hint {
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: var(--t-apoio);
   color: var(--text-muted);
   text-align: center;
   margin-top: 0.8rem;

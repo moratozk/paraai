@@ -171,20 +171,18 @@ export default function Configuracoes() {
                 </div>
 
                 <div className="field">
-                  <label>Tipo de conta</label>
-                  <input
-                    type="text"
-                    value={
-                      userData?.role === "operador"
+                  <div className="info-row">
+                    <span className="label">Tipo de conta</span>
+                    <span>
+                      {userData?.role === "operador"
                         ? "Dono de estacionamento"
-                        : "Motorista"
-                    }
-                    disabled
-                  />
+                        : "Motorista"}
+                    </span>
+                  </div>
                   <span className="field-hint">
                     {userData?.role === "operador"
                       ? "Sua conta administra um estacionamento da rede."
-                      : "Para administrar um estacionamento, vá em Perfil → Tenho um estacionamento."}
+                      : "Estacionamentos são cadastrados pela administração da rede ParaAí."}
                   </span>
                 </div>
 

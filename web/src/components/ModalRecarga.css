@@ -1,101 +1,101 @@
+/* ==========================================================================
+   MODAL DE RECARGA (simulada)
+   Única folha destas classes: antes Pages.css também as definia e a janela
+   saía misturada, conforme a ordem em que o CSS das páginas carregava.
+   ========================================================================== */
 .modal-overlay {
   position: fixed;
   inset: 0;
   z-index: 500;
-  background: rgba(3, 4, 8, 0.75);
-  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
-  animation: overlay-in 0.2s ease;
   overflow-y: auto;
+  background: rgba(3, 5, 8, 0.82);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  animation: fundo-escurecer var(--dur-rapida) ease-out both;
 }
+.modal-overlay.saindo { animation: fundo-clarear var(--dur-rapida) ease-in both; }
 
-@keyframes overlay-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
+/* Surge sem quicar (mola criticamente amortecida) e sai pelo mesmo caminho. */
 .modal-recarga {
   position: relative;
   width: 100%;
   max-width: 460px;
-  padding: 30px;
-  animation: modal-in 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.2);
-  background: var(--bg-solid);
-  max-height: 92vh;
+  max-height: 92dvh;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: clamp(1.4rem, 3vw, 2rem);
+  background: var(--bg-solid);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-deep);
+  animation: modal-surgir var(--dur-mola) var(--mola-critica) both;
 }
-
-@keyframes modal-in {
-  from { opacity: 0; transform: translateY(24px) scale(0.97); }
-  to   { opacity: 1; transform: none; }
-}
+.modal-overlay.saindo .modal-recarga { animation: modal-sumir var(--dur-rapida) ease-in both; }
 
 .modal-fechar {
   position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
+  top: 12px;
+  right: 12px;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--bg-input);
   color: var(--text-secondary);
-  font-size: 1.4rem;
+  font-size: var(--t-titulo);
   line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
+  transition: color var(--dur-rapida), border-color var(--dur-rapida);
 }
-
 @media (hover: hover) {
-  .modal-fechar:hover {
-    color: var(--text-primary);
-    border-color: var(--border-strong);
-  }
+  .modal-fechar:hover { color: var(--text-primary); border-color: var(--border-strong); }
 }
 
 .modal-titulo {
-  font-family: var(--font-display);
-  font-size: 1.6rem;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  margin-bottom: 6px;
+  margin-bottom: var(--esp-1);
+  font-size: var(--t-subtitulo);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
 }
 
 .modal-sub {
+  margin-bottom: var(--esp-5);
   color: var(--text-secondary);
-  font-size: 0.9rem;
-  margin-bottom: 22px;
+  font-size: var(--t-apoio);
   line-height: 1.6;
 }
 
-/* ---------- Passos ---------- */
+/* ---------- Etapas ---------- */
+/* A folga à direita deixa o botão fechar livre. */
 .recarga-passos {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 22px;
-  padding-right: 40px;
+  gap: var(--esp-2);
+  min-height: 20px;
+  margin-bottom: var(--esp-5);
+  padding-right: 44px;
 }
 
 .passo {
-  font-size: 0.75rem;
-  font-weight: 800;
+  font-family: var(--font-mono);
+  font-size: var(--t-legenda);
+  font-weight: 700;
+  letter-spacing: var(--rotulo-tracking);
   text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--text-muted);
   white-space: nowrap;
+  color: var(--text-secondary);
 }
-
 .passo.ativo { color: var(--accent-text); }
 .passo.feito { color: var(--success); }
 
 .passo-linha {
   flex: 1;
+  min-width: 8px;
   height: 1px;
   background: var(--border-strong);
 }
@@ -104,8 +104,8 @@
 .valores-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  margin-bottom: 18px;
+  gap: var(--esp-2);
+  margin-bottom: var(--esp-4);
 }
 
 .valor-op {
@@ -114,20 +114,19 @@
   align-items: center;
   justify-content: center;
   gap: 2px;
-  padding: 16px 6px;
+  min-height: 64px;
+  padding: var(--esp-3) var(--esp-1);
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-strong);
   background: var(--bg-input);
   color: var(--text-primary);
-  transition: all 0.16s ease;
+  transition: transform var(--dur-toque) ease-out, border-color var(--dur-rapida),
+    background var(--dur-rapida), box-shadow var(--dur-rapida);
 }
-
 @media (hover: hover) {
-  .valor-op:hover {
-    border-color: var(--accent);
-    transform: translateY(-2px);
-  }
+  .valor-op:hover { border-color: var(--accent); }
 }
+.valor-op:active { transform: scale(0.97); }
 
 .valor-op.ativo {
   border-color: var(--accent);
@@ -136,68 +135,73 @@
 }
 
 .valor-cifra {
-  font-size: 0.75rem;
-  font-weight: 800;
-  color: var(--text-muted);
+  font-size: var(--t-legenda);
+  font-weight: 700;
+  color: var(--text-secondary);
 }
 
 .valor-num {
   font-family: var(--font-display);
-  font-size: 1.3rem;
+  font-size: var(--t-titulo);
   line-height: 1;
 }
-
 .valor-op.ativo .valor-num { color: var(--accent-text); }
 
 .recarga-resumo {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 15px 18px;
+  gap: var(--esp-3);
+  margin-bottom: var(--esp-4);
+  padding: var(--esp-3) var(--esp-4);
   border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  border-left: 3px solid var(--accent);
   background: var(--accent-soft);
-  border: 1px solid rgba(255, 196, 0, 0.28);
-  margin-bottom: 18px;
 }
 
 .recarga-resumo span {
-  font-size: 0.76rem;
-  font-weight: 800;
+  font-family: var(--font-mono);
+  font-size: var(--t-legenda);
+  font-weight: 700;
+  letter-spacing: var(--rotulo-tracking);
   text-transform: uppercase;
-  letter-spacing: 0.07em;
   color: var(--text-secondary);
 }
 
 .recarga-resumo strong {
   font-family: var(--font-display);
-  font-size: 1.5rem;
+  font-size: var(--t-titulo);
+  font-variant-numeric: tabular-nums;
   color: var(--accent-text);
 }
 
 /* ---------- Métodos ---------- */
 .metodos {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 20px;
+  display: grid;
+  gap: var(--esp-2);
+  margin-bottom: var(--esp-4);
 }
 
 .metodo {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 15px 16px;
+  gap: var(--esp-3);
+  width: 100%;
+  min-height: 64px;
+  padding: var(--esp-3) var(--esp-4);
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-strong);
   background: var(--bg-input);
   color: var(--text-primary);
   text-align: left;
-  transition: all 0.16s ease;
+  transition: transform var(--dur-toque) ease-out, border-color var(--dur-rapida),
+    background var(--dur-rapida);
 }
-
 @media (hover: hover) {
   .metodo:hover { border-color: var(--accent); }
 }
+.metodo:active { transform: scale(0.98); }
 
 .metodo.ativo {
   border-color: var(--accent);
@@ -205,53 +209,52 @@
 }
 
 .metodo-icone {
-  font-size: 1.4rem;
-  width: 42px;
-  height: 42px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
-  background: var(--bg-solid);
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  flex-shrink: 0;
+  background: var(--bg-solid);
+  color: var(--accent-text);
 }
+.metodo-icone svg { width: 20px; height: 20px; }
 
-.metodo span span,
 .metodo > span:last-child {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: 2px;
 }
 
-.metodo strong { font-size: 0.92rem; }
+.metodo strong { font-size: var(--t-corpo); }
 
 .metodo small {
-  font-size: 0.75rem;
-  color: var(--text-muted);
+  font-size: var(--t-legenda);
+  color: var(--text-secondary);
 }
 
 /* ---------- PIX ---------- */
 .pix-area {
   display: flex;
-  gap: 16px;
+  gap: var(--esp-4);
   align-items: center;
-  padding: 16px;
+  margin-bottom: var(--esp-4);
+  padding: var(--esp-4);
   border-radius: var(--radius-sm);
-  background: var(--bg-input);
   border: 1px solid var(--border);
-  margin-bottom: 16px;
+  background: var(--bg-input);
 }
 
+/* O QR fica sempre sobre branco: é o que o leitor de câmera precisa. */
 .pix-qr {
-  flex-shrink: 0;
-  padding: 8px;
-  background: #fff;
-  border-radius: 8px;
+  flex: none;
   width: 164px;
   height: 164px;
   display: grid;
   place-items: center;
+  padding: 8px;
+  border-radius: 8px;
+  background: #fff;
 }
 
 .pix-qr img {
@@ -261,117 +264,83 @@
   image-rendering: pixelated;
 }
 
-.qr-carregando { color: #30343c; font-size: 0.75rem; }
+.qr-carregando { color: #30343c; font-size: var(--t-legenda); }
 
 .pix-codigo {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: var(--esp-2);
 }
 
 .pix-codigo code {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  background: var(--bg-solid);
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  padding: 8px 10px;
   overflow: hidden;
+  padding: var(--esp-2) var(--esp-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-solid);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--t-legenda);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.cartao-form { margin-bottom: 16px; }
+.cartao-form { margin-bottom: var(--esp-4); }
 
 /* ---------- Avisos ---------- */
 .aviso-simulado {
-  padding: 12px 14px;
+  margin-bottom: var(--esp-4);
+  padding: var(--esp-3) var(--esp-4);
   border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--cyan) 30%, transparent);
   background: var(--cyan-soft);
-  border: 1px solid rgba(34, 224, 255, 0.28);
-  font-size: 0.79rem;
-  line-height: 1.55;
   color: var(--text-secondary);
-  margin-bottom: 18px;
+  font-size: var(--t-apoio);
+  line-height: 1.55;
 }
-
 .aviso-simulado strong { color: var(--text-primary); }
 
 .modal-acoes {
   display: flex;
-  gap: 10px;
+  gap: var(--esp-2);
 }
-
 .modal-acoes .btn { flex: 1; }
 
 /* ---------- Estados finais ---------- */
-.estado-central {
-  text-align: center;
-  padding: 20px 0 6px;
+/* Dentro da janela o estado central não ocupa meia tela (regra global). */
+.modal-recarga .estado-central {
+  gap: 0;
+  min-height: 0;
+  padding: var(--esp-5) 0 var(--esp-1);
 }
-
-.spinner-grande {
-  width: 62px;
-  height: 62px;
-  margin: 0 auto 22px;
-  border-radius: 50%;
-  border: 3px solid var(--border-strong);
-  border-top-color: var(--accent);
-  animation: girar 0.85s linear infinite;
-}
-
-@keyframes girar {
-  to { transform: rotate(360deg); }
-}
+.modal-recarga .spinner-grande { margin-bottom: var(--esp-5); }
 
 .check-sucesso {
-  width: 74px;
-  height: 74px;
-  margin: 0 auto 20px;
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto var(--esp-5);
   border-radius: 50%;
   background: var(--success);
   color: #04120b;
-  font-size: 2.4rem;
+  font-size: var(--t-numero);
   font-weight: 900;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.6);
-  box-shadow: 0 0 0 10px var(--success-soft), 0 12px 40px -8px rgba(46, 232, 143, 0.6);
-}
-
-@keyframes pop {
-  0%   { transform: scale(0.4); opacity: 0; }
-  60%  { transform: scale(1.12); }
-  100% { transform: scale(1); opacity: 1; }
+  box-shadow: 0 0 0 10px var(--success-soft);
+  animation: modal-surgir var(--dur-mola) var(--mola-critica) both;
 }
 
 .valor-destaque {
   font-family: var(--font-display);
-  font-size: 1.8rem;
+  font-size: var(--t-titulo-g);
   color: var(--success);
-}
-
-.input-spinner {
-  position: absolute;
-  right: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 17px;
-  height: 17px;
-  border-radius: 50%;
-  border: 2px solid var(--border-strong);
-  border-top-color: var(--accent);
-  animation: girar 0.8s linear infinite;
 }
 
 @media (max-width: 560px) {
   .valores-grid { grid-template-columns: repeat(2, 1fr); }
   .pix-area { flex-direction: column; }
-  .modal-recarga { padding: 24px 20px; }
 }
 
 @media (max-width: 380px) {
@@ -379,28 +348,12 @@
     align-items: flex-start;
     padding: 8px;
   }
-
-  .modal-recarga {
-    max-height: calc(100dvh - 16px);
-    padding: 20px 16px;
-  }
-
-  .recarga-passos {
-    gap: 4px;
-    padding-right: 36px;
-  }
-
-  .passo {
-    font-size: 0.75rem;
-    letter-spacing: 0.02em;
-  }
-
-  .passo-linha { min-width: 6px; }
+  .modal-recarga { max-height: calc(100dvh - 16px); }
+  .recarga-passos { gap: var(--esp-1); }
   .modal-acoes { flex-direction: column-reverse; }
   .modal-acoes .btn { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .modal-overlay, .modal-recarga, .check-sucesso { animation: none; }
-  .spinner-grande, .input-spinner { animation-duration: 2s; }
 }
