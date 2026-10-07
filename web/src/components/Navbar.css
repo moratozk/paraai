@@ -24,6 +24,64 @@
   .navbar-rolou { background: var(--bg-primary); }
 }
 
+/* Home: ao rolar, a barra vira uma pílula de vidro solta do topo, e o
+   conteúdo passa por trás dela. A altura total continua 64 px (52 + 6 + 6)
+   para a página não pular quando a pílula aparece. */
+.navbar-home.navbar-rolou {
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+.navbar-home .navbar-inner {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  transition: height var(--dur-media) var(--mola), margin var(--dur-media) var(--mola),
+    padding var(--dur-media) var(--mola), background var(--dur-media) ease-out,
+    border-color var(--dur-media) ease-out, box-shadow var(--dur-media) ease-out;
+}
+.navbar-home.navbar-rolou .navbar-inner {
+  height: 52px;
+  margin-block: 6px;
+  padding-inline: 0.55rem 0.45rem;
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--bg-solid) 84%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  box-shadow: 0 18px 44px -28px rgba(0, 0, 0, 0.6);
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .navbar-home.navbar-rolou .navbar-inner { background: var(--bg-solid); }
+}
+
+/* Na Home o traço do link ativo cresce do centro quando a seção muda. */
+.navbar-home .navbar-links a::after {
+  content: "";
+  position: absolute;
+  left: 0.8rem;
+  right: 0.8rem;
+  bottom: -0.15rem;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transition: transform var(--dur-media) var(--mola);
+}
+.navbar-home .navbar-links a.ativo::after { transform: scaleX(1); }
+
+/* Quanto da página já foi lido. */
+.navbar-progresso {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  pointer-events: none;
+}
+
 /* Marca e navegação andam JUNTAS à esquerda; só as ações vão para a direita.
    Centralizar os links deixava dois vazios enormes em telas largas. */
 .navbar-inner {

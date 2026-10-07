@@ -1,0 +1,22 @@
+.holofote {
+  position: relative;
+  isolation: isolate;
+}
+.holofote::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    340px circle at var(--mx, 50%) var(--my, 50%),
+    color-mix(in srgb, var(--accent) 16%, transparent),
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity var(--dur-media) ease-out;
+}
+@media (hover: hover) and (pointer: fine) {
+  .holofote:hover::before { opacity: 1; }
+}
