@@ -1,0 +1,298 @@
+/* ==========================================================================
+   PÁTIO INTERATIVO (hero da Home)
+   Uma ilustração: fica escura nos dois temas, como asfalto de verdade.
+   As medidas do carro (17% da largura, proporção 2:1) são as mesmas do JS.
+   ========================================================================== */
+.patio {
+  --asfalto: #14171d;
+  --tinta: rgba(244, 246, 249, 0.62);
+  --ambar: #ffc300;
+  position: relative;
+  margin: 0;
+  padding-bottom: 2.4rem; /* espaço para o tíquete que sai da borda */
+}
+
+.patio-superficie {
+  position: relative;
+  aspect-ratio: 6 / 5;
+  overflow: hidden;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background:
+    radial-gradient(120% 90% at 85% 0%, rgba(255, 195, 0, 0.1), transparent 55%),
+    radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.035), transparent 40%),
+    repeating-radial-gradient(circle at 37% 61%, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 3px),
+    var(--asfalto);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 40px 90px -40px rgba(0, 0, 0, 0.9),
+    0 0 0 1px rgba(0, 0, 0, 0.35);
+  isolation: isolate;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ---- tinta do chão ---- */
+.patio-pintura {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.patio-pintura line {
+  stroke: var(--tinta);
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+.patio-pintura .patio-faixa {
+  stroke: var(--ambar);
+  stroke-opacity: 0.75;
+  stroke-width: 7;
+  stroke-dasharray: 44 34;
+}
+.patio-numero {
+  fill: var(--tinta);
+  font-family: var(--font-mono);
+  font-size: 40px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+.patio-sinal {
+  fill: rgba(244, 246, 249, 0.42);
+  font-family: var(--font-display);
+  font-size: 46px;
+  letter-spacing: 4px;
+}
+.patio-sinal-fim { text-anchor: end; }
+.patio-pcd rect { fill: var(--vaga-pcd); fill-opacity: 0.9; }
+.patio-pcd circle { fill: #fff; }
+.patio-pcd path {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---- vagas (camada de destaque sobre a tinta) ---- */
+.patio-vaga {
+  position: absolute;
+  border-radius: 8px;
+  pointer-events: none;
+  transition: background var(--dur-media) ease-out, box-shadow var(--dur-media) ease-out;
+}
+.patio-vaga.indicada {
+  background: rgba(255, 195, 0, 0.07);
+  box-shadow: inset 0 0 0 2px rgba(255, 195, 0, 0.55);
+  animation: vaga-chamar 2.2s ease-in-out 1.2s 3;
+}
+.patio-vaga.ocupada-por-voce {
+  background: rgba(255, 195, 0, 0.13);
+  box-shadow: inset 0 0 0 2px var(--ambar), 0 0 34px -6px rgba(255, 195, 0, 0.55);
+}
+.patio-vaga.recusou {
+  background: color-mix(in srgb, var(--vaga-pcd) 22%, transparent);
+  box-shadow: inset 0 0 0 2px var(--vaga-pcd);
+}
+/* A seleção pelo teclado só aparece para quem está usando o teclado. */
+.patio:has(.patio-carro:focus-visible) .patio-vaga.selecionada {
+  box-shadow: inset 0 0 0 3px #fff, 0 0 0 2px rgba(255, 195, 0, 0.9);
+}
+@keyframes vaga-chamar {
+  50% { background: rgba(255, 195, 0, 0.16); }
+}
+
+/* ---- carros ---- */
+.carro-svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.carro-lataria { fill: var(--carro-cor, #59616f); }
+.carro-capo { fill: color-mix(in srgb, var(--carro-cor, #59616f) 82%, #fff); }
+.carro-teto { fill: color-mix(in srgb, var(--carro-cor, #59616f) 86%, #000); }
+.carro-vidro { fill: #0d1219; }
+.carro-farol { fill: #fff6cf; }
+.carro-lanterna { fill: #ff5a67; }
+.carro-teto-marca { fill: rgba(10, 12, 17, 0.4); }
+
+.patio-estacionado {
+  position: absolute;
+  width: 17%;
+  aspect-ratio: 2 / 1;
+  transform: translate(-50%, -50%) rotate(var(--giro));
+  filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.45));
+  pointer-events: none;
+}
+
+/* O carro de quem visita: mexe por transform (escrito pelo JS a cada quadro). */
+.patio-carro {
+  --carro-cor: var(--ambar);
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 2;
+  width: 17%;
+  aspect-ratio: 2 / 1;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  cursor: grab;
+  touch-action: none; /* arrastar o carro não rola a página */
+  filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.5));
+  transition: scale var(--dur-toque) ease-out, filter var(--dur-rapida) ease-out;
+  will-change: transform;
+}
+/* Área de toque maior que o desenho: no celular o carro tem ~33 px. */
+.patio-carro::before {
+  content: "";
+  position: absolute;
+  inset: -12px;
+}
+/* Resposta no toque, antes de qualquer movimento. */
+.patio-carro.segurando,
+.patio[data-estado="arrastando"] .patio-carro {
+  cursor: grabbing;
+  scale: 1.06;
+  filter: drop-shadow(0 18px 18px rgba(0, 0, 0, 0.55));
+}
+.patio-carro:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 4px;
+}
+/* Faróis acesos enquanto anda. */
+.patio-carro::after {
+  content: "";
+  position: absolute;
+  top: 8%;
+  right: -46%;
+  width: 52%;
+  height: 84%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side at 0% 50%, rgba(255, 238, 170, 0.35), transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-media) ease-out;
+}
+.patio[data-estado="indo"] .patio-carro::after,
+.patio[data-estado="arrastando"] .patio-carro::after { opacity: 1; }
+
+/* Brilho que atravessa o pátio quando o carro encaixa na vaga. */
+.patio-brilho {
+  position: absolute;
+  inset: -20% -60%;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, 0.16) 50%, transparent 58%);
+  transform: translateX(-60%);
+  animation: patio-varrer 1.1s var(--mola) forwards;
+}
+@keyframes patio-varrer {
+  to { transform: translateX(60%); opacity: 0.2; }
+}
+
+/* ---- dica e tíquete ---- */
+.patio-dica {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  max-width: calc(100% - 2rem);
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(10, 12, 17, 0.72);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  color: #f4f6f9;
+  width: max-content;
+  font-size: var(--t-legenda);
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  pointer-events: none;
+  translate: -50% -50%;
+  box-shadow: 0 10px 24px -14px rgba(0, 0, 0, 0.8);
+  transition: opacity var(--dur-media) ease-out;
+}
+.patio-dica svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  fill: none;
+  stroke: var(--ambar);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* Some enquanto o carro anda: a atenção vai para o movimento. */
+.patio[data-estado="arrastando"] .patio-dica,
+.patio[data-estado="indo"] .patio-dica { opacity: 0; }
+
+.patio-ticket {
+  position: absolute;
+  left: clamp(0.6rem, 4%, 1.4rem);
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem 0.6rem 0.6rem;
+  border-radius: 16px;
+  background: #f6f4f0;
+  color: #22252b;
+  box-shadow: 0 22px 44px -22px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+.patio-ticket-texto { display: grid; line-height: 1.25; }
+.patio-ticket-texto strong { font-size: var(--t-apoio); }
+.patio-ticket-texto span { font-size: var(--t-legenda); color: #525864; }
+.patio[data-estado="estacionado"] .patio-ticket { animation: ticket-surgir var(--dur-mola) var(--mola-critica) both; }
+@keyframes ticket-surgir {
+  from { opacity: 0; transform: translateY(10px) scale(0.96); filter: blur(4px); }
+}
+
+/* Placa Mercosul em miniatura (só ilustração; o texto acessível vem do rótulo) */
+.placa-mercosul {
+  display: inline-grid;
+  justify-items: center;
+  min-width: 5.6rem;
+  border: 2px solid #1f2a44;
+  border-radius: 6px;
+  background: #fff;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: var(--t-apoio);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #11141a;
+  line-height: 1.5;
+}
+/* A faixa azul do Mercosul, sem o "BRASIL" (ilegível nesse tamanho). */
+.placa-mercosul::before {
+  content: "";
+  width: 100%;
+  height: 6px;
+  background: var(--plate-blue);
+}
+
+/* A mesma pílula vira aviso quando a vaga especial recusa o carro. */
+.patio-dica-alerta {
+  border-color: var(--vaga-pcd);
+  background: rgba(13, 26, 51, 0.88);
+  color: #eaf2ff;
+}
+.patio-dica-alerta svg { stroke: #9cc3ff; }
+
+@media (max-width: 520px) {
+  .patio-superficie { border-radius: 18px; }
+  .patio-dica { font-size: var(--t-legenda); padding: 0.4rem 0.7rem; }
+  .patio-ticket { gap: 0.55rem; padding: 0.5rem 0.75rem 0.5rem 0.5rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .patio-vaga.indicada,
+  .patio-brilho,
+  .patio[data-estado="estacionado"] .patio-ticket { animation: none; }
+  .patio-carro { transition: none; }
+}

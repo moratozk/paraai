@@ -1,98 +1,34 @@
 import { useEffect, useRef, useState } from "react";
 
-/** O visitante pediu para reduzir animações no sistema operacional? */
-function prefereSemMovimento() {
-  return (
-    typeof window !== "undefined" &&
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
-}
-
 /**
- * Progresso de um elemento na viewport, de 0 a 1.
- *
- *   0   → o topo do elemento acabou de entrar pela base da tela
- *   0.5 → o elemento está centralizado
- *   1   → a base do elemento acabou de sair pelo topo
- *
- * É a base dos efeitos de parallax: com esse número dá para interpolar
- * qualquer coisa (deslocamento, escala, opacidade) conforme a rolagem.
- *
- * A leitura acontece dentro de requestAnimationFrame para não forçar
- * reflow a cada evento de scroll.
+ * Chama `aoRolar` no máximo uma vez por quadro enquanto a página rola ou muda
+ * de tamanho. O callback escreve direto no estilo dos elementos: nada de
+ * setState a cada quadro, então a página não re-renderiza ao rolar.
  */
-export function useProgressoScroll(ref) {
-  // Quem pediu menos movimento já nasce no meio da faixa: sem parallax, e sem
-  // precisar de um setState dentro do efeito para corrigir depois.
-  const [progresso, setProgresso] = useState(() =>
-    prefereSemMovimento() ? 0.5 : 0
-  );
+export function useRolagem(aoRolar) {
+  const ref = useRef(aoRolar);
+  useEffect(() => {
+    ref.current = aoRolar;
+  });
 
   useEffect(() => {
-    const el = ref.current;
-    if (!el || prefereSemMovimento()) return;
-
-    let frame = null;
-
+    let quadro = null;
     const medir = () => {
-      frame = null;
-      const r = el.getBoundingClientRect();
-      const vh = window.innerHeight;
-      const percurso = r.height + vh; // distância total percorrida
-      const andado = vh - r.top;
-      setProgresso(Math.min(1, Math.max(0, andado / percurso)));
+      quadro = null;
+      ref.current();
     };
-
-    const aoRolar = () => {
-      if (frame === null) frame = requestAnimationFrame(medir);
+    const agendar = () => {
+      if (quadro === null) quadro = requestAnimationFrame(medir);
     };
-
-    medir();
-    window.addEventListener("scroll", aoRolar, { passive: true });
-    window.addEventListener("resize", aoRolar);
-
+    agendar();
+    window.addEventListener("scroll", agendar, { passive: true });
+    window.addEventListener("resize", agendar);
     return () => {
-      if (frame !== null) cancelAnimationFrame(frame);
-      window.removeEventListener("scroll", aoRolar);
-      window.removeEventListener("resize", aoRolar);
-    };
-  }, [ref]);
-
-  return progresso;
-}
-
-/**
- * Progresso de leitura da página inteira (0 a 1). Usado na barra do topo.
- */
-export function useProgressoPagina() {
-  const [progresso, setProgresso] = useState(0);
-
-  useEffect(() => {
-    let frame = null;
-
-    const medir = () => {
-      frame = null;
-      const total = document.documentElement.scrollHeight - window.innerHeight;
-      setProgresso(total > 0 ? Math.min(1, window.scrollY / total) : 0);
-    };
-
-    const aoRolar = () => {
-      if (frame === null) frame = requestAnimationFrame(medir);
-    };
-
-    medir();
-    window.addEventListener("scroll", aoRolar, { passive: true });
-    window.addEventListener("resize", aoRolar);
-
-    return () => {
-      if (frame !== null) cancelAnimationFrame(frame);
-      window.removeEventListener("scroll", aoRolar);
-      window.removeEventListener("resize", aoRolar);
+      if (quadro !== null) cancelAnimationFrame(quadro);
+      window.removeEventListener("scroll", agendar);
+      window.removeEventListener("resize", agendar);
     };
   }, []);
-
-  return progresso;
 }
 
 /**
@@ -130,23 +66,47 @@ export function useRevelar({ margem = "-80px", umaVez = true } = {}) {
   return [ref, visivel];
 }
 
-/** Interpola entre dois valores conforme o progresso (0 a 1). */
-export function entre(progresso, de, ate) {
-  return de + (ate - de) * progresso;
-}
-
 /**
- * Mapeia o progresso passando por pontos intermediários.
- * faixa(0.5, [0, 0.5, 1], [0, 1, 0]) === 1
+ * Qual das seções (por id) está no meio da tela agora. Alimenta o destaque
+ * do link correspondente na barra de navegação. Só muda o estado quando a
+ * seção muda, não a cada quadro.
  */
-export function faixa(progresso, entradas, saidas) {
-  for (let i = 0; i < entradas.length - 1; i++) {
-    const a = entradas[i];
-    const b = entradas[i + 1];
-    if (progresso <= b || i === entradas.length - 2) {
-      const t = b === a ? 0 : (progresso - a) / (b - a);
-      return entre(Math.min(1, Math.max(0, t)), saidas[i], saidas[i + 1]);
+export function useSecaoAtiva(ids, ligado = true) {
+  const [ativa, setAtiva] = useState(null);
+  const chave = ids.join(",");
+
+  useEffect(() => {
+    if (!ligado || typeof IntersectionObserver === "undefined") return undefined;
+    const obs = new IntersectionObserver(
+      (entradas) => {
+        entradas.forEach((e) => {
+          if (e.isIntersecting) setAtiva(e.target.id);
+        });
+      },
+      { rootMargin: "-45% 0px -50% 0px", threshold: 0 }
+    );
+    // A página chega depois da barra (carregamento sob demanda): se as seções
+    // ainda não existem, espera elas aparecerem no documento.
+    const observar = () => {
+      const alvos = chave
+        .split(",")
+        .map((id) => document.getElementById(id))
+        .filter(Boolean);
+      alvos.forEach((el) => obs.observe(el));
+      return alvos.length > 0;
+    };
+    let espera = null;
+    if (!observar()) {
+      espera = new MutationObserver(() => {
+        if (observar()) espera.disconnect();
+      });
+      espera.observe(document.body, { childList: true, subtree: true });
     }
-  }
-  return saidas[saidas.length - 1];
+    return () => {
+      obs.disconnect();
+      espera?.disconnect();
+    };
+  }, [chave, ligado]);
+
+  return ligado ? ativa : null;
 }

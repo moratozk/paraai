@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { useToast } from "../context/ToastContext";
+import { useRolagem, useSecaoAtiva } from "../hooks/useScrollFX";
 import Logo from "./Logo";
 import "./Navbar.css";
 
@@ -26,6 +27,15 @@ function IconeLua() {
     </svg>
   );
 }
+
+// Seções da Home, na ordem em que aparecem na página.
+const SECOES_HOME = [
+  { id: "vantagens", label: "Vantagens" },
+  { id: "como", label: "Como funciona" },
+  { id: "ao-vivo", label: "Mapa ao vivo" },
+  { id: "para-quem", label: "Para estacionamentos" },
+];
+const IDS_HOME = ["topo", ...SECOES_HOME.map((s) => s.id)];
 
 export default function Navbar() {
   const { user, userData, logout } = useAuth();
@@ -56,6 +66,18 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", aoRolar);
   }, []);
   const barraSolida = !naHome || rolou;
+
+  // Na Home: o link da seção que está no meio da tela fica marcado, e uma
+  // linha âmbar no topo mostra quanto da página já foi lida.
+  const homePublica = naHome && !user;
+  const secaoAtiva = useSecaoAtiva(IDS_HOME, homePublica);
+  const progressoRef = useRef(null);
+  useRolagem(() => {
+    const barra = progressoRef.current;
+    if (!barra) return;
+    const total = document.documentElement.scrollHeight - window.innerHeight;
+    barra.style.transform = `scaleX(${total > 0 ? Math.min(1, window.scrollY / total) : 0})`;
+  });
 
   // fecha ao clicar fora ou apertar ESC
   useEffect(() => {
@@ -110,7 +132,10 @@ export default function Navbar() {
     : [];
 
   return (
-    <header className={`navbar ${barraSolida ? "navbar-rolou" : ""}`}>
+    <header
+      className={`navbar ${barraSolida ? "navbar-rolou" : ""} ${homePublica ? "navbar-home" : ""}`}
+    >
+      {homePublica && <span ref={progressoRef} className="navbar-progresso" aria-hidden="true" />}
       <div className="container navbar-inner">
         <Link to="/" className="navbar-logo" aria-label="ParaAí — início">
           <Logo size={34} />
@@ -131,6 +156,17 @@ export default function Navbar() {
               >
                 {l.label}
               </Link>
+            ))
+          ) : homePublica ? (
+            SECOES_HOME.map((s) => (
+              <a
+                key={s.id}
+                href={`#${s.id}`}
+                className={secaoAtiva === s.id ? "ativo" : ""}
+                aria-current={secaoAtiva === s.id ? "location" : undefined}
+              >
+                {s.label}
+              </a>
             ))
           ) : (
             <a href="/#como">Como funciona</a>
@@ -259,9 +295,11 @@ export default function Navbar() {
             </>
           ) : (
             <>
-              <a href="/#como" onClick={() => setMenuAberto(false)}>
-                Como funciona
-              </a>
+              {SECOES_HOME.map((s) => (
+                <a key={s.id} href={`/#${s.id}`} onClick={() => setMenuAberto(false)}>
+                  {s.label}
+                </a>
+              ))}
               <Link to="/login" className="btn btn-outline btn-block">
                 Entrar
               </Link>

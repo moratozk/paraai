@@ -1,0 +1,70 @@
+/* ==========================================================================
+   LETREIRO — faixa de sinalização entre o hero e o conteúdo
+   Escura nos dois temas, com as zebras âmbar de obra nas bordas.
+   ========================================================================== */
+.letreiro {
+  position: relative;
+  overflow: hidden;
+  padding-block: clamp(1.1rem, 2.6vw, 1.7rem);
+  background: #0a0c11;
+  color: #f4f6f9;
+}
+.letreiro::before,
+.letreiro::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: repeating-linear-gradient(-45deg, #ffc300 0 14px, #0a0c11 14px 28px);
+  opacity: 0.85;
+}
+.letreiro::before { top: 0; }
+.letreiro::after { bottom: 0; }
+
+.letreiro-trilho {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+}
+
+.letreiro-grupo {
+  display: flex;
+  flex: none;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.letreiro-grupo li {
+  display: inline-flex;
+  align-items: center;
+  gap: clamp(1rem, 2.4vw, 1.8rem);
+  padding-right: clamp(1rem, 2.4vw, 1.8rem);
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 3.6vw, 2.9rem);
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+/* Um item cheio, outro só no contorno, como tinta nova e tinta gasta. */
+.letreiro-grupo li:nth-child(2n) {
+  color: transparent;
+  -webkit-text-stroke: 1.2px rgba(244, 246, 249, 0.55);
+}
+@supports not (-webkit-text-stroke: 1px red) {
+  .letreiro-grupo li:nth-child(2n) { color: rgba(244, 246, 249, 0.55); }
+}
+
+.letreiro-seta {
+  width: clamp(18px, 2vw, 26px);
+  height: clamp(18px, 2vw, 26px);
+  flex: none;
+  fill: none;
+  stroke: #ffc300;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

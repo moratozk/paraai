@@ -1,7 +1,7 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **04/10/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **06/10/2026**.
 
 ---
 
@@ -20,10 +20,45 @@ estadia e cobrança simulada. O operador acompanha pelo painel. A ocupação é
 lógica; a maquete virtual online é uma etapa futura, não implementada.
 
 Projeto acadêmico (TCC). A `main` tem a versão integrada (PR #9, unida em
-02/10/2026). Revisão atual: `claude/revisao-visual` (revisão visual do site), feita
-sobre `claude/vagas-especiais` (direito a vaga especial), `claude/tela-st7789` (tela,
-toque e watchdog na CYD), `claude/organiza-pastas` (pastas) e `claude/firmware-cyd`
-(pinos da CYD).
+02/10/2026). Revisão atual: `claude/nova-home` (nova tela inicial), feita sobre
+`claude/revisao-visual` (revisão visual do site), `claude/vagas-especiais` (direito a
+vaga especial), `claude/tela-st7789` (tela, toque e watchdog na CYD),
+`claude/organiza-pastas` (pastas) e `claude/firmware-cyd` (pinos da CYD).
+
+## Nova tela inicial (06/10/2026)
+
+A Home foi refeita tendo como referência o site de um amigo do dono do
+projeto (mastercommercialcare.vercel.app): seções que alternam claro e escuro,
+movimento ligado à rolagem e uma interação central ligada ao negócio. Lá é
+"limpar o vidro"; aqui é **estacionar o carro**. Tudo dentro da identidade
+(âmbar sobre asfalto, logo oficial, Anton/Archivo/JetBrains Mono).
+
+- **Hero com pátio interativo** (`components/home/PatioInterativo.jsx`): o
+  visitante arrasta o carro até uma vaga livre. Segue o dedo 1:1 a partir do
+  ponto em que foi pego, herda a velocidade ao soltar, decide pela projeção
+  do impulso e encaixa com mola (`utils/mola.js`: resposta + amortecimento,
+  como na Apple); além da borda resiste em vez de travar. Pode ser
+  interrompido no meio do movimento. A vaga PCD recusa e explica por quê. Tem
+  teclado (setas escolhem, Enter estaciona) e anúncio para leitor de tela.
+  Sozinho, o carro só anda até a frente da vaga indicada, como convite.
+- **Letreiro** com as vantagens, que anda com a rolagem (não gira sozinho).
+- **Por que**, **Promessas** (cartões com brilho que segue o mouse),
+  **Como funciona** (coluna fixa, linha de progresso e passos que acendem),
+  **Mapa ao vivo** (simulação do mapa do app, identificada como tal e com
+  botão de pausar), **Para quem** e **Chamada final**.
+- **Rodapé** com colunas de links e a marca em corpo gigante, só no contorno.
+- **Barra de navegação na Home**: vira uma pílula de vidro ao rolar, marca a
+  seção que está na tela e mostra uma linha de progresso de leitura. As outras
+  páginas continuam com a barra de antes.
+- **Ilhas escuras** (`.ilha-escura`): painéis que ficam escuros também no
+  tema claro, reaproveitando os mesmos tokens do tema escuro (`:root,
+  .ilha-escura` em `index.css`).
+- A Home não usa mais fotos externas; `components/Imagem.jsx` saiu.
+
+Da referência ficaram de fora, de propósito: rolagem suave artificial (Lenis),
+tela de carregamento, botões "magnéticos" e o letreiro que anda sozinho.
+Todos atrasam a resposta ou tiram o controle de quem navega. Com "reduzir
+movimento" ligado no sistema, nada se anima sozinho.
 
 ## Revisão visual de 04/10/2026 (diretrizes da Apple)
 
@@ -471,10 +506,10 @@ na Arduino IDE e gravar.
 5. Projetar o gabinete 3D pelas medidas reais; depois evoluir o site e criar
    a maquete virtual, sem reintroduzir sensores/catraca no ESP.
 
-6. **Fotos da Home e do login servidas pelo próprio site.** Hoje vêm do
-   Unsplash; se o serviço falhar, as seções ficam sem foto (a chamada final
-   já tem fundo escuro de reserva). A revisão visual observada em 02/10 foi
-   feita em 04/10/2026 (ver "Revisão visual" acima).
+6. **Foto do fundo do login servida pelo próprio site.** Ainda vem do
+   Unsplash (`pages/Auth.css`). A Home deixou de usar fotos externas em
+   06/10/2026. A revisão visual observada em 02/10 foi feita em 04/10/2026
+   (ver "Revisão visual" acima).
 
 ---
 
