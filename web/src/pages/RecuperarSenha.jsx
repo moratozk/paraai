@@ -29,7 +29,10 @@ export default function RecuperarSenha() {
         setError("Muitas tentativas. Aguarde alguns minutos.");
       } else if (err.code === "auth/network-request-failed") {
         setError("Sem conexão. Verifique sua internet.");
-      } else if (err.code === "auth/user-not-found") {
+      } else if (
+        err.code === "auth/user-not-found" ||
+        err.code === "auth/user-disabled"
+      ) {
         setEnviado(true);
       } else {
         // Erro de configuração ou do Firebase: dizer "enviado" esconderia
