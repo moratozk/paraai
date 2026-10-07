@@ -46,6 +46,12 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
   const tipoSelecionada = selecionada
     ? obterTipoVaga(selecionada.tipo, selecionada.numero)
     : null;
+  // Vaga especial só para quem declarou o mesmo direito (as regras do banco
+  // conferem o mesmo).
+  const especialSelecionada =
+    tipoSelecionada && tipoSelecionada.tipo !== "comum" ? tipoSelecionada : null;
+  const semDireito =
+    Boolean(especialSelecionada) && motorista?.vagaEspecial !== especialSelecionada.tipo;
 
   // O que impede a reserva, explicado antes do clique.
   const impedimento = !motorista?.placa
@@ -54,9 +60,11 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
       ? "Seu veículo já está estacionado. Registre a saída no totem antes de reservar outra vaga."
       : saldoEmPendencia(motorista.saldo)
         ? "Há um saldo pendente. Regularize em Perfil para reservar."
-        : temReserva
-          ? `Você já reservou a vaga ${numeroVaga(reserva.vaga)} até ${horaCurta(reserva.expiraEm)}. Cancele para escolher outra.`
-          : "";
+        : semDireito
+          ? `Vaga para ${especialSelecionada.rotulo}: só para quem declarou esse direito em Perfil.`
+          : temReserva
+            ? `Você já reservou a vaga ${numeroVaga(reserva.vaga)} até ${horaCurta(reserva.expiraEm)}. Cancele para escolher outra.`
+            : "";
 
   // Sai pelo mesmo caminho por onde entrou; com movimento reduzido, fecha na hora.
   const fechar = useCallback(() => {
@@ -248,9 +256,10 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
               </div>
             </div>
 
-            {tipoSelecionada && tipoSelecionada.tipo !== "comum" && (
+            {especialSelecionada && !semDireito && (
               <p className="checkout-aviso">
-                Vaga para {tipoSelecionada.rotulo}: reserve somente se você tem direito a ela.
+                Vaga para {especialSelecionada.rotulo}, conforme o direito declarado no
+                seu Perfil.
               </p>
             )}
 

@@ -25,21 +25,46 @@ int main() {
   assert(!pinConfere(nullptr, "482915"));
   assert(!pinConfere("12", "12")); // PIN configurado fora do formato nunca libera.
 
-  // Mesma regra do site (web/src/utils/mapaVagas.js): o tipo gravado manda;
-  // sem ele, as vagas 1, 2, 9, 10 e 11 são especiais.
-  assert(vagaEspecial(nullptr, 1) && vagaEspecial(nullptr, 2) && vagaEspecial(nullptr, 9));
-  assert(vagaEspecial(nullptr, 10) && vagaEspecial(nullptr, 11));
-  assert(!vagaEspecial(nullptr, 3) && !vagaEspecial(nullptr, 12));
-  assert(!vagaEspecial("comum", 1));                      // tipo gravado vence a tabela
-  assert(vagaEspecial("pcd", 3) && vagaEspecial("idoso", 3) && vagaEspecial("gestante", 3));
-  assert(vagaEspecial("outro", 2) && !vagaEspecial("outro", 4)); // tipo inválido usa a tabela
+  // Mesma regra do site (web/src/utils/mapaVagas.js) e das regras do Firestore:
+  // o tipo gravado manda; sem ele, a tabela padrão (1-2 PCD, 9 e 11 60+, 10 gestante).
+  assert(tipoDaVaga(nullptr, 1) == TipoVaga::PCD && tipoDaVaga(nullptr, 2) == TipoVaga::PCD);
+  assert(tipoDaVaga(nullptr, 9) == TipoVaga::IDOSO && tipoDaVaga(nullptr, 11) == TipoVaga::IDOSO);
+  assert(tipoDaVaga(nullptr, 10) == TipoVaga::GESTANTE);
+  assert(tipoDaVaga(nullptr, 3) == TipoVaga::COMUM && tipoDaVaga(nullptr, 12) == TipoVaga::COMUM);
+  assert(tipoDaVaga("comum", 1) == TipoVaga::COMUM);       // tipo gravado vence a tabela
+  assert(tipoDaVaga("gestante", 3) == TipoVaga::GESTANTE);
+  assert(tipoDaVaga("outro", 2) == TipoVaga::PCD && tipoDaVaga("outro", 4) == TipoVaga::COMUM);
+  // Direito declarado no veículo: ausente, vazio ou desconhecido = nenhum.
+  assert(direitoDeclarado("pcd") == TipoVaga::PCD && direitoDeclarado("idoso") == TipoVaga::IDOSO);
+  assert(direitoDeclarado(nullptr) == TipoVaga::COMUM && direitoDeclarado("") == TipoVaga::COMUM);
+  assert(direitoDeclarado("vip") == TipoVaga::COMUM);
+
+  {
+    // Quem declarou direito recebe a primeira vaga do seu tipo; se acabarem,
+    // uma comum. Sem direito, nunca uma especial.
+    constexpr int64_t agora = 1788800000;
+    EstadoVaga v[MAX_VAGAS + 1] = {};
+    v[1].tipo = v[2].tipo = TipoVaga::PCD;
+    v[3].tipo = TipoVaga::IDOSO;
+    assert(escolherVaga(v, 6, 0, agora) == 4);                     // sem direito: comum
+    assert(escolherVaga(v, 6, 0, agora, TipoVaga::PCD) == 1);
+    assert(escolherVaga(v, 6, 0, agora, TipoVaga::IDOSO) == 3);
+    assert(escolherVaga(v, 6, 0, agora, TipoVaga::GESTANTE) == 4); // não há vaga do tipo
+    v[1].usada = true;
+    v[2].reservadaAte = agora + 600;                                // reservada por outra pessoa
+    assert(escolherVaga(v, 6, 0, agora, TipoVaga::PCD) == 4);
+    assert(escolherVaga(v, 6, 2, agora, TipoVaga::PCD) == 2);       // a própria reserva
+    v[4].usada = v[5].usada = v[6].usada = true;
+    assert(escolherVaga(v, 6, 0, agora) == 0);                      // sobram só especiais
+    assert(escolherVaga(v, 6, 0, agora, TipoVaga::IDOSO) == 3);
+  }
 
   {
     constexpr int64_t agora = 1788800000;
     EstadoVaga v[MAX_VAGAS + 1] = {};
     assert(escolherVaga(v, 4, 0, agora) == 1);
     v[1].usada = true;
-    v[2].especial = true;
+    v[2].tipo = TipoVaga::PCD;
     v[3].reservadaAte = agora + 600; // reserva de outra pessoa, valendo
     assert(escolherVaga(v, 4, 0, agora) == 4);
     assert(escolherVaga(v, 4, 3, agora) == 3);  // a própria reserva

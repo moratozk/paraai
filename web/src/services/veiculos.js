@@ -13,13 +13,16 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { db } from "../firebase/firebaseConfig";
+import { direitoVagaValido } from "../utils/mapaVagas";
 
 // Cadastra (ou reivindica) a placa para o usuário logado.
 // Cria o documento no formato exato que o firmware espera encontrar:
 // ativo/vagaAtual/horaEntrada/saldo. ownerUid é ignorado pelo totem e serve
 // só às regras e ao painel. O nome do dono não vai para o veículo: qualquer
 // totem lê esse documento, e o nome já está no perfil (users/{uid}).
-export async function registrarVeiculo({ uid, placa }) {
+// vagaEspecial: direito declarado na conta ("" = nenhum), copiado para o
+// veículo porque é o veículo que o totem lê na entrada.
+export async function registrarVeiculo({ uid, placa, vagaEspecial = "" }) {
   const ref = doc(db, "veiculos", placa);
   const snap = await getDoc(ref);
   const atual = snap.exists() ? snap.data() : {};
@@ -27,6 +30,7 @@ export async function registrarVeiculo({ uid, placa }) {
   if (atual.ownerUid && atual.ownerUid !== uid) {
     throw new Error("Esta placa já está vinculada a outra conta.");
   }
+  const direito = direitoVagaValido(vagaEspecial) && vagaEspecial ? { vagaEspecial } : {};
 
   // As duas referências precisam ficar consistentes: o veículo aponta para
   // o dono e o perfil aponta para a placa. Um batch evita salvar só metade
@@ -42,6 +46,7 @@ export async function registrarVeiculo({ uid, placa }) {
       estacionamentoId: "",
       tarifaHoraEntrada: 0,
       ownerUid: uid,
+      ...direito,
       atualizadoEm: serverTimestamp(),
     });
   } else {
@@ -51,11 +56,29 @@ export async function registrarVeiculo({ uid, placa }) {
     batch.update(ref, {
       ownerUid: uid,
       ownerNome: deleteField(),
+      ...direito,
       atualizadoEm: serverTimestamp(),
     });
   }
 
   batch.set(doc(db, "users", uid), { placa }, { merge: true });
+  await batch.commit();
+}
+
+// Direito a vaga especial (autodeclaração). Conta e veículo mudam no mesmo
+// lote: o Perfil mostra o da conta e o totem usa o do veículo. Sem direito,
+// o campo é apagado, para não guardar dado sensível sem necessidade.
+export async function atualizarDireitoVaga({ uid, placa, vagaEspecial }) {
+  if (!direitoVagaValido(vagaEspecial)) throw new Error("Tipo de vaga especial inválido.");
+  const valor = vagaEspecial || deleteField();
+  const batch = writeBatch(db);
+  batch.update(doc(db, "users", uid), { vagaEspecial: valor });
+  if (placa) {
+    batch.update(doc(db, "veiculos", placa), {
+      vagaEspecial: valor,
+      atualizadoEm: serverTimestamp(),
+    });
+  }
   await batch.commit();
 }
 

@@ -414,6 +414,25 @@ input:focus, select:focus, textarea:focus {
 }
 
 .field-hint { font-size: 0.8rem; color: var(--text-muted); }
+/* Autodeclaração (ex.: direito a vaga especial): caixa e texto alinhados.
+   O seletor com [type] vence a regra genérica de .field input. */
+.declaracao {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.declaracao input[type="checkbox"] {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  margin-top: 2px;
+  padding: 0;
+  accent-color: var(--accent);
+}
 .field-link { font-size: 0.8rem; color: var(--accent-text); font-weight: 600; }
 @media (hover: hover) {
   .field-link:hover { text-decoration: underline; }

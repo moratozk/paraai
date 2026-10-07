@@ -59,11 +59,32 @@ service cloud.firestore {
     // Formatos criados pelo painel e pelo totem. Validá-los aqui evita que
     // clientes autenticados deixem documentos que o firmware não consegue
     // interpretar (ou incluam campos inesperados).
+    // Direito a vaga especial, autodeclarado pelo dono no cadastro ou no
+    // Perfil. É o mínimo que o totem precisa para escolher a vaga (todo totem
+    // lê o veículo); vazio ou ausente = nenhum direito.
+    function direitoVagaValido(dados) {
+      return !('vagaEspecial' in dados)
+        || dados.vagaEspecial in ['', 'pcd', 'idoso', 'gestante'];
+    }
+
+    // Tipo da vaga com a regra de obterTipoVaga (web/src/utils/mapaVagas.js) e
+    // tipoDaVaga (firmware/totem/LogicaTotem.h): vale o "tipo" gravado na vaga
+    // pública; sem ele, a tabela da demonstração FATEC. As três mudam juntas.
+    function tipoDaVaga(publica, vaga) {
+      let gravado = publica.get('tipo', '');
+      return gravado in ['comum', 'pcd', 'idoso', 'gestante'] ? gravado
+        : (vaga in [1, 2] ? 'pcd'
+          : (vaga in [9, 11] ? 'idoso'
+            : (vaga == 10 ? 'gestante' : 'comum')));
+    }
+
     function veiculoInicialDoPainelValido(dados) {
       return dados.keys().hasOnly([
           'ativo', 'vagaAtual', 'horaEntrada', 'saldo', 'estacionamentoId',
-          'tarifaHoraEntrada', 'ownerUid', 'ownerNome', 'atualizadoEm'
+          'tarifaHoraEntrada', 'ownerUid', 'ownerNome', 'atualizadoEm',
+          'vagaEspecial'
         ])
+        && direitoVagaValido(dados)
         && dados.keys().hasAll([
           'ativo', 'vagaAtual', 'horaEntrada', 'saldo', 'ownerUid',
           'atualizadoEm'
@@ -334,12 +355,14 @@ service cloud.firestore {
       // O cadastro público cria somente motoristas. Contas administrativas
       // são promovidas fora do cliente, e operadores antigos são preservados.
       allow create: if signedIn() && request.auth.uid == uid
-        && request.resource.data.role == 'motorista';
+        && request.resource.data.role == 'motorista'
+        && direitoVagaValido(request.resource.data);
       allow update: if signedIn() && request.auth.uid == uid
         && (
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'name', 'email', 'telefone', 'photoURL'
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'name', 'email', 'telefone', 'photoURL', 'vagaEspecial'
           ])
+            && direitoVagaValido(request.resource.data))
           || placaDeMotoristaValida()
           || vinculoInicialDeEstacionamentoValido(uid)
         );
@@ -516,7 +539,10 @@ service cloud.firestore {
         && dados.vaga <= catalogo.numVagas
         && get(caminhoVaga).data.ocupada == false
         && get(caminhoVaga).data.get('reservadaAte', 0) * 1000 < request.time.toMillis()
-        && getAfter(caminhoVaga).data.reservadaAte == dados.expiraEm;
+        && getAfter(caminhoVaga).data.reservadaAte == dados.expiraEm
+        // Vaga especial só para quem declarou o mesmo direito no veículo.
+        && (tipoDaVaga(get(caminhoVaga).data, dados.vaga) == 'comum'
+          || tipoDaVaga(get(caminhoVaga).data, dados.vaga) == veiculo.get('vagaEspecial', ''));
     }
 
     function reservaMarcaVaga(estId, vaga) {
@@ -591,14 +617,16 @@ service cloud.firestore {
           && resource.data.ownerUid == request.auth.uid
           && request.resource.data.ownerUid == request.auth.uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'ownerNome', 'saldo', 'atualizadoEm'
-          ]))
+            'ownerNome', 'saldo', 'atualizadoEm', 'vagaEspecial'
+          ])
+          && direitoVagaValido(request.resource.data))
         || (signedIn()
           && veiculoSemDono()
           && request.resource.data.ownerUid == request.auth.uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'ownerUid', 'ownerNome', 'atualizadoEm'
-          ]));
+            'ownerUid', 'ownerNome', 'atualizadoEm', 'vagaEspecial'
+          ])
+          && direitoVagaValido(request.resource.data));
       allow delete: if false;
     }
 

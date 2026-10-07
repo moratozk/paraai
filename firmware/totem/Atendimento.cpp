@@ -159,7 +159,7 @@ bool lerVagasPublicas() {
         estadoVagas[n].reservadaAte = ate > 0 && ate < 4000000000LL ? static_cast<uint32_t>(ate) : 0;
       }
       const bool temTipo = texto(pagina, prefixo + "/fields/tipo/stringValue", tipo);
-      estadoVagas[n].especial = paraai::vagaEspecial(temTipo ? tipo.c_str() : nullptr, n);
+      estadoVagas[n].tipo = paraai::tipoDaVaga(temTipo ? tipo.c_str() : nullptr, n);
     }
     token = "";
     texto(pagina, "nextPageToken", token);
@@ -169,20 +169,23 @@ bool lerVagasPublicas() {
 }
 
 // reservada: vaga que o dono da placa reservou no app (0 se não reservou).
+// direito: tipo de vaga especial declarado no veículo (COMUM = nenhum).
 struct MapaVagas { int livres = 0; int primeira = 0; bool existe = false; bool reservada = false; String revisao; };
-bool mapaVagas(MapaVagas& mapa, int reservada = 0) {
+bool mapaVagas(MapaVagas& mapa, int reservada = 0, paraai::TipoVaga direito = paraai::TipoVaga::COMUM) {
   // Paginação limita o uso de RAM. Placa é a ocupação lógica; não interpretar
   // eco, GPIO ou antigos campos de sensores como presença física.
   // Vaga sem documento público segue a mesma tabela padrão do site.
   for (int n = 0; n <= paraai::MAX_VAGAS; ++n) {
     estadoVagas[n] = {};
-    estadoVagas[n].especial = paraai::vagaEspecial(nullptr, n);
+    estadoVagas[n].tipo = paraai::tipoDaVaga(nullptr, n);
     vagaExiste[n] = false;
   }
   if (!lerVagasPublicas()) return false;
   const int64_t agora = time(nullptr);
-  int candidataExistente = 0;
-  String revisaoCandidata, revisaoReservada, token;
+  // Candidatas com documento, na mesma ordem de escolherVaga: a primeira do
+  // tipo do direito declarado e a primeira comum.
+  int candidataTipo = 0, candidataComum = 0;
+  String revisaoTipo, revisaoComum, revisaoReservada, token;
   int paginas = 0;
   do {
     if (++paginas > 20) return false;
@@ -215,15 +218,19 @@ bool mapaVagas(MapaVagas& mapa, int reservada = 0) {
       }
       estadoVagas[n].usada = !placa.isEmpty();
       if (estadoVagas[n].usada) continue;
-      // Revisões só das vagas que podem ser escolhidas: a reservada e a
-      // primeira comum livre sem reserva valendo.
-      const bool elegivel = n <= capacidade && !estadoVagas[n].especial &&
-                            estadoVagas[n].reservadaAte <= agora;
-      const bool melhor = elegivel && (candidataExistente == 0 || n < candidataExistente);
-      if (n != reservada && !melhor) continue;
+      // Revisões só das vagas que podem ser escolhidas: a reservada, a primeira
+      // livre do tipo do direito declarado e a primeira comum livre.
+      const bool semReserva = n <= capacidade && estadoVagas[n].reservadaAte <= agora;
+      const bool doTipo = semReserva && direito != paraai::TipoVaga::COMUM &&
+                          estadoVagas[n].tipo == direito;
+      const bool comum = semReserva && estadoVagas[n].tipo == paraai::TipoVaga::COMUM;
+      const bool melhorTipo = doTipo && (candidataTipo == 0 || n < candidataTipo);
+      const bool melhorComum = comum && (candidataComum == 0 || n < candidataComum);
+      if (n != reservada && !melhorTipo && !melhorComum) continue;
       if (!texto(pagina, prefixo + "/updateTime", revisao)) return false;
       if (n == reservada) revisaoReservada = revisao;
-      if (melhor) { candidataExistente = n; revisaoCandidata = revisao; }
+      if (melhorTipo) { candidataTipo = n; revisaoTipo = revisao; }
+      if (melhorComum) { candidataComum = n; revisaoComum = revisao; }
     }
     token = "";
     texto(pagina, "nextPageToken", token);
@@ -231,14 +238,15 @@ bool mapaVagas(MapaVagas& mapa, int reservada = 0) {
   } while (!token.isEmpty());
   mapa = {};
   mapa.livres = paraai::contarLivres(estadoVagas, capacidade, agora);
-  mapa.primeira = paraai::escolherVaga(estadoVagas, capacidade, reservada, agora);
+  mapa.primeira = paraai::escolherVaga(estadoVagas, capacidade, reservada, agora, direito);
   if (mapa.primeira) {
     mapa.reservada = reservada > 0 && mapa.primeira == reservada;
     mapa.existe = vagaExiste[mapa.primeira];
     if (mapa.existe) {
       if (mapa.reservada) mapa.revisao = revisaoReservada;
-      else if (mapa.primeira != candidataExistente) return false;
-      else mapa.revisao = revisaoCandidata;
+      else if (mapa.primeira == candidataTipo) mapa.revisao = revisaoTipo;
+      else if (mapa.primeira == candidataComum) mapa.revisao = revisaoComum;
+      else return false;
     }
   }
   return true;
@@ -353,9 +361,13 @@ RespostaTotem executar(const Solicitacao& pedido) {
     texto(veiculo, "fields/ownerUid/stringValue", dono);
     if (!dono.isEmpty() && consultarReserva(dono, vagaReservada, revisaoReserva) == Reserva::FALHA)
       return falhaLeitura();
+    // Direito a vaga especial declarado pelo dono no site (autodeclaração).
+    String declarado;
+    texto(veiculo, "fields/vagaEspecial/stringValue", declarado);
+    const paraai::TipoVaga direito = paraai::direitoDeclarado(declarado.c_str());
     estado(ConexaoTotem::PRONTO, "Verificando disponibilidade...");
     MapaVagas mapa;
-    if (!configurarPatio() || !mapaVagas(mapa, vagaReservada)) return falhaLeitura();
+    if (!configurarPatio() || !mapaVagas(mapa, vagaReservada, direito)) return falhaLeitura();
     if (!mapa.primeira) return resposta(TipoResposta::ALERTA, "SEM VAGAS LIVRES", "Estacionamento lotado", "Tente mais tarde");
     FirebaseJson alteracao, vaga, publica, reserva;
     alteracao.set("fields/vagaAtual/integerValue", String(mapa.primeira));

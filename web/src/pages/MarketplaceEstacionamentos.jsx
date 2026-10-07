@@ -319,6 +319,7 @@ export default function MarketplaceEstacionamentos() {
                           placa,
                           saldo: Number(veiculo?.saldo) || 0,
                           estacionado: Number(veiculo?.vagaAtual) > 0,
+                          vagaEspecial: veiculo?.vagaEspecial || "",
                         }}
                         onFechar={() => setMapaAberto(null)}
                       />

@@ -375,13 +375,55 @@ test('vaga reservada por outra pessoa só volta a aceitar reserva quando a anter
   await assertSucceeds(loteReserva(db('motorista-b'), 'motorista-b').batch.commit());
 });
 
+// Direito a vaga especial autodeclarado pelo dono no próprio veículo.
+const declararDireito = (uid, placa, tipo) =>
+  updateDoc(ref(uid, `veiculos/${placa}`), { vagaEspecial: tipo, atualizadoEm: Timestamp.now() });
+
 test('pendência bloqueia reserva e cada conta tem uma reserva ativa por vez', async () => {
   const veiculo = c => doc(c.firestore(), 'veiculos/XYZ1234');
   await env.withSecurityRulesDisabled(c => updateDoc(veiculo(c), { saldo: -1 }));
   await assertFails(loteReserva(db('motorista-b'), 'motorista-b').batch.commit());
   await env.withSecurityRulesDisabled(c => updateDoc(veiculo(c), { saldo: 0 }));
   await assertSucceeds(loteReserva(db('motorista-b'), 'motorista-b').batch.commit());
+  // Com direito à vaga 3 (PCD), o único impedimento é a reserva já ativa.
+  await assertSucceeds(declararDireito('motorista-b', 'XYZ1234', 'pcd'));
   await assertFails(loteReserva(db('motorista-b'), 'motorista-b', { vaga: 3 }).batch.commit());
+});
+
+test('direito a vaga especial: só o dono declara, só valores conhecidos', async () => {
+  await assertSucceeds(declararDireito('motorista-b', 'XYZ1234', 'pcd'));
+  await assertSucceeds(declararDireito('motorista-b', 'XYZ1234', ''));
+  await assertFails(declararDireito('motorista-b', 'XYZ1234', 'vip'));
+  await assertFails(declararDireito('motorista-a', 'XYZ1234', 'pcd'));
+  // O cadastro pelo painel já pode trazer o direito declarado.
+  const novo = uid => ({ ativo: true, vagaAtual: 0, horaEntrada: 0, saldo: 0, estacionamentoId: '',
+    tarifaHoraEntrada: 0, ownerUid: uid, atualizadoEm: Timestamp.now() });
+  await assertSucceeds(setDoc(ref('motorista-c', 'veiculos/NOV1A23'), { ...novo('motorista-c'), vagaEspecial: 'idoso' }));
+  await assertFails(setDoc(ref('motorista-d', 'veiculos/NOV1B23'), { ...novo('motorista-d'), vagaEspecial: 'vip' }));
+  // A conta guarda o mesmo direito, declarado no cadastro ou no Perfil.
+  await assertSucceeds(updateDoc(ref('motorista-b', 'users/motorista-b'), { vagaEspecial: 'gestante' }));
+  await assertSucceeds(updateDoc(ref('motorista-b', 'users/motorista-b'), { vagaEspecial: deleteField() }));
+  await assertFails(updateDoc(ref('motorista-b', 'users/motorista-b'), { vagaEspecial: 'vip' }));
+  await assertSucceeds(setDoc(ref('motorista-e', 'users/motorista-e'), { role: 'motorista', name: 'E', vagaEspecial: 'pcd' }));
+  await assertFails(setDoc(ref('motorista-f', 'users/motorista-f'), { role: 'motorista', name: 'F', vagaEspecial: 'vip' }));
+});
+
+test('reserva de vaga especial só para quem declarou o mesmo direito', async () => {
+  // Vaga 3 é PCD: sem direito, ou com direito de outro tipo, não reserva.
+  await assertFails(loteReserva(db('motorista-b'), 'motorista-b', { vaga: 3 }).batch.commit());
+  await assertSucceeds(declararDireito('motorista-b', 'XYZ1234', 'idoso'));
+  await assertFails(loteReserva(db('motorista-b'), 'motorista-b', { vaga: 3 }).batch.commit());
+  await assertSucceeds(declararDireito('motorista-b', 'XYZ1234', 'pcd'));
+  await assertSucceeds(loteReserva(db('motorista-b'), 'motorista-b', { vaga: 3 }).batch.commit());
+});
+
+test('vaga sem tipo gravado segue a tabela padrão do site e do totem', async () => {
+  // Sem "tipo", a vaga 2 é PCD pela tabela padrão (1 e 2 PCD, 9 e 11 60+, 10 gestante).
+  await env.withSecurityRulesDisabled(c =>
+    setDoc(doc(c.firestore(), 'catalogoEstacionamentos/EST-A/vagas/2'), { ocupada: false }));
+  await assertFails(loteReserva(db('motorista-b'), 'motorista-b').batch.commit());
+  await assertSucceeds(declararDireito('motorista-b', 'XYZ1234', 'pcd'));
+  await assertSucceeds(loteReserva(db('motorista-b'), 'motorista-b').batch.commit());
 });
 
 test('cancelar libera a vaga; ninguém libera a reserva de outra conta', async () => {
@@ -396,6 +438,7 @@ test('cancelar libera a vaga; ninguém libera a reserva de outra conta', async (
 });
 
 test('totem honra a reserva: entrada na vaga reservada consome a reserva no mesmo lote', async () => {
+  await assertSucceeds(declararDireito('motorista-b', 'XYZ1234', 'pcd'));
   await assertSucceeds(loteReserva(db('motorista-b'), 'motorista-b', { vaga: 3 }).batch.commit());
   const d = db('totem-a');
   const lote = writeBatch(d);
@@ -410,6 +453,7 @@ test('totem honra a reserva: entrada na vaga reservada consome a reserva no mesm
 });
 
 test('totem: lê só reservas do próprio pátio e não apaga reserva sem ocupar a vaga', async () => {
+  await assertSucceeds(declararDireito('motorista-b', 'XYZ1234', 'pcd'));
   await assertSucceeds(loteReserva(db('motorista-b'), 'motorista-b', { vaga: 3 }).batch.commit());
   await assertSucceeds(getDoc(ref('totem-a', 'reservas/motorista-b')));
   await assertFails(getDoc(ref('totem-b', 'reservas/motorista-b')));

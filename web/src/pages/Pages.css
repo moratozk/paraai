@@ -909,6 +909,10 @@
 .modal-acoes { display: flex; gap: 0.6rem; margin-top: 1.3rem; }
 .modal-acoes .btn { flex: 1; }
 
+/* Botões de um formulário dentro de cartão (ex.: vaga especial no Perfil). */
+.acoes-form { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.acoes-form .btn { flex: 1; }
+
 .valores-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

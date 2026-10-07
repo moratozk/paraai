@@ -6,6 +6,7 @@ import { criarEstacionamento } from "../services/estacionamentos";
 import { buscarCep, cepCompleto, formatarCep } from "../services/cep";
 import { formatarTelefone, telefoneValido } from "../utils/format";
 import { LogoMark } from "../components/Logo";
+import CampoDireitoVaga from "../components/CampoDireitoVaga";
 import "./Auth.css";
 
 function IconeMotorista() {
@@ -38,6 +39,8 @@ export default function Cadastro() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [telefone, setTelefone] = useState("");
+  const [vagaEspecial, setVagaEspecial] = useState("");
+  const [declarouDireito, setDeclarouDireito] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [verSenha, setVerSenha] = useState(false);
@@ -126,6 +129,8 @@ export default function Cadastro() {
         return setError("As senhas não coincidem.");
       if (password.length < 6)
         return setError("A senha deve ter pelo menos 6 caracteres.");
+      if (vagaEspecial && !declarouDireito)
+        return setError("Confirme a declaração do direito à vaga especial.");
     }
 
     if (role === "operador") {
@@ -139,7 +144,14 @@ export default function Cadastro() {
 
     let cred;
     try {
-      cred = await register(name, email, password, role, telefone);
+      cred = await register(
+        name,
+        email,
+        password,
+        role,
+        telefone,
+        role === "motorista" ? vagaEspecial : ""
+      );
     } catch (err) {
       const ehFirestore = `${err?.code || ""}`.includes("permission");
       setError(
@@ -301,6 +313,16 @@ export default function Cadastro() {
                   </span>
                 )}
               </div>
+
+              {role === "motorista" && (
+                <CampoDireitoVaga
+                  id="vagaEspecial"
+                  valor={vagaEspecial}
+                  onValor={setVagaEspecial}
+                  declarado={declarouDireito}
+                  onDeclarado={setDeclarouDireito}
+                />
+              )}
 
               <div className="field">
                 <label htmlFor="password">Senha</label>
