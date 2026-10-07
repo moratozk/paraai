@@ -114,5 +114,47 @@ int main() {
   assert(!calcularCobranca(entrada, entrada + 1, 8.5, INFINITY, c));
   assert(!calcularCobranca(entrada, entrada + 1, 8.5, NAN, c));
   assert(!calcularCobranca(std::numeric_limits<int64_t>::min(), entrada, 8.5, 100, c));
-  std::puts("LogicaTotem: placas, capacidade, tarifa, cobranca, PIN e escolha de vaga aprovados.");
+
+  // Wi-Fi pela tela: senha WPA de 8 a 63 caracteres ASCII imprimíveis.
+  assert(senhaWifiValida("12345678") && senhaWifiValida("Casa da Vo 2024!~"));
+  assert(senhaWifiValida("123456789012345678901234567890123456789012345678901234567890123"));
+  assert(!senhaWifiValida("1234567") && !senhaWifiValida("") && !senhaWifiValida(nullptr));
+  assert(!senhaWifiValida("1234567890123456789012345678901234567890123456789012345678901234"));
+  assert(!senhaWifiValida("senha\tcomtab") && !senhaWifiValida("senha\x7f" "1234"));
+  assert(!senhaWifiValida("fam\xc3\xadlia1234")); // O teclado não gera acento.
+  assert(textoDigitadoValido("Rede_Oculta", 1, WIFI_SSID_MAX) && !textoDigitadoValido("", 1, WIFI_SSID_MAX));
+  assert(!textoDigitadoValido("123456789012345678901234567890123", 1, WIFI_SSID_MAX));
+  for (int c = 0x20; c <= 0x7E; ++c) assert(caractereDigitavelWifi(static_cast<char>(c)));
+  assert(!caractereDigitavelWifi('\n') && !caractereDigitavelWifi(static_cast<char>(0xC3)));
+
+  // Motivo de desconexão -> o que dizer ao operador.
+  assert(classificarFalhaWifi(0) == FalhaWifi::NENHUMA && classificarFalhaWifi(8) == FalhaWifi::NENHUMA);
+  for (uint8_t motivo : {14, 15, 202, 204}) assert(classificarFalhaWifi(motivo) == FalhaWifi::SENHA);
+  for (uint8_t motivo : {201, 210, 211, 212}) assert(classificarFalhaWifi(motivo) == FalhaWifi::SEM_REDE);
+  for (uint8_t motivo : {1, 2, 200, 203, 205}) assert(classificarFalhaWifi(motivo) == FalhaWifi::OUTRA);
+
+  assert(barrasSinalWifi(-40) == 4 && barrasSinalWifi(-60) == 4 && barrasSinalWifi(-61) == 3);
+  assert(barrasSinalWifi(-70) == 3 && barrasSinalWifi(-80) == 2 && barrasSinalWifi(-81) == 1);
+  assert(barrasSinalWifi(-100) == 1);
+
+  {
+    char t[33];
+    assert(textoWifiExibivel("NET_2G#5", t, sizeof(t)) == 8 && std::strcmp(t, "NET_2G#5") == 0);
+    textoWifiExibivel("Fam\xc3\xadlia Concei\xc3\xa7\xc3\xa3o", t, sizeof(t));
+    assert(std::strcmp(t, "Familia Conceicao") == 0);
+    textoWifiExibivel("\xc3\x80\xc3\x89\xc3\x94\xc3\x9c\xc3\x87\xc3\x91 \xc3\xbf", t, sizeof(t));
+    assert(std::strcmp(t, "AEOUCN y") == 0);
+    textoWifiExibivel("Caf\xe2\x98\x95 \xf0\x9f\x9a\x97!", t, sizeof(t)); // emoji de 3 e 4 bytes
+    assert(std::strcmp(t, "Caf? ?!") == 0);
+    textoWifiExibivel("Caf\xe9 X", t, sizeof(t)); // Latin-1 cru, não UTF-8
+    assert(std::strcmp(t, "Caf? X") == 0);
+    textoWifiExibivel("fim\xc3", t, sizeof(t)); // sequência cortada no fim
+    assert(std::strcmp(t, "fim?") == 0);
+    textoWifiExibivel("a\x01" "b\x7f", t, sizeof(t));
+    assert(std::strcmp(t, "a?b?") == 0);
+    char curto[4];
+    assert(textoWifiExibivel("abcdef", curto, sizeof(curto)) == 3 && std::strcmp(curto, "abc") == 0);
+    assert(textoWifiExibivel(nullptr, t, sizeof(t)) == 0 && t[0] == '\0');
+  }
+  std::puts("LogicaTotem: placas, capacidade, tarifa, cobranca, PIN, escolha de vaga e Wi-Fi pela tela aprovados.");
 }

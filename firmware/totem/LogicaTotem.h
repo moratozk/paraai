@@ -105,6 +105,87 @@ inline int contarLivres(const EstadoVaga* vagas, int capacidade, int64_t agora) 
   return livres;
 }
 
+// --- Wi-Fi configurado na própria tela do totem ---------------------------
+// WPA2/WPA3 pessoal: SSID de 1 a 32 bytes; senha de 8 a 63 caracteres ASCII
+// imprimíveis (o teclado da tela só gera esses caracteres).
+constexpr int WIFI_SSID_MAX = 32;
+constexpr int WIFI_SENHA_MIN = 8;
+constexpr int WIFI_SENHA_MAX = 63;
+inline bool caractereDigitavelWifi(char c) {
+  const unsigned char u = static_cast<unsigned char>(c);
+  return u >= 0x20 && u <= 0x7E;
+}
+inline bool textoDigitadoValido(const char* texto, int minimo, int maximo) {
+  if (!texto) return false;
+  int n = 0;
+  for (; texto[n]; ++n)
+    if (n >= maximo || !caractereDigitavelWifi(texto[n])) return false;
+  return n >= minimo;
+}
+inline bool senhaWifiValida(const char* senha) {
+  return textoDigitadoValido(senha, WIFI_SENHA_MIN, WIFI_SENHA_MAX);
+}
+
+// Motivo da desconexão (wifi_err_reason_t do ESP-IDF; ConfiguracaoWiFi.ino
+// confere estes números na compilação) traduzido no que o operador pode fazer.
+enum class FalhaWifi : uint8_t { NENHUMA, SENHA, SEM_REDE, OUTRA };
+inline FalhaWifi classificarFalhaWifi(uint8_t motivo) {
+  switch (motivo) {
+    case 0:    // nenhum motivo registrado
+    case 8:    // ASSOC_LEAVE: a própria troca desligou a rede anterior
+      return FalhaWifi::NENHUMA;
+    case 14:   // MIC_FAILURE
+    case 15:   // 4WAY_HANDSHAKE_TIMEOUT: o roteador não aceitou a chave
+    case 202:  // AUTH_FAIL
+    case 204:  // HANDSHAKE_TIMEOUT
+      return FalhaWifi::SENHA;
+    case 201:  // NO_AP_FOUND
+    case 210:  // NO_AP_FOUND_W_COMPATIBLE_SECURITY
+    case 211:  // NO_AP_FOUND_IN_AUTHMODE_THRESHOLD
+    case 212:  // NO_AP_FOUND_IN_RSSI_THRESHOLD
+      return FalhaWifi::SEM_REDE;
+    default:
+      return FalhaWifi::OUTRA;
+  }
+}
+
+// Mesmos limites do ícone do cabeçalho: 4 barras a partir de -60 dBm.
+inline int barrasSinalWifi(int32_t rssi) {
+  if (rssi >= -60) return 4;
+  if (rssi >= -70) return 3;
+  if (rssi >= -80) return 2;
+  return 1;
+}
+
+// As fontes do totem só têm ASCII. O nome da rede é exibido sem acento
+// ("Família" vira "Familia") e o que não tiver equivalente vira '?'. Serve só
+// para mostrar: a conexão usa sempre os bytes originais do SSID.
+inline size_t textoWifiExibivel(const char* origem, char* destino, size_t capacidade) {
+  if (!destino || capacidade == 0) return 0;
+  // U+00C0..U+00FF (UTF-8 0xC3 0x80..0xBF), na ordem da tabela Unicode.
+  static const char LATIN1[] =
+      "AAAAAAACEEEEIIIIDNOOOOOxOUUUUY?s"
+      "aaaaaaaceeeeiiiidnooooo?ouuuuy?y";
+  size_t n = 0;
+  const unsigned char* p = reinterpret_cast<const unsigned char*>(origem ? origem : "");
+  while (*p && n + 1 < capacidade) {
+    const unsigned char c = *p;
+    if (c >= 0x20 && c <= 0x7E) { destino[n++] = static_cast<char>(c); ++p; continue; }
+    const int continuacoes = (c & 0xE0) == 0xC0 ? 1 : (c & 0xF0) == 0xE0 ? 2 : (c & 0xF8) == 0xF0 ? 3 : 0;
+    int lidos = 0;
+    while (lidos < continuacoes && (p[1 + lidos] & 0xC0) == 0x80) ++lidos;
+    if (continuacoes > 0 && lidos == continuacoes) {
+      destino[n++] = c == 0xC3 ? LATIN1[p[1] - 0x80] : '?';
+      p += 1 + continuacoes;
+    } else {
+      destino[n++] = '?';  // byte solto ou sequência incompleta
+      ++p;
+    }
+  }
+  destino[n] = '\0';
+  return n;
+}
+
 // Meio centavo absorve resíduo de ponto flutuante de recargas e débitos.
 // O mesmo limite está em firestore.rules (entrada com saldo pendente).
 constexpr double TOLERANCIA_SALDO = 0.005;
