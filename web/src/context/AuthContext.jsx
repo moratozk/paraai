@@ -102,16 +102,31 @@ export function AuthProvider({ children }) {
   }
 
   // O `url` abaixo é o destino após a redefinição. O domínio dele precisa estar
-  // em Authentication > Domínios autorizados, senão o Firebase recusa o envio.
+  // em Authentication > Domínios autorizados, senão o Firebase recusa o envio;
+  // nesse caso reenviamos sem destino, para o e-mail chegar mesmo assim (só
+  // falta o botão de voltar ao site depois de trocar a senha).
   // Não aponte o URL de ação dos modelos para /redefinir-senha enquanto ela só
   // tratar redefinição de senha: esse URL vale para todos os e-mails do
   // Firebase, inclusive a confirmação de troca de e-mail (ver ESTADO.md).
-  function recuperarSenha(email) {
+  async function recuperarSenha(email) {
     auth.languageCode = "pt-BR";
-    return sendPasswordResetEmail(auth, email, {
-      url: `${window.location.origin}/login`,
-      handleCodeInApp: false,
-    });
+    try {
+      await sendPasswordResetEmail(auth, email, {
+        url: `${window.location.origin}/login`,
+        handleCodeInApp: false,
+      });
+    } catch (err) {
+      const destinoRecusado = [
+        "auth/unauthorized-continue-uri",
+        "auth/invalid-continue-uri",
+        "auth/missing-continue-uri",
+      ].includes(err.code);
+      if (!destinoRecusado) throw err;
+      console.warn(
+        `Domínio ${window.location.host} fora dos domínios autorizados do Firebase; e-mail enviado sem link de retorno.`
+      );
+      await sendPasswordResetEmail(auth, email);
+    }
   }
 
   // Confere se o código de recuperação é válido; devolve o e-mail dono dele

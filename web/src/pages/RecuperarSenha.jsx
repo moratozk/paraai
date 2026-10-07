@@ -29,8 +29,13 @@ export default function RecuperarSenha() {
         setError("Muitas tentativas. Aguarde alguns minutos.");
       } else if (err.code === "auth/network-request-failed") {
         setError("Sem conexão. Verifique sua internet.");
-      } else {
+      } else if (err.code === "auth/user-not-found") {
         setEnviado(true);
+      } else {
+        // Erro de configuração ou do Firebase: dizer "enviado" esconderia
+        // que nenhum e-mail saiu.
+        console.error("Falha ao enviar e-mail de recuperação:", err);
+        setError("Não foi possível enviar o e-mail agora. Tente novamente mais tarde.");
       }
     } finally {
       setLoading(false);

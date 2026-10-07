@@ -502,7 +502,10 @@ na Arduino IDE e gravar.
    e `paraai-9514f.web.app`. O site fica em `paraai.web.app`, e o e-mail de
    recuperação pede para voltar a esse endereço, então o Firebase **recusa o
    envio** até `paraai.web.app` entrar em Authentication > Configurações >
-   Domínios autorizados. Com o domínio autorizado, o link abre a página padrão
+   Domínios autorizados. Desde 07/10/2026 o site contorna isso: se o destino
+   for recusado, reenvia sem link de retorno (o e-mail chega, só sem o botão
+   de voltar ao site), e erros de configuração deixaram de aparecer como
+   "e-mail enviado". Autorizar o domínio continua sendo o certo. Com o domínio autorizado, o link abre a página padrão
    do Firebase (em português) e depois volta para o login. Para usar a tela
    própria (`/redefinir-senha`), antes ela precisa tratar os outros e-mails do
    Firebase: o URL de ação do modelo vale para todos, inclusive a confirmação
