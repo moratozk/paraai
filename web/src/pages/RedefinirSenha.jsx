@@ -97,7 +97,7 @@ export default function RedefinirSenha() {
     return (
       <div className="auth-page">
         <div className="card auth-card">
-          <div className="auth-check" aria-hidden="true">✓</div>
+          <div className="auth-selo" aria-hidden="true">✓</div>
           <h1 className="auth-title">Senha redefinida</h1>
           <p className="subtitle">
             Tudo certo! Já pode entrar com a nova senha. Estamos te levando

@@ -13,6 +13,8 @@ import {
   verifyBeforeUpdateEmail,
   verifyPasswordResetCode,
   confirmPasswordReset,
+  checkActionCode,
+  applyActionCode,
 } from "firebase/auth";
 import { doc, setDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
@@ -105,9 +107,9 @@ export function AuthProvider({ children }) {
   // em Authentication > Domínios autorizados, senão o Firebase recusa o envio;
   // nesse caso reenviamos sem destino, para o e-mail chegar mesmo assim (só
   // falta o botão de voltar ao site depois de trocar a senha).
-  // Não aponte o URL de ação dos modelos para /redefinir-senha enquanto ela só
-  // tratar redefinição de senha: esse URL vale para todos os e-mails do
-  // Firebase, inclusive a confirmação de troca de e-mail (ver ESTADO.md).
+  // O URL de ação dos modelos vale para todos os e-mails do Firebase; aponte-o
+  // para /acao (pages/AcaoConta.jsx), que trata cada tipo. /redefinir-senha só
+  // trata senha e quebraria a confirmação de troca de e-mail.
   async function recuperarSenha(email) {
     auth.languageCode = "pt-BR";
     try {
@@ -137,6 +139,16 @@ export function AuthProvider({ children }) {
   // Efetiva a troca de senha usando o código do e-mail
   function redefinirSenhaComCodigo(codigo, novaSenha) {
     return confirmPasswordReset(auth, codigo, novaSenha);
+  }
+
+  // Links dos demais e-mails (confirmar e-mail novo, desfazer troca): ler
+  // mostra a qual endereço o código se refere; aplicar usa o código de vez.
+  function lerCodigoDeAcao(codigo) {
+    return checkActionCode(auth, codigo);
+  }
+
+  function aplicarCodigoDeAcao(codigo) {
+    return applyActionCode(auth, codigo);
   }
 
   // ---- Gestão da conta (todas exigem senha atual por segurança) ----
@@ -271,6 +283,8 @@ export function AuthProvider({ children }) {
     recuperarSenha,
     validarCodigoSenha,
     redefinirSenhaComCodigo,
+    lerCodigoDeAcao,
+    aplicarCodigoDeAcao,
     alterarPerfil,
     alterarSenha,
     alterarEmail,

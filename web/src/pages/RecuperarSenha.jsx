@@ -49,7 +49,7 @@ export default function RecuperarSenha() {
     return (
       <div className="auth-page">
         <div className="card auth-card">
-          <div className="auth-check" aria-hidden="true">
+          <div className="auth-selo" aria-hidden="true">
             ✓
           </div>
           <h1 className="auth-title">Verifique seu e-mail</h1>

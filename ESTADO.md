@@ -497,19 +497,22 @@ na Arduino IDE e gravar.
    durante Firebase, calibração com gabinete e estabilidade prolongada.
    As validações físicas anteriores referem-se ao firmware antigo.
 
-3. **Recuperação de senha no Firebase.** Conferido no console em 06/10/2026:
-   os domínios autorizados são só `localhost`, `paraai-9514f.firebaseapp.com`
-   e `paraai-9514f.web.app`. O site fica em `paraai.web.app`, e o e-mail de
-   recuperação pede para voltar a esse endereço, então o Firebase **recusa o
-   envio** até `paraai.web.app` entrar em Authentication > Configurações >
-   Domínios autorizados. Desde 07/10/2026 o site contorna isso: se o destino
-   for recusado, reenvia sem link de retorno (o e-mail chega, só sem o botão
-   de voltar ao site), e erros de configuração deixaram de aparecer como
-   "e-mail enviado". Autorizar o domínio continua sendo o certo. Com o domínio autorizado, o link abre a página padrão
-   do Firebase (em português) e depois volta para o login. Para usar a tela
-   própria (`/redefinir-senha`), antes ela precisa tratar os outros e-mails do
-   Firebase: o URL de ação do modelo vale para todos, inclusive a confirmação
-   de troca de e-mail (`mode=verifyAndChangeEmail`), que hoje quebraria.
+3. **E-mails de conta (recuperação de senha).** Em 07/10/2026 o dono do
+   projeto autorizou `paraai.web.app` nos domínios do Firebase e o e-mail
+   passou a chegar, mas no modelo padrão ("app paraai-9514f", link cru) e na
+   caixa de spam. O site também deixou de mostrar "e-mail enviado" quando o
+   Firebase recusa o envio e, se o destino não estiver autorizado, reenvia sem
+   link de retorno.
+   - Feito no código: modelo HTML com a identidade em
+     `firebase/emails/redefinir-senha.html` e a página `/acao`
+     (`AcaoConta.jsx`), que trata redefinir senha, confirmar e-mail novo
+     (`verifyAndChangeEmail`) e desfazer troca (`recoverEmail`).
+   - **Pendente no console** (passo a passo em `firebase/emails/README.md`):
+     nome público `ParaAí`; remetente, assunto e mensagem do modelo; e, só
+     depois de publicar o site, o URL de ação `https://paraai.web.app/acao`.
+   - **Spam:** o remetente `@paraai-9514f.firebaseapp.com` é compartilhado e
+     malvisto pelo Gmail. Só um domínio próprio (DNS) ou SMTP próprio resolve;
+     até lá, marcar "Não é spam" nas contas da demonstração.
 
 4. Pagamento é simulado — não há gateway real.
 
