@@ -23,8 +23,8 @@ Projeto acadêmico (TCC). A `main` tem tudo: a integração (PR #9) e, desde
 06/10/2026, os PRs #10 a #15 (pinos e tela da CYD, pastas, vagas especiais,
 revisão visual e nova tela inicial). **Regras do Firestore e site publicados
 em 06/10/2026** a partir da `main` (`26a97e5`); o site no ar é o build dessa
-versão. O firmware da `main` compila, mas **ainda não foi gravado no totem**
-(ver "O que falta").
+versão. **O firmware da `main` foi gravado no totem no mesmo dia** e testado:
+uma placa sem direito declarado recebeu a primeira vaga comum livre.
 
 ## Nova tela inicial (06/10/2026)
 
@@ -512,12 +512,10 @@ na Arduino IDE e gravar.
    06/10/2026. A revisão visual observada em 02/10 foi feita em 04/10/2026
    (ver "Revisão visual" acima).
 
-7. **Gravar no totem o firmware da `main`.** Compila (1.405.636 bytes, 44%),
-   mas a placa ainda roda a versão de 02/10: sem a tabela padrão de tipos de
-   vaga e sem a escolha por direito declarado, então pode dar vaga PCD a quem
-   não declarou. As regras publicadas aceitam esse firmware, porque o tipo da
-   vaga só é conferido na reserva. Para gravar: placa na COM3 e modo de
-   gravação (segurar BOOT, apertar RST, soltar BOOT).
+7. ~~Gravar no totem o firmware da `main`.~~ Feito em 06/10/2026 pela COM3
+   (1.405.792 bytes, gravação conferida pelo hash). Teste: entrada de uma placa
+   sem direito declarado recebeu a vaga comum, não a PCD. Para gravar de novo:
+   placa na COM3 e modo de gravação (segurar BOOT, apertar RST, soltar BOOT).
 
 ---
 
@@ -542,10 +540,14 @@ cadastro ou no Perfil se tem direito a vaga PCD, 60+ ou gestante
 carro e é fiscalizada no local). O valor fica na conta e no veículo
 (`vagaEspecial`), que é o que o totem lê. Sem reserva, o totem dá a primeira
 vaga livre do tipo declarado e, se não houver, uma comum; quem não declarou
-nunca recebe vaga especial, nem pelo totem nem por reserva (as regras do
-Firestore conferem). O tipo de cada vaga segue a mesma regra no site
+nunca recebe vaga especial, nem pelo totem nem por reserva. Na reserva quem
+confere são as regras do Firestore; na entrada pelo totem, é o firmware (as
+regras não olham o tipo da vaga na entrada). O tipo de cada vaga segue a mesma regra no site
 (`obterTipoVaga`), no totem (`tipoDaVaga`) e nas regras (`tipoDaVaga`): o
-campo `tipo` do mapa público ou, sem ele, a tabela padrão da demonstração.
+campo `tipo` do mapa público (definido pelo administrador no painel, vaga a
+vaga) ou, só quando a vaga não tem esse campo, a tabela padrão da
+demonstração. O totem relê o mapa a cada entrada: mudar o tipo no painel vale
+na entrada seguinte, sem regravar o firmware.
 É dado sensível: gravar só o tipo declarado, e apagar o campo quando a pessoa
 deixa de declarar.
 
