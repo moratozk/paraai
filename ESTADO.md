@@ -1,7 +1,7 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **06/10/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **07/10/2026**.
 
 ---
 
@@ -248,7 +248,21 @@ Feita sobre o PR #7 a partir de uma revisão de código; cada parte é um commit
   pelo totem; o mapa do operador é só leitura.
 - Qualquer pessoa digita a placa de outra e abre estadia no nome dela (placa é
   pública). Hoje é limitação declarada; ideia: aviso no app a cada entrada e
-  saída, com "não fui eu".
+  saída, com "não fui eu". Como esse botão só age depois do prejuízo, ficaram
+  reservadas em 07/10/2026, para os autores decidirem, três formas de impedir
+  a entrada em vez de contestá-la. As três valem só para placa com dono: o
+  autocadastro do totem segue como hoje, e a saída continua livre.
+  1. **Código de entrada no app** (a preferida): "Vou entrar" gera 4 a 6
+     dígitos de uso único, válidos por poucos minutos, que o motorista digita
+     no totem depois da placa; as regras do Firestore conferem. Não precisa
+     de plano pago, e espiar o código não adianta. Exige o celular na entrada
+     (dá para gerar antes de chegar, se a garagem não tiver sinal).
+  2. **PIN pessoal** cadastrado no app: dispensa o celular, mas é sempre o
+     mesmo e pode ser visto por cima do ombro; exige limite de tentativas
+     conferido no servidor.
+  3. **Aprovação no app** ("confirme no seu celular"): a mais elegante, mas
+     deixa a entrada lenta e depende do app aberto ou de notificação (no
+     iPhone, só com o site instalado na tela inicial).
 - Totens leem `estacionamentoId`/`horaEntrada` de qualquer veículo (custo da
   carteira global): dá para saber onde uma placa está estacionada.
 - Rede institucional (WPA2-Enterprise ou login no navegador) não é suportada;
