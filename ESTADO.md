@@ -497,10 +497,16 @@ na Arduino IDE e gravar.
    durante Firebase, calibração com gabinete e estabilidade prolongada.
    As validações físicas anteriores referem-se ao firmware antigo.
 
-3. **Configurar a recuperação de senha no Firebase** — em Authentication >
-   Templates > Redefinição de senha, apontar a URL da ação para
-   `https://SEU_DOMINIO/redefinir-senha` e autorizar esse domínio. Sem essa
-   etapa, o Firebase abre a página padrão dele em vez da tela do ParaAí.
+3. **Recuperação de senha no Firebase.** Conferido no console em 06/10/2026:
+   os domínios autorizados são só `localhost`, `paraai-9514f.firebaseapp.com`
+   e `paraai-9514f.web.app`. O site fica em `paraai.web.app`, e o e-mail de
+   recuperação pede para voltar a esse endereço, então o Firebase **recusa o
+   envio** até `paraai.web.app` entrar em Authentication > Configurações >
+   Domínios autorizados. Com o domínio autorizado, o link abre a página padrão
+   do Firebase (em português) e depois volta para o login. Para usar a tela
+   própria (`/redefinir-senha`), antes ela precisa tratar os outros e-mails do
+   Firebase: o URL de ação do modelo vale para todos, inclusive a confirmação
+   de troca de e-mail (`mode=verifyAndChangeEmail`), que hoje quebraria.
 
 4. Pagamento é simulado — não há gateway real.
 
