@@ -19,11 +19,12 @@ O motorista registra entrada/saída por placa. O Firebase associa vaga,
 estadia e cobrança simulada. O operador acompanha pelo painel. A ocupação é
 lógica; a maquete virtual online é uma etapa futura, não implementada.
 
-Projeto acadêmico (TCC). A `main` tem a versão integrada (PR #9, unida em
-02/10/2026). Revisão atual: `claude/nova-home` (nova tela inicial), feita sobre
-`claude/revisao-visual` (revisão visual do site), `claude/vagas-especiais` (direito a
-vaga especial), `claude/tela-st7789` (tela, toque e watchdog na CYD),
-`claude/organiza-pastas` (pastas) e `claude/firmware-cyd` (pinos da CYD).
+Projeto acadêmico (TCC). A `main` tem tudo: a integração (PR #9) e, desde
+06/10/2026, os PRs #10 a #15 (pinos e tela da CYD, pastas, vagas especiais,
+revisão visual e nova tela inicial). **Regras do Firestore e site publicados
+em 06/10/2026** a partir da `main` (`26a97e5`); o site no ar é o build dessa
+versão. O firmware da `main` compila, mas **ainda não foi gravado no totem**
+(ver "O que falta").
 
 ## Nova tela inicial (06/10/2026)
 
@@ -510,6 +511,13 @@ na Arduino IDE e gravar.
    Unsplash (`pages/Auth.css`). A Home deixou de usar fotos externas em
    06/10/2026. A revisão visual observada em 02/10 foi feita em 04/10/2026
    (ver "Revisão visual" acima).
+
+7. **Gravar no totem o firmware da `main`.** Compila (1.405.636 bytes, 44%),
+   mas a placa ainda roda a versão de 02/10: sem a tabela padrão de tipos de
+   vaga e sem a escolha por direito declarado, então pode dar vaga PCD a quem
+   não declarou. As regras publicadas aceitam esse firmware, porque o tipo da
+   vaga só é conferido na reserva. Para gravar: placa na COM3 e modo de
+   gravação (segurar BOOT, apertar RST, soltar BOOT).
 
 ---
 
