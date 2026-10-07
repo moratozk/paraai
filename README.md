@@ -16,24 +16,40 @@ Firebase. A maquete virtual online é uma etapa futura, ainda não implementada.
 │ 1 por estacionamento│ escreve │     Firebase     │  tempo  │ · Dono: faturamento,│
 │ · tela touch        │ ◄─────► │    Firestore     │ ◄─────► │   acessos, ocupação │
 │ · entrada e saída  │   lê    │                  │  real   │ · Motorista: carro, │
-│ → pasta Main/       │         │                  │         │   saldo, recibos    │
+│ → pasta firmware/   │         │                  │         │   saldo, recibos    │
 └─────────────────────┘         └──────────────────┘         └─────────────────────┘
 ```
 
-## Componentes
+## Estrutura do repositório
+
+```
+paraai/
+├── firmware/                Totem: placa ESP32 CYD de 2,8" (Arduino)
+│   ├── totem/               sketch principal (abrir totem.ino na Arduino IDE)
+│   ├── touch-calibration/   sketch avulso para medir o touch
+│   ├── test/                testes C++ no PC e prévia das telas
+│   └── tools/               gerador das fontes da tela
+├── web/                     Site: React + Vite + Firebase
+├── firebase/                Regras do Firestore e testes no emulador
+├── docs/brand/              Logos da marca em alta resolução
+├── .github/                 CI (firmware, Firebase e site) e modelo de PR
+├── firebase.json            Publicação das regras e do site (Hosting)
+├── AGENTS.md                Acordos técnicos para os assistentes
+├── CONTRIBUTING.md          Como colaborar: máquina nova, branches e PRs
+└── ESTADO.md                Onde o projeto parou e o que falta
+```
 
 | Pasta | O que é | Documentação |
 |---|---|---|
-| [`Main/`](Main/) | Firmware do totem (ESP32 + Arduino): tela touch, entrada/saída por placa, vagas lógicas, cobrança por tempo | [Main/README.md](Main/README.md) |
-| [`Web/`](Web/) | Painel web (React + Vite + Firebase): landing B2B, conta de operador (dono) e de motorista, faturamento, histórico, carteira | [Web/README.md](Web/README.md) |
-| [`libraries/`](libraries/) | Bibliotecas Arduino usadas pelo firmware | — |
-| [`firestore.rules`](firestore.rules) | Regras de segurança do Firestore com comentários | — |
+| [`firmware/`](firmware/) | Firmware do totem (ESP32 + Arduino): tela touch, entrada/saída por placa, vagas lógicas, cobrança por tempo | [firmware/README.md](firmware/README.md) |
+| [`web/`](web/) | Painel web (React + Vite + Firebase): landing B2B, conta de operador (dono) e de motorista, faturamento, histórico, carteira | [web/README.md](web/README.md) |
+| [`firebase/`](firebase/) | Regras de segurança do Firestore, com comentários e testes no emulador | [firebase/firestore.rules](firebase/firestore.rules) |
 
 ## Trabalho em equipe
 
 O projeto usa branches e pull requests para que os dois autores possam trabalhar
 em computadores e contas do Codex diferentes sem sobrescrever alterações. Leia
-[`COLABORACAO.md`](COLABORACAO.md) antes de configurar uma nova máquina e
+[`CONTRIBUTING.md`](CONTRIBUTING.md) antes de configurar uma nova máquina e
 [`AGENTS.md`](AGENTS.md) para os acordos técnicos compartilhados pelos
 assistentes.
 
@@ -107,8 +123,8 @@ não mudar retroativamente durante uma estadia.
 ## Como subir o sistema do zero
 
 1. **Firebase** — crie um projeto, habilite *Authentication (e-mail/senha)* e
-   *Firestore*. Publique as regras de [`firestore.rules`](firestore.rules).
-2. **Painel** — siga [Web/README.md](Web/README.md): `npm install`, copie
+   *Firestore*. Publique as regras de [`firebase/firestore.rules`](firebase/firestore.rules).
+2. **Painel** — siga [web/README.md](web/README.md): `npm install`, copie
    `.env.example` → `.env`, preencha e `npm run dev`.
 3. **Promova uma conta administrativa** alterando no Firebase Console o campo
    `users/{UID}.role` para `admin`. Essa operação não é exposta no site.
@@ -117,7 +133,7 @@ não mudar retroativamente durante uma estadia.
 5. Em uma conta de operador existente, **Perfil > Segurança do totem** gera
    uma credencial exclusiva do
    equipamento.
-6. **Firmware** — siga [Main/README.md](Main/README.md): copie
+6. **Firmware** — siga [firmware/README.md](firmware/README.md): copie
    `Credenciais.example.h` → `Credenciais.h`, preencha WiFi de contingência, chaves,
    `TOTEM_EMAIL`, `TOTEM_PASSWORD` e `ESTACIONAMENTO_ID`; selecione a partição
    **Huge APP** e grave no ESP32.
@@ -125,7 +141,7 @@ não mudar retroativamente durante uma estadia.
 No novo firmware, Wi-Fi é configurável pelo celular e a calibração do touch
 fica salva no próprio ESP32. Regras e firmware devem ser instalados juntos
 em manutenção: a saída exige débito, vaga e recibo no mesmo commit. Consulte
-[o checklist de instalação e testes](Main/README.md#verificação-e-instalação-controlada)
+[o checklist de instalação e testes](firmware/README.md#verificação-e-instalação-controlada)
 antes de autorizar publicação/gravação.
 
 ## Limitações conhecidas (transparência acadêmica)

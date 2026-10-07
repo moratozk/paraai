@@ -1,10 +1,10 @@
 {
   "firestore": {
-    "rules": "firestore.rules"
+    "rules": "firebase/firestore.rules"
   },
   "hosting": {
     "site": "paraai",
-    "public": "Web/dist",
+    "public": "web/dist",
     "ignore": [
       "firebase.json",
       "**/.*",

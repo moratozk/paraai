@@ -132,6 +132,11 @@ bool configurarPatio() {
 paraai::EstadoVaga estadoVagas[paraai::MAX_VAGAS + 1];
 bool vagaExiste[paraai::MAX_VAGAS + 1];
 
+// O token de paginação vai sempre como const char*: a biblioteca (4.4.17)
+// grava o '\0' num buffer ainda não alocado quando recebe um String vazio
+// (MB_String::concat sem reserva) e o ESP trava com StoreProhibited na primeira
+// página. Com const char* ela reserva antes de copiar.
+
 // Reserva e tipo vêm da projeção pública. Vaga sem documento é comum e livre.
 bool lerVagasPublicas() {
   String token;
@@ -139,7 +144,7 @@ bool lerVagasPublicas() {
   do {
     if (++paginas > 20) return false;
     if (!Firebase.Firestore.listDocuments(&fb, PROJECT_ID, "", VAGAS_PUBLICAS,
-        16, token, "", "reservadaAte,tipo", false)) return false;
+        16, token.c_str(), "", "reservadaAte,tipo", false)) return false;
     FirebaseJson pagina;
     pagina.setJsonData(fb.payload());
     for (int i = 0; i < 16; ++i) {
@@ -153,8 +158,8 @@ bool lerVagasPublicas() {
         const long long ate = strtoll(bruto.c_str(), nullptr, 10);
         estadoVagas[n].reservadaAte = ate > 0 && ate < 4000000000LL ? static_cast<uint32_t>(ate) : 0;
       }
-      if (texto(pagina, prefixo + "/fields/tipo/stringValue", tipo))
-        estadoVagas[n].especial = tipo == "pcd" || tipo == "idoso" || tipo == "gestante";
+      const bool temTipo = texto(pagina, prefixo + "/fields/tipo/stringValue", tipo);
+      estadoVagas[n].especial = paraai::vagaEspecial(temTipo ? tipo.c_str() : nullptr, n);
     }
     token = "";
     texto(pagina, "nextPageToken", token);
@@ -168,7 +173,12 @@ struct MapaVagas { int livres = 0; int primeira = 0; bool existe = false; bool r
 bool mapaVagas(MapaVagas& mapa, int reservada = 0) {
   // Paginação limita o uso de RAM. Placa é a ocupação lógica; não interpretar
   // eco, GPIO ou antigos campos de sensores como presença física.
-  for (int n = 0; n <= paraai::MAX_VAGAS; ++n) { estadoVagas[n] = {}; vagaExiste[n] = false; }
+  // Vaga sem documento público segue a mesma tabela padrão do site.
+  for (int n = 0; n <= paraai::MAX_VAGAS; ++n) {
+    estadoVagas[n] = {};
+    estadoVagas[n].especial = paraai::vagaEspecial(nullptr, n);
+    vagaExiste[n] = false;
+  }
   if (!lerVagasPublicas()) return false;
   const int64_t agora = time(nullptr);
   int candidataExistente = 0;
@@ -177,7 +187,7 @@ bool mapaVagas(MapaVagas& mapa, int reservada = 0) {
   do {
     if (++paginas > 20) return false;
     if (!Firebase.Firestore.listDocuments(&fb, PROJECT_ID, "", String(PATIO) + "/vagas",
-        16, token, "", "placa", false)) return false;
+        16, token.c_str(), "", "placa", false)) return false;
     FirebaseJson pagina;
     pagina.setJsonData(fb.payload());
     FirebaseJsonData item;
@@ -501,11 +511,21 @@ bool iniciarAtendimento() {
   pedidos = xQueueCreate(1, sizeof(Solicitacao));
   respostas = xQueueCreate(1, sizeof(RespostaTotem));
   statusFila = xQueueCreate(1, sizeof(StatusTotem));
-  exclusao = xSemaphoreCreateMutex();
+  // Semáforo binário, e não mutex: a tarefa segura `exclusao` durante todo o
+  // trabalho com o Firebase, e o FreeRTOS só devolve a prioridade herdada
+  // (por exemplo, a 18 do lwIP) quando a tarefa não segura mutex nenhum. Com
+  // mutex, ela ficava em 18 o login inteiro. O loop só usa take sem espera.
+  exclusao = xSemaphoreCreateBinary();
+  if (exclusao) xSemaphoreGive(exclusao);
   if (pedidos && respostas && statusFila && exclusao) {
     estado(ConexaoTotem::INICIANDO);
     // Só esta tarefa acessa Firebase. Tela, touch e manutenção pertencem ao loop.
-    if (xTaskCreatePinnedToCore(tarefa, "paraai-cloud", 24576, nullptr, 1, nullptr, 0) == pdPASS) return true;
+    // Prioridade igual à da tarefa ociosa do núcleo 0: a biblioteca espera o
+    // TLS num laço sem pausa (até o timeout de 8 s) e, com prioridade maior,
+    // a ociosa não rodava e o watchdog reiniciava o ESP. Wi-Fi e TCP/IP têm
+    // prioridade própria, maior, e não são afetados.
+    if (xTaskCreatePinnedToCore(tarefa, "paraai-cloud", 24576, nullptr, tskIDLE_PRIORITY,
+                                nullptr, 0) == pdPASS) return true;
   }
   if (pedidos) vQueueDelete(pedidos);
   if (respostas) vQueueDelete(respostas);
