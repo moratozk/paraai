@@ -101,9 +101,11 @@ export function AuthProvider({ children }) {
     return signOut(auth);
   }
 
-  // O `url` abaixo é o destino após a redefinição. Para o link do e-mail abrir
-  // em /redefinir-senha, configure essa página como manipulador da ação no
-  // template de recuperação de senha do Firebase Authentication.
+  // O `url` abaixo é o destino após a redefinição. O domínio dele precisa estar
+  // em Authentication > Domínios autorizados, senão o Firebase recusa o envio.
+  // Não aponte o URL de ação dos modelos para /redefinir-senha enquanto ela só
+  // tratar redefinição de senha: esse URL vale para todos os e-mails do
+  // Firebase, inclusive a confirmação de troca de e-mail (ver ESTADO.md).
   function recuperarSenha(email) {
     auth.languageCode = "pt-BR";
     return sendPasswordResetEmail(auth, email, {

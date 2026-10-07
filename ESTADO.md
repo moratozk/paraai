@@ -497,20 +497,29 @@ na Arduino IDE e gravar.
    durante Firebase, calibração com gabinete e estabilidade prolongada.
    As validações físicas anteriores referem-se ao firmware antigo.
 
-3. **Configurar a recuperação de senha no Firebase** — em Authentication >
-   Templates > Redefinição de senha, apontar a URL da ação para
-   `https://SEU_DOMINIO/redefinir-senha` e autorizar esse domínio. Sem essa
-   etapa, o Firebase abre a página padrão dele em vez da tela do ParaAí.
+3. **Recuperação de senha no Firebase.** Conferido no console em 06/10/2026:
+   os domínios autorizados são só `localhost`, `paraai-9514f.firebaseapp.com`
+   e `paraai-9514f.web.app`. O site fica em `paraai.web.app`, e o e-mail de
+   recuperação pede para voltar a esse endereço, então o Firebase **recusa o
+   envio** até `paraai.web.app` entrar em Authentication > Configurações >
+   Domínios autorizados. Com o domínio autorizado, o link abre a página padrão
+   do Firebase (em português) e depois volta para o login. Para usar a tela
+   própria (`/redefinir-senha`), antes ela precisa tratar os outros e-mails do
+   Firebase: o URL de ação do modelo vale para todos, inclusive a confirmação
+   de troca de e-mail (`mode=verifyAndChangeEmail`), que hoje quebraria.
 
 4. Pagamento é simulado — não há gateway real.
 
-5. Projetar o gabinete 3D pelas medidas reais; depois evoluir o site e criar
-   a maquete virtual, sem reintroduzir sensores/catraca no ESP.
+5. **Gabinete 3D:** já desenhado e impresso pelo dono do projeto (06/10/2026),
+   ainda não retirado. Falta guardar o modelo em `hardware/gabinete/`, montar a
+   placa e conferir janela da tela, USB e toque com a tampa fechada. Depois,
+   evoluir o site e criar a maquete virtual, sem reintroduzir sensores ou
+   catraca no ESP.
 
-6. **Foto do fundo do login servida pelo próprio site.** Ainda vem do
-   Unsplash (`pages/Auth.css`). A Home deixou de usar fotos externas em
-   06/10/2026. A revisão visual observada em 02/10 foi feita em 04/10/2026
-   (ver "Revisão visual" acima).
+6. ~~Foto do fundo do login servida pelo próprio site.~~ Feito em 06/10/2026:
+   o login e o cadastro trocaram a foto do Unsplash por um fundo desenhado em
+   CSS (o pátio visto de cima, como na Home). Nenhuma página usa mais foto
+   externa.
 
 7. ~~Gravar no totem o firmware da `main`.~~ Feito em 06/10/2026 pela COM3
    (1.405.792 bytes, gravação conferida pelo hash). Teste: entrada de uma placa
