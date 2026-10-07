@@ -504,13 +504,16 @@ na Arduino IDE e gravar.
 
 4. Pagamento é simulado — não há gateway real.
 
-5. Projetar o gabinete 3D pelas medidas reais; depois evoluir o site e criar
-   a maquete virtual, sem reintroduzir sensores/catraca no ESP.
+5. **Gabinete 3D:** já desenhado e impresso pelo dono do projeto (06/10/2026),
+   ainda não retirado. Falta guardar o modelo em `hardware/gabinete/`, montar a
+   placa e conferir janela da tela, USB e toque com a tampa fechada. Depois,
+   evoluir o site e criar a maquete virtual, sem reintroduzir sensores ou
+   catraca no ESP.
 
-6. **Foto do fundo do login servida pelo próprio site.** Ainda vem do
-   Unsplash (`pages/Auth.css`). A Home deixou de usar fotos externas em
-   06/10/2026. A revisão visual observada em 02/10 foi feita em 04/10/2026
-   (ver "Revisão visual" acima).
+6. ~~Foto do fundo do login servida pelo próprio site.~~ Feito em 06/10/2026:
+   o login e o cadastro trocaram a foto do Unsplash por um fundo desenhado em
+   CSS (o pátio visto de cima, como na Home). Nenhuma página usa mais foto
+   externa.
 
 7. ~~Gravar no totem o firmware da `main`.~~ Feito em 06/10/2026 pela COM3
    (1.405.792 bytes, gravação conferida pelo hash). Teste: entrada de uma placa

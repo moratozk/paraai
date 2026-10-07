@@ -23,36 +23,35 @@
   overflow: hidden;
 }
 
-/* Foto de fundo, bem apagada: dá contexto sem competir com o formulário.
-   FIXED e não absolute de propósito: com absolute a imagem acompanhava a
-   altura da página, então o formulário de estacionamento (mais campos, mais
-   alto) esticava a foto e ela mudava de tamanho entre as duas abas. Presa à
-   viewport, o enquadramento é sempre o mesmo. */
+/* Fundo desenhado, sem foto: o pátio visto de cima, na mesma linguagem da
+   Home. Vagas pintadas em cima e embaixo, a faixa âmbar do corredor no meio e
+   o piso quadriculado. Não depende de serviço externo e acompanha o tema.
+   FIXED de propósito: o formulário de cadastro é mais alto e, com absolute,
+   esticava o fundo; preso à viewport o enquadramento é sempre o mesmo. */
 .auth-page::before {
+  --vaga: color-mix(in srgb, var(--text-primary) 15%, transparent);
   content: "";
   position: fixed;
   inset: 0;
   z-index: -2;
-  background-image: url("https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=1600&q=70&auto=format&fit=crop");
-  background-size: cover;
-  background-position: center;
-  filter: grayscale(0.8) brightness(0.28);
   pointer-events: none;
-}
-[data-theme="light"] .auth-page::before {
-  filter: grayscale(0.85) brightness(1.02) opacity(0.16);
+  background:
+    repeating-linear-gradient(90deg, var(--vaga) 0 3px, transparent 3px 112px) 0 0 / 100% 22vh no-repeat,
+    repeating-linear-gradient(90deg, var(--vaga) 0 3px, transparent 3px 112px) 0 100% / 100% 22vh no-repeat,
+    repeating-linear-gradient(90deg, color-mix(in srgb, var(--accent) 60%, transparent) 0 46px, transparent 46px 80px) 0 50% / 100% 4px no-repeat,
+    linear-gradient(var(--dash-paint) 1px, transparent 1px) 0 0 / 56px 56px,
+    linear-gradient(90deg, var(--dash-paint) 1px, transparent 1px) 0 0 / 56px 56px;
+  opacity: 0.75;
 }
 
-/* Véu + brilho âmbar central */
+/* Brilho âmbar atrás do cartão */
 .auth-page::after {
   content: "";
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background:
-    radial-gradient(ellipse at 50% 40%, rgba(255, 195, 0, 0.1), transparent 55%),
-    linear-gradient(to bottom, var(--bg-primary) 0%, transparent 30%, transparent 70%, var(--bg-primary) 100%);
+  background: radial-gradient(ellipse at 50% 45%, rgba(255, 195, 0, 0.1), transparent 55%);
 }
 
 /* ---- cartão ---- */
@@ -209,8 +208,10 @@
   border-color: var(--accent);
   background: var(--accent-soft);
 }
-/* o rótulo também muda de peso: o estado não é só a cor */
-.role-option.active .role-titulo { color: var(--accent-text); }
+/* Selecionado: borda e fundo âmbar marcam o estado; o texto fica no tom
+   principal (âmbar sobre âmbar não chegava a 4.5:1 no tema claro). */
+.role-option.active .role-titulo { color: var(--text-primary); }
+.role-option.active .role-desc { color: var(--text-secondary); }
 .role-option-link { color: inherit; text-decoration: none; }
 
 .auth-check input { position: absolute; opacity: 0; pointer-events: none; }
