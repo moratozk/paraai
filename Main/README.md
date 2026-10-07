@@ -157,15 +157,21 @@ Referência: [operações atômicas no Firestore](https://firebase.google.com/do
 
 ## Montagem e configuração
 
-| Ligação mantida | GPIO |
+Placa: **ESP32-2432S028R ("CYD", 2,8")**, com tela e touch já ligados na
+própria placa. Pinos usados pelo firmware:
+
+| Função | GPIO |
 |---|---|
 | TFT SCLK / MOSI / MISO / CS | 14 / 13 / 12 / 15 |
 | TFT DC / LED | 2 / 21 |
 | TFT RST | EN do ESP32 (RST = -1 no código) |
-| Touch CS / CLK / DIN / DO | 33 / 25 / 32 / 36 |
+| Touch CS / CLK / DIN / OUT | 33 / 25 / 32 / 39 |
 
-Tela e touch usam SPI separado, conforme a fiação existente. Os antigos pinos
-de servo/sensores não são configurados nem acionados.
+Tela e touch usam SPI separado, como na placa. O T_IRQ (GPIO36) não é usado:
+o toque é lido por varredura. Na montagem anterior, com ESP32 e módulo de tela
+avulsos, o T_DO ficava no GPIO36; para voltar àquela fiação, trocar
+`TOUCH_MISO` para 36 no firmware e em `CalibracaoTouch/`. Os antigos pinos de
+servo/sensores não são configurados nem acionados.
 
 Bibliotecas: Firebase ESP Client, Adafruit GFX, Adafruit ILI9341 e
 XPT2046_Touchscreen; instalar pelo Library Manager da Arduino IDE. Neste PC,
@@ -178,7 +184,7 @@ Nunca sobrescrever um arquivo real com o modelo nem versioná-lo.
 Selecionar ESP32 Dev Module, core usado nos testes 3.3.10, partição
 **Huge APP (3MB No OTA/1MB SPIFFS)**. Não oferece atualização OTA.
 
-Antes de desenhar o gabinete 3D, medir a placa e o módulo reais. Preservar
+Antes de desenhar o gabinete 3D, medir a placa real. Preservar
 acesso USB/reset, suporte do display, espaço dos fios e fixação sem pressionar
 o touch. Recalibrar já com a tela fixada. Nenhum STL foi criado nesta etapa.
 
