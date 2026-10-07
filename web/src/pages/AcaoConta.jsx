@@ -5,10 +5,11 @@ import { LogoMark } from "../components/Logo";
 import RedefinirSenha from "./RedefinirSenha";
 import "./Auth.css";
 
-// Destino dos links de todos os e-mails do Firebase Auth. No console, o URL
-// de ação dos modelos aponta para https://paraai.web.app/acao; o Firebase diz
-// o tipo em `mode` e manda o código em `oobCode`. Fica fora de PublicRoute:
-// quem confirma um e-mail novo costuma estar logado.
+// Destino dos links dos e-mails do Firebase Auth quando apontarem para cá:
+// pelo URL de ação dos modelos (bloqueado neste projeto em 07/10/2026) ou por
+// um e-mail enviado pelo próprio ParaAí (ver firebase/emails/README.md). O
+// Firebase diz o tipo em `mode` e manda o código em `oobCode`. Fica fora de
+// PublicRoute: quem confirma um e-mail novo costuma estar logado.
 export default function AcaoConta() {
   const [params] = useSearchParams();
   const modo = params.get("mode");

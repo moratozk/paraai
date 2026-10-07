@@ -503,17 +503,19 @@ na Arduino IDE e gravar.
    caixa de spam. O site também deixou de mostrar "e-mail enviado" quando o
    Firebase recusa o envio e, se o destino não estiver autorizado, reenvia sem
    link de retorno.
-   - Feito no código: modelo HTML com a identidade em
+   - **O Firebase bloqueou a edição dos modelos neste projeto** ("As
+     atualizações de modelos de e-mail não estão disponíveis"): não dá para
+     trocar remetente, assunto, texto, domínio nem URL de ação pelo console.
+     O e-mail segue no padrão; na demonstração, marcar "Não é spam".
+   - Pronto no código, à espera de uma saída: o modelo
      `firebase/emails/redefinir-senha.html` e a página `/acao`
      (`AcaoConta.jsx`), que trata redefinir senha, confirmar e-mail novo
      (`verifyAndChangeEmail`) e desfazer troca (`recoverEmail`).
-   - **Pendente no console** (passo a passo em `firebase/emails/README.md`):
-     remetente, assunto e mensagem do modelo (escrevem "ParaAí" direto, sem
-     depender do nome público, que o console atual não mostra); e, só depois
-     de publicar o site, o URL de ação `https://paraai.web.app/acao`.
-   - **Spam:** o remetente `@paraai-9514f.firebaseapp.com` é compartilhado e
-     malvisto pelo Gmail. Só um domínio próprio (DNS) ou SMTP próprio resolve;
-     até lá, marcar "Não é spam" nas contas da demonstração.
+   - **Ideia guardada:** o próprio ParaAí enviar o e-mail (Cloud Function com
+     `generatePasswordResetLink` + conta de envio), o que resolve visual e
+     spam. Exige o plano Blaze, com cartão, e o dono do projeto preferiu não
+     cadastrar por ora. Alternativa grátis: pedir ao suporte do Firebase que
+     libere os modelos. Detalhes em `firebase/emails/README.md`.
 
 4. Pagamento é simulado — não há gateway real.
 

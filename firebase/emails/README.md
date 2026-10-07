@@ -1,39 +1,41 @@
 # E-mails de conta (Firebase Authentication)
 
 Os e-mails de redefinir senha e de trocar e-mail saem do Firebase, não do site.
-Remetente, assunto e texto são configurados no console; aqui fica o modelo
-versionado, para não depender de memória.
 
-## Redefinição de senha
+## Situação em 07/10/2026
 
-1. **Authentication > Modelos > Redefinição de senha > lápis**:
-   - Nome do remetente: `ParaAí`
-   - Assunto: `Redefina sua senha do ParaAí`
-   - Mensagem: o conteúdo de [`redefinir-senha.html`](redefinir-senha.html)
-     (o Firebase troca `%LINK%` e `%EMAIL%` ao enviar).
-2. **Só depois de publicar o site com a página `/acao`**: no mesmo modelo,
-   **Personalizar URL de ação** → `https://paraai.web.app/acao`.
+O e-mail de redefinição chega, mas no modelo padrão do Firebase ("Redefinir a
+senha do app paraai-9514f", com o link cru) e costuma cair no spam. **Neste
+projeto o Firebase bloqueou a edição dos modelos.** Authentication > Modelos
+mostra "As atualizações de modelos de e-mail não estão disponíveis para este
+projeto". Por isso não dá para trocar remetente, assunto, texto, domínio nem o
+URL de ação pelo console. Na demonstração, marcar "Não é spam" nas contas de
+teste.
 
-O modelo, o assunto e o remetente escrevem "ParaAí" direto, sem `%APP_NAME%`.
-Esse marcador é o *nome público* do projeto, que o console atual não mostra em
-Configurações do projeto (lá está só o nome do projeto); sem ele configurado, o
-Firebase usa o ID `paraai-9514f`, como no e-mail padrão.
+O que já está pronto para quando houver saída:
 
-O URL de ação vale para todos os modelos. A página `/acao`
-(`web/src/pages/AcaoConta.jsx`) trata redefinir senha, confirmar e-mail novo e
-desfazer troca de e-mail. Trocar o URL antes de publicar o site quebra os
-links.
+- [`redefinir-senha.html`](redefinir-senha.html): o e-mail com a identidade do
+  ParaAí. `%LINK%` e `%EMAIL%` são os marcadores do Firebase.
+- A página `/acao` (`web/src/pages/AcaoConta.jsx`), que trata redefinir senha,
+  confirmar e-mail novo e desfazer troca de e-mail. Hoje nenhum e-mail aponta
+  para ela.
 
-## Spam
+## Caminhos para trocar o e-mail
 
-O remetente padrão, `@paraai-9514f.firebaseapp.com`, é um domínio
-compartilhado por todos os projetos Firebase e muito usado em golpes. Por isso
-o Gmail desconfia dele mesmo com um texto bem feito. O modelo acima ajuda pouco
-nesse ponto; o que resolve é mandar por um domínio próprio:
-
-- **Domínio personalizado** (Modelos > Personalizar domínio): exige um domínio
-  registrado e os registros DNS (TXT e CNAME) que o console mostrar.
-- **SMTP próprio** (Modelos > Configurações de SMTP, quando disponível): envia
-  por uma conta de e-mail do projeto.
-
-Sem isso, na demonstração, marcar "Não é spam" na caixa de quem vai receber.
+1. **O próprio ParaAí envia o e-mail (ideia guardada).** Uma Cloud Function
+   recebe o pedido, gera o link com o Admin SDK (`generatePasswordResetLink`),
+   troca o destino para
+   `https://paraai.web.app/acao?mode=resetPassword&oobCode=…` e envia o HTML
+   acima por uma conta de envio (Gmail com senha de app, Brevo, Resend…).
+   Resolve o visual e, por sair de um remetente autenticado, quase sempre o
+   spam. Exige o plano Blaze (pede cartão; o uso do TCC cabe na cota gratuita)
+   e a senha da conta de envio no Secret Manager, nunca no Git. Também exige
+   cuidado contra abuso: responder igual exista ou não a conta, e limitar os
+   pedidos por e-mail. Adiado em 07/10/2026 pelo dono do projeto, para não
+   cadastrar cartão.
+2. **Pedir ao suporte do Firebase** que libere a edição dos modelos. É grátis,
+   mas sem prazo. Se liberarem: remetente `ParaAí`, assunto
+   `Redefina sua senha do ParaAí` e mensagem igual a `redefinir-senha.html`;
+   depois de publicar o site, URL de ação `https://paraai.web.app/acao`. O
+   remetente continua `@paraai-9514f.firebaseapp.com`, então o spam só melhora
+   com domínio próprio (DNS) ou SMTP próprio, configurados na mesma tela.

@@ -107,7 +107,8 @@ export function AuthProvider({ children }) {
   // em Authentication > Domínios autorizados, senão o Firebase recusa o envio;
   // nesse caso reenviamos sem destino, para o e-mail chegar mesmo assim (só
   // falta o botão de voltar ao site depois de trocar a senha).
-  // O URL de ação dos modelos vale para todos os e-mails do Firebase; aponte-o
+  // O URL de ação dos modelos vale para todos os e-mails do Firebase; se um
+  // dia puder ser trocado (hoje o projeto não deixa editar os modelos), aponte
   // para /acao (pages/AcaoConta.jsx), que trata cada tipo. /redefinir-senha só
   // trata senha e quebraria a confirmação de troca de e-mail.
   async function recuperarSenha(email) {
