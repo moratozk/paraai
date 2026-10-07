@@ -6,15 +6,18 @@ versionado, para não depender de memória.
 
 ## Redefinição de senha
 
-1. **Configurações do projeto > Geral > Nome público**: `ParaAí`. É o
-   `%APP_NAME%` dos e-mails; sem isso aparece `paraai-9514f`.
-2. **Authentication > Modelos > Redefinição de senha > lápis**:
+1. **Authentication > Modelos > Redefinição de senha > lápis**:
    - Nome do remetente: `ParaAí`
    - Assunto: `Redefina sua senha do ParaAí`
    - Mensagem: o conteúdo de [`redefinir-senha.html`](redefinir-senha.html)
      (o Firebase troca `%LINK%` e `%EMAIL%` ao enviar).
-3. **Só depois de publicar o site com a página `/acao`**: no mesmo modelo,
+2. **Só depois de publicar o site com a página `/acao`**: no mesmo modelo,
    **Personalizar URL de ação** → `https://paraai.web.app/acao`.
+
+O modelo, o assunto e o remetente escrevem "ParaAí" direto, sem `%APP_NAME%`.
+Esse marcador é o *nome público* do projeto, que o console atual não mostra em
+Configurações do projeto (lá está só o nome do projeto); sem ele configurado, o
+Firebase usa o ID `paraai-9514f`, como no e-mail padrão.
 
 O URL de ação vale para todos os modelos. A página `/acao`
 (`web/src/pages/AcaoConta.jsx`) trata redefinir senha, confirmar e-mail novo e

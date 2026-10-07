@@ -508,8 +508,9 @@ na Arduino IDE e gravar.
      (`AcaoConta.jsx`), que trata redefinir senha, confirmar e-mail novo
      (`verifyAndChangeEmail`) e desfazer troca (`recoverEmail`).
    - **Pendente no console** (passo a passo em `firebase/emails/README.md`):
-     nome público `ParaAí`; remetente, assunto e mensagem do modelo; e, só
-     depois de publicar o site, o URL de ação `https://paraai.web.app/acao`.
+     remetente, assunto e mensagem do modelo (escrevem "ParaAí" direto, sem
+     depender do nome público, que o console atual não mostra); e, só depois
+     de publicar o site, o URL de ação `https://paraai.web.app/acao`.
    - **Spam:** o remetente `@paraai-9514f.firebaseapp.com` é compartilhado e
      malvisto pelo Gmail. Só um domínio próprio (DNS) ou SMTP próprio resolve;
      até lá, marcar "Não é spam" nas contas da demonstração.
