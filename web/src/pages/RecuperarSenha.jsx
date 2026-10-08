@@ -29,8 +29,16 @@ export default function RecuperarSenha() {
         setError("Muitas tentativas. Aguarde alguns minutos.");
       } else if (err.code === "auth/network-request-failed") {
         setError("Sem conexão. Verifique sua internet.");
-      } else {
+      } else if (
+        err.code === "auth/user-not-found" ||
+        err.code === "auth/user-disabled"
+      ) {
         setEnviado(true);
+      } else {
+        // Erro de configuração ou do Firebase: dizer "enviado" esconderia
+        // que nenhum e-mail saiu.
+        console.error("Falha ao enviar e-mail de recuperação:", err);
+        setError("Não foi possível enviar o e-mail agora. Tente novamente mais tarde.");
       }
     } finally {
       setLoading(false);
@@ -41,7 +49,7 @@ export default function RecuperarSenha() {
     return (
       <div className="auth-page">
         <div className="card auth-card">
-          <div className="auth-check" aria-hidden="true">
+          <div className="auth-selo" aria-hidden="true">
             ✓
           </div>
           <h1 className="auth-title">Verifique seu e-mail</h1>
