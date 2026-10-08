@@ -156,6 +156,28 @@
 }
 
 /* ---- erro / sucesso ---- */
+/* Selo das telas de conclusão (e-mail enviado, senha trocada, link aplicado).
+   Não usar .auth-check aqui: ela é a grade de escolhas do cadastro. */
+.auth-selo {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 1.1rem;
+  border-radius: 50%;
+  background: var(--success-soft);
+  border: 2px solid var(--success);
+  color: var(--success);
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.auth-selo.erro {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
 .auth-page .error-text {
   padding: 0.75rem 1rem;
   margin-bottom: 1.1rem;
