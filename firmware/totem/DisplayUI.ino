@@ -195,6 +195,7 @@ void atualizarCaixaPlaca(String placaAtual);
 EventoTeclado verificarToqueTeclado(String placaAtual, FormatoPlaca formato);
 void desenharTelaProcessando(String mensagem);
 void desenharTelaResultado(TipoResultado tipo, String linha1, String linha2, String linha3);
+void linhasComCarro(const String& carro, String& linha2, String& linha3);
 void desenharTelaConfirmarCadastro(String placa);
 int  verificarToqueConfirmacao();   // 1 = SIM, 0 = NAO, -1 = nada
 void atualizarRelogioCabecalho();
@@ -326,6 +327,9 @@ int alturaFonte(const GFXfont *fonte, uint8_t tamanho) {
 int larguraTexto(String texto, const GFXfont *fonte, uint8_t tamanho) {
   tft.setFont(fonte);
   tft.setTextSize(tamanho);
+  // Sem quebra de linha: com ela, getTextBounds mede só até a borda da tela e
+  // um texto mais largo parecia caber. Nenhuma tela quebra linha de propósito.
+  tft.setTextWrap(false);
   int16_t x1, y1;
   uint16_t w, h;
   tft.getTextBounds(texto, 0, 0, &x1, &y1, &w, &h);
@@ -1401,6 +1405,16 @@ void desenharTelaResultado(TipoResultado tipo, String linha1, String linha2, Str
     centralizarTexto(linha3, 178, corTextoFraco, FONTE_MEDIA);
   }
   bloquearToqueAtualAteSoltar();
+}
+
+// Carro informado pelo dono no site ("GOL PRATA"): vai para a linha grande, no
+// lugar da placa, e a placa desce para junto da vaga quando couber. Sem carro,
+// as linhas ficam como vieram.
+void linhasComCarro(const String& carro, String& linha2, String& linha3) {
+  if (carro.isEmpty()) return;
+  const String juntos = linha2 + " - " + linha3;
+  if (larguraTexto(juntos, FONTE_MEDIA, 1) <= TELA_W - 20) linha3 = juntos;
+  linha2 = carro;
 }
 
 // -------------------------------------------------------------------------

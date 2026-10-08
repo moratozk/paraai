@@ -77,6 +77,38 @@ inline TipoVaga direitoDeclarado(const char* texto) {
   return lerTipoVaga(texto, tipo) ? tipo : TipoVaga::COMUM;
 }
 
+// Modelo e cor que o dono informa no site, com a mesma regra de
+// firebase/firestore.rules (nomeDeVeiculoValido) e web/src/utils/veiculo.js:
+// nome de 1 a 20 caracteres, começando por letra ou número, só com letras sem
+// acento, números, espaço, ponto, hífen e "!"; cor da tabela do RENAVAM.
+// Tudo cabe na fonte do totem (0x20..0x7A).
+constexpr int NOME_VEICULO_MAX = 20;
+inline bool letraOuNumero(char c) {
+  return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
+}
+inline bool nomeVeiculoValido(const char* nome) {
+  if (!nome || !letraOuNumero(nome[0])) return false;
+  for (int n = 0; nome[n]; ++n) {
+    const char c = nome[n];
+    if (n >= NOME_VEICULO_MAX || !(letraOuNumero(c) || c == ' ' || c == '.' || c == '-' || c == '!'))
+      return false;
+  }
+  return true;
+}
+inline bool corVeiculoValida(const char* cor) {
+  static const char* const CORES[] = {"branco", "preto", "prata", "cinza", "vermelho", "azul", "verde",
+                                      "marrom", "bege", "amarelo", "dourado", "laranja", "vinho", "rosa", "roxo"};
+  if (!cor) return false;
+  for (const char* conhecida : CORES)
+    if (std::strcmp(cor, conhecida) == 0) return true;
+  return false;
+}
+// Vazio = não informado. Um campo fora do formato invalida os dois: o totem
+// então não mostra nem copia nada, e a vaga continua aceita pelas regras.
+inline bool descricaoVeiculoValida(const char* modelo, const char* cor) {
+  return (!modelo || !*modelo || nomeVeiculoValido(modelo)) && (!cor || !*cor || corVeiculoValida(cor));
+}
+
 // Vaga da entrada: a reservada pelo dono da placa, se ainda livre; senão, para
 // quem declarou direito, a primeira vaga livre do tipo dele; senão (ou se não
 // houver), a primeira vaga comum livre. Vaga reservada por outra pessoa e

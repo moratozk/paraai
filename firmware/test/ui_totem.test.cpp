@@ -137,6 +137,31 @@ int main(int argc, char** argv) {
   desenharBotaoConcluir(); tft.salvar(destino + "/17-saida-pendente.svg");
   desenharTelaResultado(RESULTADO_ALERTA, "SALDO PENDENTE", "ABC1D23", "Regularize no app para entrar");
   desenharBotaoConcluir(); tft.salvar(destino + "/18-entrada-bloqueada.svg");
+  {
+    // Carro informado no site: "GOL PRATA" na linha grande e a placa junto da vaga.
+    const ConexaoTotem conexaoAnterior = conexaoVisual;
+    atualizarStatusServico(ConexaoTotem::PRONTO);
+    String linha2 = "ABC1D23", linha3 = "Vaga 7 - R$ 8,50/h";
+    linhasComCarro("GOL PRATA", linha2, linha3);
+    assert(linha2 == "GOL PRATA" && linha3 == "ABC1D23 - Vaga 7 - R$ 8,50/h");
+    assert(cabe(linha2.c_str(), FONTE_GRANDE) && cabe(linha3.c_str(), FONTE_MEDIA));
+    desenharTelaResultado(RESULTADO_SUCESSO, "ENTRADA CONFIRMADA", linha2, linha3);
+    desenharBotaoConcluir(); tft.salvar(destino + "/19-entrada-carro.svg");
+    // Maior modelo da lista com a cor mais longa e vaga reservada: o carro cabe
+    // na fonte média e a placa, que não cabe junto da vaga, sai da linha.
+    linha2 = "ABC1D23"; linha3 = "Vaga reservada 17 - R$ 12,00/h";
+    linhasComCarro("RANGE ROVER EVOQUE VERMELHO", linha2, linha3);
+    assert(linha2 == "RANGE ROVER EVOQUE VERMELHO" && linha3 == "Vaga reservada 17 - R$ 12,00/h");
+    assert(cabe(linha2.c_str(), FONTE_MEDIA) && cabe(linha3.c_str(), FONTE_MEDIA));
+    desenharTelaResultado(RESULTADO_SUCESSO, "ENTRADA CONFIRMADA", linha2, linha3);
+    desenharBotaoConcluir(); tft.salvar(destino + "/20-entrada-carro-longo.svg");
+    // Sem carro informado, a tela fica como antes.
+    linha2 = "ABC1D23"; linha3 = "Vaga 7 - R$ 8,50/h";
+    linhasComCarro("", linha2, linha3);
+    assert(linha2 == "ABC1D23" && linha3 == "Vaga 7 - R$ 8,50/h");
+    std::puts("Confirmacao com modelo e cor: placa junto da vaga quando cabe; telas 19 e 20 exportadas.");
+    atualizarStatusServico(conexaoAnterior); // As telas seguintes continuam como antes.
+  }
   assert(calibracaoTouchPlausivel(200,3700,200,3700));
   assert(calibracaoTouchPlausivel(3700,200,3700,200));
   assert(!calibracaoTouchPlausivel(200,200,200,3700));
