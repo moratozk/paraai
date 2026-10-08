@@ -8,11 +8,37 @@ const DESTAQUE_MS = 2400;
 // Paleta discreta dos carros do pátio da Home; o âmbar fica para o destaque.
 const CORES = ["#4b5466", "#7a8294", "#2f4d70", "#5d4b70", "#3e5d55", "#70603e", "#7c4a50", "#8f97a5"];
 
+// Cor informada pelo dono no Perfil, que o totem copia para a vaga. Tons da
+// pintura de verdade, um pouco apagados para conviver com o asfalto escuro e
+// não competir com o âmbar do destaque; o preto clareia para não sumir.
+const CORES_PINTURA = {
+  branco: "#d9dde3",
+  preto: "#2b3039",
+  prata: "#a3abb7",
+  cinza: "#69707c",
+  vermelho: "#a8434b",
+  azul: "#3a5f99",
+  verde: "#3d6e52",
+  marrom: "#6e5240",
+  bege: "#b9a888",
+  amarelo: "#c9a641",
+  dourado: "#a88a52",
+  laranja: "#c06c3a",
+  vinho: "#6a2e3a",
+  rosa: "#c0899c",
+  roxo: "#5f4a85",
+};
+
 // A mesma placa tem sempre a mesma cor, na vaga e andando.
-export function corDaPlaca(placa) {
+function corDaPlaca(placa) {
   let h = 7;
   for (const c of String(placa || "")) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return CORES[h % CORES.length];
+}
+
+// A cor do carro de verdade quando o dono informou; senão, a da placa.
+export function corDoCarro({ placa, cor } = {}) {
+  return CORES_PINTURA[cor] || corDaPlaca(placa);
 }
 
 const dois = (n) => String(n).padStart(2, "0");
@@ -181,7 +207,7 @@ export function criarMotor({ lugares, estacionados, vagas, aviso, totem }) {
           lugar,
           anunciado: false,
         };
-        lugar.carro.style.setProperty("--carro-cor", corDaPlaca(evento.placa));
+        lugar.carro.style.setProperty("--carro-cor", corDoCarro(evento));
         lugar.placa.textContent = evento.placa || "";
         lugar.raiz.dataset.placa = evento.placa ? "sim" : "nao";
         lugar.raiz.dataset.ativo = "sim";

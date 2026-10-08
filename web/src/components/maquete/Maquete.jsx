@@ -1,7 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { escolherColunas, MEDIDAS, montarPatio } from "./geometria";
 import { compararOcupacao, ocupacaoPorVaga } from "./movimentos";
-import { corDaPlaca, criarMotor } from "./motor";
+import { corDoCarro, criarMotor } from "./motor";
 import { semMovimento } from "../../utils/mola";
 import "./Maquete.css";
 
@@ -482,14 +482,18 @@ export default function Maquete({ vagas, online = false, telaCheia = false, aoMo
                     className="maquete-estacionado"
                     transform={`translate(${geo.cx} ${geo.cy}) rotate(${geo.angulo})`}
                   >
-                    <title>{`Vaga ${dois(geo.numero)}${vaga.placa ? ` · ${vaga.placa}` : ""}`}</title>
+                    <title>
+                      {[`Vaga ${dois(geo.numero)}`, vaga.placa, [vaga.modelo, vaga.cor].filter(Boolean).join(" ")]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </title>
                     <use
                       href={`#${idCarro}`}
                       x={-CC / 2}
                       y={-CL / 2}
                       width={CC}
                       height={CL}
-                      style={{ "--carro-cor": corDaPlaca(vaga.placa) }}
+                      style={{ "--carro-cor": corDoCarro(vaga) }}
                     />
                   </g>
                 );

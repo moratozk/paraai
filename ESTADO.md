@@ -83,8 +83,10 @@ painel do administrador, ao lado do mapa de vagas ("Ver maquete"), em
   o número de vagas no painel redesenha a maquete na hora, sem recarregar; o
   carro que estiver andando chega de uma vez na vaga.
 - **Mesma linguagem do pátio da Home:** asfalto escuro nos dois temas, faixa
-  âmbar, carros vistos de cima com cor fixa por placa, vagas especiais nas
-  cores `--vaga-*` e reserva tracejada em âmbar. Canteiros com gramado
+  âmbar, carros vistos de cima, vagas especiais nas cores `--vaga-*` e
+  reserva tracejada em âmbar. O carro tem a cor que o dono informou no
+  Perfil (campo `cor` que o totem copia para a vaga, PR #22), em tons
+  ajustados ao asfalto; sem ela, uma cor fixa por placa. Canteiros com gramado
   aparado e árvores vistas de cima. O totem fica numa ilha com meio-fio
   zebrado em âmbar, mostra os dois botões da tela inicial (ENTRADA e SAÍDA)
   e a luz de status, e ilumina a pista quando um carro para nele.
