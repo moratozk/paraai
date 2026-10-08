@@ -1,0 +1,297 @@
+/* ==========================================================================
+   MAQUETE VIRTUAL
+   O pátio é uma ilustração, como o da Home: fica escuro nos dois temas, como
+   asfalto de verdade. Medidas do SVG em metros (1 unidade = 1 m).
+   ========================================================================== */
+.maquete {
+  --asfalto: #14171d;
+  --tinta: rgba(244, 246, 249, 0.62);
+  --ambar: #ffc300;
+  display: grid;
+  gap: var(--esp-3);
+  min-width: 0;
+}
+
+/* Rola para o lado só quando o pátio não cabe com números legíveis. */
+.maquete-area {
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-radius: 22px;
+  overscroll-behavior-x: contain;
+}
+
+.maquete-superficie {
+  position: relative;
+  width: 100%;
+  min-width: var(--largura-min);
+  aspect-ratio: var(--proporcao);
+  overflow: hidden;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background:
+    radial-gradient(120% 90% at 85% 0%, rgba(255, 195, 0, 0.08), transparent 55%),
+    radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.035), transparent 40%),
+    repeating-radial-gradient(circle at 37% 61%, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 3px),
+    var(--asfalto);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 40px 90px -40px rgba(0, 0, 0, 0.9),
+    0 0 0 1px rgba(0, 0, 0, 0.35);
+  isolation: isolate;
+}
+
+.maquete-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Na tela cheia o pátio ocupa a caixa toda; o que sobra continua asfalto. */
+.maquete.tela-cheia {
+  height: 100%;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.maquete.tela-cheia .maquete-area { height: 100%; }
+.maquete.tela-cheia .maquete-superficie {
+  height: 100%;
+  min-width: 0;
+  aspect-ratio: auto;
+}
+
+/* ---- tinta do chão ---- */
+.maquete-tinta {
+  fill: none;
+  stroke: var(--tinta);
+  stroke-width: 0.13;
+  stroke-linecap: round;
+}
+.maquete-faixa {
+  fill: none;
+  stroke: var(--ambar);
+  stroke-opacity: 0.7;
+  stroke-width: 0.16;
+  stroke-dasharray: 1.1 0.85;
+}
+.maquete-seta {
+  fill: none;
+  stroke: rgba(244, 246, 249, 0.34);
+  stroke-width: 0.17;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.maquete-sinal {
+  fill: rgba(244, 246, 249, 0.42);
+  font-family: var(--font-display);
+  font-size: 1.6px;
+  letter-spacing: 0.14px;
+  dominant-baseline: central;
+}
+.maquete-sinal-fim { text-anchor: end; }
+
+/* Canteiro com meio-fio claro e arbustos; a ilha do totem é concreto. */
+.maquete-canteiro {
+  fill: #18241c;
+  stroke: rgba(214, 220, 228, 0.22);
+  stroke-width: 0.14;
+}
+.maquete-planta { fill: #24402c; }
+.maquete-planta.clara { fill: #2d4d35; }
+.maquete-ilha {
+  fill: #2b3039;
+  stroke: rgba(214, 220, 228, 0.32);
+  stroke-width: 0.14;
+}
+
+/* ---- vagas ---- */
+.maquete-numero {
+  fill: rgba(244, 246, 249, 0.72);
+  font-family: var(--font-mono);
+  font-size: 1.2px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+.maquete-vaga.pcd { --tipo-cor: var(--vaga-pcd); }
+.maquete-vaga.idoso { --tipo-cor: var(--vaga-idoso); }
+.maquete-vaga.gestante { --tipo-cor: var(--vaga-gestante); }
+.maquete-vaga-tipo {
+  fill: var(--tipo-cor);
+  fill-opacity: 0.24;
+  stroke: var(--tipo-cor);
+  stroke-width: 0.12;
+}
+.maquete-vaga-reserva {
+  fill: rgba(255, 195, 0, 0.1);
+  stroke: var(--ambar);
+  stroke-width: 0.14;
+  stroke-dasharray: 0.5 0.35;
+}
+.maquete-selo rect { fill: var(--tipo-cor); }
+.maquete-selo circle { fill: #fff; }
+.maquete-selo path {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.maquete-selo text {
+  fill: #fff;
+  font-family: var(--font-main);
+  font-size: 1.2px;
+  font-weight: 800;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+/* Brilho na vaga em que um carro acabou de parar (ou que acabou de vagar). */
+.maquete-vaga-brilho {
+  fill: rgba(255, 195, 0, 0.16);
+  stroke: var(--ambar);
+  stroke-width: 0.16;
+  opacity: 0;
+}
+.maquete-vaga.recente .maquete-vaga-brilho {
+  animation: maquete-vaga-acender 2.4s ease-out;
+}
+@keyframes maquete-vaga-acender {
+  0% { opacity: 0; }
+  12% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ---- carros ---- */
+.maquete-carro-lataria { fill: var(--carro-cor, #59616f); }
+.maquete-carro-capo { fill: color-mix(in srgb, var(--carro-cor, #59616f) 82%, #fff); }
+.maquete-carro-teto { fill: color-mix(in srgb, var(--carro-cor, #59616f) 86%, #000); }
+.maquete-carro-vidro { fill: #0d1219; }
+.maquete-carro-farol { fill: #fff6cf; }
+.maquete-carro-lanterna { fill: #ff5a67; }
+
+.maquete-estacionado[data-chegando="sim"] { visibility: hidden; }
+
+/* O carro que anda mantém a cor que terá na vaga; o destaque é o contorno
+   âmbar, os faróis e a placa por cima. */
+.maquete-ator[data-ativo="nao"] { display: none; }
+.maquete-ator-halo {
+  fill: rgba(255, 195, 0, 0.12);
+  stroke: var(--ambar);
+  stroke-width: 0.12;
+  stroke-opacity: 0.85;
+}
+/* De ré, sem o facho dos faróis apontando para o fundo da vaga. */
+.maquete-ator[data-fase="manobrando"] .maquete-ator-farol { display: none; }
+.maquete-ator[data-placa="nao"] .maquete-ator-placa { display: none; }
+.maquete-ator-placa rect {
+  fill: #fff;
+  stroke: #1f2a44;
+  stroke-width: 0.12;
+}
+.maquete-ator-placa .maquete-ator-placa-faixa {
+  fill: var(--plate-blue);
+  stroke: none;
+}
+.maquete-ator-placa text {
+  fill: #11141a;
+  font-family: var(--font-mono);
+  font-size: 1.2px;
+  font-weight: 700;
+  letter-spacing: 0.06px;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+/* ---- totem ---- */
+.maquete-totem-corpo {
+  fill: #0f1219;
+  stroke: rgba(255, 255, 255, 0.4);
+  stroke-width: 0.08;
+}
+.maquete-totem-tela { fill: #39414f; }
+.maquete-totem.online .maquete-totem-tela { fill: var(--ambar); }
+.maquete-totem-luz { fill: #828a99; }
+.maquete-totem.online .maquete-totem-luz { fill: #29d07e; }
+.maquete-totem-halo {
+  fill: var(--ambar);
+  opacity: 0;
+  transition: opacity var(--dur-media) ease-out;
+}
+.maquete-totem[data-atendendo="sim"] .maquete-totem-halo { opacity: 0.3; }
+.maquete-totem-rotulo {
+  fill: rgba(244, 246, 249, 0.55);
+  font-family: var(--font-display);
+  font-size: 1.2px;
+  letter-spacing: 0.12px;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+/* ---- último movimento, numa linha acima do pátio ---- */
+.maquete-aviso {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  min-height: 1.6rem;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--t-apoio);
+  font-weight: 700;
+  line-height: 1.35;
+}
+.maquete-aviso > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.maquete-aviso-ponto {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+.maquete-aviso[data-estado="andando"] { color: var(--text-primary); }
+.maquete-aviso[data-estado="andando"] .maquete-aviso-ponto {
+  background: var(--accent);
+  animation: maquete-ponto-piscar 1s ease-in-out infinite;
+}
+.maquete-aviso[data-estado="feito"] .maquete-aviso-ponto { background: var(--success); }
+@keyframes maquete-ponto-piscar {
+  50% { opacity: 0.35; }
+}
+
+/* ---- legenda ---- */
+.maquete-legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-2) var(--esp-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-secondary);
+  font-size: var(--t-legenda);
+  font-weight: 600;
+}
+.maquete-legenda li { display: inline-flex; align-items: center; gap: 0.4rem; }
+.maquete-legenda i {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--border);
+}
+.maquete-legenda i.livre { background: transparent; box-shadow: inset 0 0 0 1.5px var(--text-muted); }
+.maquete-legenda i.ocupada { background: #7a8294; }
+.maquete-legenda i.reservada { background: var(--accent-soft); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.maquete-legenda i.pcd { background: var(--vaga-pcd); }
+.maquete-legenda i.idoso { background: var(--vaga-idoso); }
+.maquete-legenda i.gestante { background: var(--vaga-gestante); }
+
+@media (prefers-reduced-motion: reduce) {
+  .maquete-aviso[data-estado="andando"] .maquete-aviso-ponto { animation: none; }
+}

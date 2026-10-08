@@ -17,7 +17,8 @@ Sistema acadêmico de atendimento para estacionamentos:
 
 O motorista registra entrada/saída por placa. O Firebase associa vaga,
 estadia e cobrança simulada. O operador acompanha pelo painel. A ocupação é
-lógica; a maquete virtual online é uma etapa futura, não implementada.
+lógica; a maquete virtual do administrador mostra os mesmos registros com
+carros andando num pátio desenhado (ver "Maquete virtual", abaixo).
 
 Projeto acadêmico (TCC). A `main` tem tudo: a integração (PR #9) e, desde
 06/10/2026, os PRs #10 a #15 (pinos e tela da CYD, pastas, vagas especiais,
@@ -60,6 +61,37 @@ Da referência ficaram de fora, de propósito: rolagem suave artificial (Lenis),
 tela de carregamento, botões "magnéticos" e o letreiro que anda sozinho.
 Todos atrasam a resposta ou tiram o controle de quem navega. Com "reduzir
 movimento" ligado no sistema, nada se anima sozinho.
+
+## Maquete virtual (08/10/2026)
+
+Protótipo pedido pelo dono do projeto, para avaliar com o outro autor. Fica no
+painel do administrador, ao lado do mapa de vagas ("Ver maquete"), em
+`/admin/estacionamentos/:id/maquete`.
+
+- **Só leitura, com os dados de verdade.** Usa as mesmas vagas do mapa do
+  administrador: ocupação do totem e reservas do app, combinadas em
+  `combinarVagasAdmin` (`utils/mapaVagas.js`), agora usada pelas duas telas.
+  Cada mudança entre duas leituras vira um carro andando: entra pela
+  esquerda, para no totem, segue até a vaga e estaciona de frente; na saída,
+  sai de ré e deixa o pátio pela direita. Nada é gravado e nada é simulado:
+  sem registro do totem, nada se mexe. Não há sensor, cancela nem catraca.
+- **Pátio gerado do número de vagas** (`components/maquete/geometria.js`):
+  fileiras a 90°, duas por corredor, circulação de mão única. O formato
+  acompanha a tela (largo no computador e no projetor, alto no celular), e
+  os números das vagas nunca ficam abaixo de 12 px: pátio grande ganha mais
+  corredores em vez de encolher. Trajetos conferidos de 1 a 400 vagas.
+- **Mesma linguagem do pátio da Home:** asfalto escuro nos dois temas, faixa
+  âmbar, carros vistos de cima com cor fixa por placa, vagas especiais nas
+  cores `--vaga-*`, reserva tracejada em âmbar e canteiros.
+- **Projetor:** "Tela cheia" mostra só a maquete e os últimos movimentos; Esc
+  sai. Com "reduzir movimento" ligado no sistema, o carro aparece direto na
+  vaga, que acende.
+- Um carro por vez na pista do totem: entradas seguidas esperam a vez. A
+  lista de movimentos começa vazia ao abrir a página (mostra o que acontece
+  dali em diante, não o histórico).
+- Conferido só com dados simulados, no navegador (temas, celular, projetor,
+  menos movimento e pátios de 20, 50 e 200 vagas). **Ainda não visto com o
+  totem de verdade nem publicado.**
 
 ## Revisão visual de 04/10/2026 (diretrizes da Apple)
 

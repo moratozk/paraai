@@ -8,7 +8,8 @@ uma **carteira única** em toda a rede. A recarga é simulada para fins acadêmi
 
 Decisão de 09/09/2026: o totem terá gabinete impresso em 3D, **sem sensores,
 servo ou catraca física**. A ocupação passa a vir das entradas e saídas no
-Firebase. A maquete virtual online é uma etapa futura, ainda não implementada.
+Firebase. A maquete virtual, no painel do administrador, mostra essas entradas
+e saídas com os carros andando num pátio desenhado.
 
 ```
 ┌─────────────────────┐         ┌──────────────────┐         ┌─────────────────────┐

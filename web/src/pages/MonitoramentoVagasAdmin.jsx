@@ -9,7 +9,12 @@ import {
 } from "../hooks/useParkingData";
 import { formatarDataHora, formatarDuracaoAoVivo } from "../utils/format";
 import { atualizarTipoVagaAdmin } from "../services/estacionamentos";
-import { obterTipoVaga, TIPOS_VAGA_EDITAVEIS } from "../utils/mapaVagas";
+import {
+  combinarVagasAdmin,
+  obterTipoVaga,
+  resumirVagas,
+  TIPOS_VAGA_EDITAVEIS,
+} from "../utils/mapaVagas";
 import "./Pages.css";
 import "./MonitoramentoVagasAdmin.css";
 
@@ -97,42 +102,11 @@ export default function MonitoramentoVagasAdmin() {
     };
   }, [telaCheiaAlternativa]);
 
-  // Ocupação vem do totem (vaga operacional); reserva, do app (projeção pública).
   const vagas = useMemo(
-    () =>
-      vagasOperacionais.map((operacional, indice) => {
-        const publica = vagasPublicas[indice] || {};
-        const ocupada = Boolean(operacional.ocupada || publica.ocupadaFisica);
-        const classificacao = obterTipoVaga(
-          operacional.tipo || publica.tipo,
-          operacional.numero
-        );
-        return {
-          ...operacional,
-          ocupada,
-          reservada: !ocupada && Boolean(publica.reservada),
-          reservadaAte: Number(publica.reservadaAte) || 0,
-          placa: operacional.placa || "",
-          tipo: classificacao.tipo,
-          especial: classificacao.tipo === "comum" ? null : classificacao,
-        };
-      }),
+    () => combinarVagasAdmin(vagasOperacionais, vagasPublicas),
     [vagasOperacionais, vagasPublicas]
   );
-
-  const resumo = useMemo(() => {
-    const ocupadas = vagas.filter((vaga) => vaga.ocupada).length;
-    const reservadas = vagas.filter((vaga) => vaga.reservada).length;
-    return {
-      total: vagas.length,
-      ocupadas,
-      reservadas,
-      livres: Math.max(0, vagas.length - ocupadas - reservadas),
-      ocupacao: vagas.length
-        ? Math.round(((ocupadas + reservadas) / vagas.length) * 100)
-        : 0,
-    };
-  }, [vagas]);
+  const resumo = useMemo(() => resumirVagas(vagas), [vagas]);
 
   const termo = busca.trim().toUpperCase();
   const vagasComVisibilidade = useMemo(
@@ -343,6 +317,11 @@ export default function MonitoramentoVagasAdmin() {
               </div>
               <div className="monitor-mapa-acoes">
                 {mapaEmTelaCheia && <span>Pressione Esc para sair</span>}
+                {!mapaEmTelaCheia && (
+                  <Link className="btn btn-outline btn-sm" to={`/admin/estacionamentos/${estId}/maquete`}>
+                    Ver maquete
+                  </Link>
+                )}
                 <button
                   className="btn btn-outline btn-sm"
                   type="button"
