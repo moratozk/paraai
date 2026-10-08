@@ -28,7 +28,9 @@ function proporcaoPara({ largura, altura }, telaCheia) {
   if (!telaCheia || !altura) {
     if (largura >= 760) return 2.2;
     if (largura >= 520) return 1.4;
-    return 0.85;
+    // No celular o pátio cresce para baixo, mas um pátio pequeno ainda cabe
+    // num corredor só, que é mais fácil de seguir.
+    return 1.1;
   }
   const alvo = largura / altura;
   return PROPORCOES.reduce((melhor, p) =>

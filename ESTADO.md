@@ -79,7 +79,9 @@ painel do administrador, ao lado do mapa de vagas ("Ver maquete"), em
   fileiras a 90°, duas por corredor, circulação de mão única. O formato
   acompanha a tela (largo no computador e no projetor, alto no celular), e
   os números das vagas nunca ficam abaixo de 12 px: pátio grande ganha mais
-  corredores em vez de encolher. Trajetos conferidos de 1 a 400 vagas.
+  corredores em vez de encolher. Trajetos conferidos de 1 a 400 vagas. Mudar
+  o número de vagas no painel redesenha a maquete na hora, sem recarregar; o
+  carro que estiver andando chega de uma vez na vaga.
 - **Mesma linguagem do pátio da Home:** asfalto escuro nos dois temas, faixa
   âmbar, carros vistos de cima com cor fixa por placa, vagas especiais nas
   cores `--vaga-*`, reserva tracejada em âmbar e canteiros.

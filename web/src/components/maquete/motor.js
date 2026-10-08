@@ -128,6 +128,12 @@ export function criarMotor({ lugares, estacionados, vagas, aviso, totem }) {
     reiniciar() {
       cancelAnimationFrame(quadro);
       quadro = 0;
+      // Quem estava andando chega de uma vez; a linha de aviso acompanha.
+      for (const ator of atores) {
+        if (aviso.current?.dataset.dono === ator.id) {
+          avisar(textoDoMovimento(ator.tipo, true, ator.placa, ator.numero), "feito");
+        }
+      }
       atores = [];
       chegando.clear();
       entradaLivre = 0;
