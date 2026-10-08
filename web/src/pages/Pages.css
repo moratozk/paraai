@@ -444,14 +444,18 @@
   font-family: var(--font-mono);
   font-size: var(--t-legenda);
   white-space: nowrap;
-  opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s;
   z-index: 5;
   box-shadow: var(--shadow-card);
+  /* Fora da tela até o hover: invisível com opacidade, ela ainda ocupava
+     espaço e empurrava a página para o lado no celular. */
+  display: none;
 }
 @media (hover: hover) {
-  .chart-col:hover .chart-tooltip { opacity: 1; }
+  .chart-col:hover .chart-tooltip { display: block; }
+  /* Nas pontas, a dica cresce para dentro do gráfico em vez de vazar. */
+  .chart-col:first-child .chart-tooltip { left: 0; translate: 0 -22px; }
+  .chart-col:last-child .chart-tooltip { left: auto; right: 0; translate: 0 -22px; }
 }
 
 /* ==========================================================================
