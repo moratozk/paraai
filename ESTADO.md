@@ -526,6 +526,14 @@ na Arduino IDE e gravar.
    sem direito declarado recebeu a vaga comum, não a PCD. Para gravar de novo:
    placa na COM3 e modo de gravação (segurar BOOT, apertar RST, soltar BOOT).
 
+8. **Modelo e cor do veículo (08/10/2026, PR próprio).** Para funcionar por
+   inteiro, nesta ordem: publicar as regras (sem elas, o Perfil não salva
+   modelo e cor, mas o cadastro da placa continua funcionando), publicar o
+   site e gravar o firmware novo, que mostra "GOL PRATA" e copia modelo e cor
+   para a vaga. Qualquer ordem é segura: firmware antigo continua aceito pelas
+   regras novas, e o firmware novo só copia o que as regras deixaram gravar.
+   Falta testar no hardware.
+
 ---
 
 ## Decisões já tomadas (não refazer sem motivo)
@@ -620,6 +628,20 @@ minuto (R$ 0,22) e cobra o restante ao encerrar; “Pagar depois” não descont
 início e cobra o total no fim. Todo minuto iniciado é cobrado, sem o motorista
 informar previamente a duração. Não apresentar esse fluxo como pagamento real.
 
+**Modelo e cor vêm do cadastro do motorista, não de consulta pela placa
+(08/10/2026).** Não há consulta oficial gratuita (a do SINESP saiu do ar e a
+Senatran só mostra os veículos da própria conta); as APIs pagas cobram de R$ 4
+a R$ 8 por consulta e exigiriam guardar a chave num servidor (plano Blaze, com
+cartão). O motorista informa marca, modelo e cor uma vez no Perfil, com uma
+lista nossa de marcas e modelos comuns (`web/src/utils/veiculo.js`) e não a
+Tabela FIPE, que cadastra cada versão ("Gol (novo) 1.0 Mi Total Flex 8V 4p")
+e não caberia na tela do totem. Nomes sem acento, até 20 caracteres, como no
+documento do carro; cores da tabela do RENAVAM. A mesma regra está em
+`firestore.rules`, no site e em `LogicaTotem.h`. Todo totem lê o veículo e
+portanto vê modelo e cor. O dono do estacionamento e o administrador **não**
+leem o veículo, que tem o saldo: veem modelo e cor na vaga, onde o totem os
+copia na entrada e apaga na saída, então só enquanto o carro está no pátio.
+
 ---
 
 ## Armadilhas conhecidas
@@ -627,6 +649,10 @@ informar previamente a duração. Não apresentar esse fluxo como pagamento real
 **Posicionamento de texto no totem** usa a baseline com altura de fonte fixa,
 não `getTextBounds` no eixo Y. Dependendo da versão da biblioteca aquele valor
 vem diferente e o texto sobe ~17px, invadindo o elemento de cima.
+
+**Largura de texto no totem** é medida sem quebra de linha (`larguraTexto`
+chama `setTextWrap(false)`). Com a quebra ligada, `getTextBounds` mede só até a
+borda da tela, e um texto mais largo que ela parecia caber.
 
 **No tema claro o âmbar tem dois papéis:** `--accent` preenche superfícies e
 leva texto escuro por cima; `--accent-text` pinta texto sobre fundo claro.
