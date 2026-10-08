@@ -153,6 +153,7 @@ export function montarPatio(numVagas, colunasPedidas) {
   canteiro(xFim + 0.4, baseSaida + 0.4, largura - m.margem - xFim - 0.8, altura - m.margem - baseSaida - 0.8);
 
   const totemX = m.paradaTotem + 0.5;
+  const ilha = { x: totemX - 1.6, y: topoEntrada - 2.9, largura: 3.2, altura: 2.5 };
   return {
     total,
     colunas,
@@ -163,6 +164,7 @@ export function montarPatio(numVagas, colunasPedidas) {
     xFim,
     corredores,
     canteiros,
+    arvores: plantarArvores(canteiros, [ilha]),
     // Faixas verticais: só fazem diferença com mais de um corredor.
     faixaEntradaX: x0 - m.corredor / 2,
     faixaSaidaX: xFim + m.corredor / 2,
@@ -172,11 +174,46 @@ export function montarPatio(numVagas, colunasPedidas) {
       // O motorista fica à esquerda: o totem está do lado de cima da pista,
       // numa ilha de concreto dentro do canteiro.
       x: totemX,
-      y: topoEntrada - 1.0,
-      ilha: { x: totemX - 2.1, y: topoEntrada - 3.4, largura: 4.2, altura: 3.0 },
+      y: topoEntrada - 1.55,
+      ilha,
+      // Faixa de retenção logo à frente do carro parado no totem (e depois
+      // da palavra ENTRADA pintada na pista).
+      retencaoX: m.paradaTotem + m.carroComprimento / 2 + 0.55,
     },
     vagas,
   };
+}
+
+// Árvores vistas de cima: poucas e espaçadas, com tamanho e posição um pouco
+// diferentes para não parecer carimbo. Sempre as mesmas para o mesmo pátio.
+const MEIO_FIO = 0.22;
+function plantarArvores(canteiros, evitar) {
+  const arvores = [];
+  canteiros.forEach((c, indice) => {
+    const curto = Math.min(c.largura, c.altura) - 2 * MEIO_FIO;
+    if (curto < 1.5) return;
+    const horizontal = c.largura >= c.altura;
+    const longo = (horizontal ? c.largura : c.altura) - 2 * MEIO_FIO;
+    const raioMax = Math.min(1.15, curto / 2 - 0.25);
+    const passo = Math.max(2.4, raioMax * 2.7);
+    let ultimo = -Infinity;
+    for (let t = raioMax + 0.3; t <= longo - raioMax - 0.3 + 1e-9; t += 0.5) {
+      if (t - ultimo < passo) continue;
+      const sorte = ((indice * 7 + Math.round(t * 3) * 13) % 11) / 10;
+      const r = raioMax * (0.8 + 0.2 * sorte);
+      const desvio = (sorte - 0.5) * 1.2 * (curto / 2 - r - 0.2);
+      const x = horizontal ? c.x + MEIO_FIO + t : c.x + c.largura / 2 + desvio;
+      const y = horizontal ? c.y + c.altura / 2 + desvio : c.y + MEIO_FIO + t;
+      const folga = r + 0.3;
+      const bate = evitar.some(
+        (e) => x + folga > e.x && x - folga < e.x + e.largura && y + folga > e.y && y - folga < e.y + e.altura
+      );
+      if (bate) continue;
+      arvores.push({ x, y, r, giro: Math.round(sorte * 300) });
+      ultimo = t;
+    }
+  });
+  return arvores;
 }
 
 // ---------------------------------------------------------------------------

@@ -84,7 +84,10 @@ painel do administrador, ao lado do mapa de vagas ("Ver maquete"), em
   carro que estiver andando chega de uma vez na vaga.
 - **Mesma linguagem do pátio da Home:** asfalto escuro nos dois temas, faixa
   âmbar, carros vistos de cima com cor fixa por placa, vagas especiais nas
-  cores `--vaga-*`, reserva tracejada em âmbar e canteiros.
+  cores `--vaga-*` e reserva tracejada em âmbar. Canteiros com gramado
+  aparado e árvores vistas de cima. O totem fica numa ilha com meio-fio
+  zebrado em âmbar, mostra os dois botões da tela inicial (ENTRADA e SAÍDA)
+  e a luz de status, e ilumina a pista quando um carro para nele.
 - **Projetor:** "Tela cheia" mostra só a maquete e os últimos movimentos; Esc
   sai. Com "reduzir movimento" ligado no sistema, o carro aparece direto na
   vaga, que acende.

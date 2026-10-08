@@ -118,6 +118,14 @@ function Pintura({ patio }) {
       <path className="maquete-faixa" d={faixa} />
       {setas}
       <path className="maquete-tinta" d={linhas} />
+      {/* Faixa de retenção: o carro para aqui, ao lado do totem. Com mais de um
+          corredor ela cairia em cima da faixa que desce, então fica de fora. */}
+      {baias === 1 && (
+        <path
+          className="maquete-retencao"
+          d={`M${patio.totem.retencaoX} ${primeiro.topo + 0.35}V${primeiro.base - 0.35}`}
+        />
+      )}
       {/* Abaixo do eixo, onde o carro não passa por cima das letras. */}
       <text className="maquete-sinal" x={0.6} y={primeiro.y + 2.1}>ENTRADA</text>
       <text className="maquete-sinal maquete-sinal-fim" x={largura - 0.6} y={ultimo.y + 2.1}>
@@ -127,27 +135,66 @@ function Pintura({ patio }) {
   );
 }
 
-function Canteiros({ patio, idPlantas }) {
+// Gramado aparado (faixas largas, como de cortador) dentro do meio-fio, com
+// uma luz suave que dá volume. As árvores vêm por cima, com sombra própria.
+function Canteiros({ patio, ids }) {
   const { ilha } = patio.totem;
   return (
     <g aria-hidden="true">
       {patio.canteiros.map((c, i) => (
         <g key={i}>
-          <rect className="maquete-canteiro" x={c.x} y={c.y} width={c.largura} height={c.altura} rx="0.6" />
+          <rect className="maquete-meio-fio" x={c.x} y={c.y} width={c.largura} height={c.altura} rx="0.6" />
           <rect
-            x={c.x + 0.3}
-            y={c.y + 0.3}
-            width={c.largura - 0.6}
-            height={c.altura - 0.6}
-            rx="0.4"
-            fill={`url(#${idPlantas})`}
+            x={c.x + 0.22}
+            y={c.y + 0.22}
+            width={c.largura - 0.44}
+            height={c.altura - 0.44}
+            rx="0.42"
+            fill={`url(#${ids.grama})`}
+          />
+          <rect
+            x={c.x + 0.22}
+            y={c.y + 0.22}
+            width={c.largura - 0.44}
+            height={c.altura - 0.44}
+            rx="0.42"
+            fill={`url(#${ids.luzGrama})`}
           />
         </g>
       ))}
+      {/* Ilha de concreto do totem, com o meio-fio zebrado virado para a pista. */}
       <rect className="maquete-ilha" x={ilha.x} y={ilha.y} width={ilha.largura} height={ilha.altura} rx="0.45" />
+      <rect
+        x={ilha.x + 0.25}
+        y={ilha.y + ilha.altura - 0.42}
+        width={ilha.largura - 0.5}
+        height="0.24"
+        rx="0.06"
+        fill={`url(#${ids.zebra})`}
+      />
+      {patio.arvores.map((a, i) => (
+        <g key={`arvore-${i}`}>
+          <ellipse cx={a.x + a.r * 0.22} cy={a.y + a.r * 0.34} rx={a.r * 1.12} ry={a.r * 1.02} fill={`url(#${ids.sombraCopa})`} />
+          <g transform={`translate(${a.x} ${a.y}) rotate(${a.giro}) scale(${a.r})`}>
+            {COPA.map(([cx, cy, r], j) => (
+              <circle key={j} className="maquete-copa" cx={cx} cy={cy} r={r} fill={`url(#${ids.copa})`} />
+            ))}
+          </g>
+        </g>
+      ))}
     </g>
   );
 }
+
+// Copa de árvore vista de cima: tufos que se sobrepõem, em vez de uma bola
+// lisa. Medidas em frações do raio; cada árvore gira o desenho.
+const COPA = [
+  [-0.36, -0.2, 0.5],
+  [0.34, -0.3, 0.46],
+  [0.4, 0.28, 0.44],
+  [-0.22, 0.38, 0.46],
+  [0.02, -0.02, 0.56],
+];
 
 function SeloTipo({ vaga, especial }) {
   return (
@@ -166,8 +213,13 @@ function SeloTipo({ vaga, especial }) {
   );
 }
 
-function Totem({ patio, online, totemRef }) {
-  const { x, y, ilha } = patio.totem;
+// O totem visto de cima: gabinete escuro, tela virada para a pista com os
+// dois botões da tela inicial (ENTRADA e SAÍDA) e a luz de status. Quando um
+// carro para, a tela clareia e ilumina o chão na frente dela.
+function Totem({ patio, online, totemRef, ids }) {
+  const { x, y } = patio.totem;
+  // Luz da tela no chão: do pé do totem até o carro parado na pista.
+  const luzY = patio.entradaY - 1.8 - y;
   return (
     <g
       ref={totemRef}
@@ -176,13 +228,16 @@ function Totem({ patio, online, totemRef }) {
       transform={`translate(${x} ${y})`}
     >
       <title>{online ? "Totem da entrada" : "Totem da entrada (sem sinal recente)"}</title>
-      <circle className="maquete-totem-halo" r="1.7" />
-      <rect className="maquete-totem-corpo" x="-0.7" y="-0.55" width="1.4" height="1.1" rx="0.2" />
-      <rect className="maquete-totem-tela" x="-0.5" y="0.05" width="1" height="0.35" rx="0.08" />
-      <circle className="maquete-totem-luz" cx="0.42" cy="-0.28" r="0.13" />
-      <text className="maquete-totem-rotulo" x="0" y={ilha.y + 0.85 - y}>
-        TOTEM
-      </text>
+      <ellipse className="maquete-totem-luz-chao" cx="0.1" cy={luzY} rx="2.8" ry="2.3" fill={`url(#${ids.luzTotem})`} />
+      <ellipse className="maquete-totem-sombra" cx="0.14" cy="0.22" rx="1" ry="0.72" />
+      <rect className="maquete-totem-corpo" x="-0.8" y="-0.55" width="1.6" height="1.1" rx="0.26" />
+      <path className="maquete-totem-brilho" d="M-0.56 -0.45H0.56" />
+      <rect className="maquete-totem-tela" x="-0.64" y="0.02" width="1.28" height="0.4" rx="0.1" />
+      <rect className="maquete-totem-botao" x="-0.55" y="0.1" width="0.51" height="0.24" rx="0.06" />
+      <rect className="maquete-totem-botao" x="0.04" y="0.1" width="0.51" height="0.24" rx="0.06" />
+      <rect className="maquete-totem-toque" x="-0.64" y="0.02" width="1.28" height="0.4" rx="0.1" />
+      <circle className="maquete-totem-led-halo" cx="0.55" cy="-0.25" r="0.2" />
+      <circle className="maquete-totem-led" cx="0.55" cy="-0.25" r="0.08" />
     </g>
   );
 }
@@ -194,7 +249,14 @@ export default function Maquete({ vagas, online = false, telaCheia = false, aoMo
   const idCarro = `${idBase}-carro`;
   const idSombra = `${idBase}-sombra`;
   const idFarol = `${idBase}-farol`;
-  const idPlantas = `${idBase}-plantas`;
+  const ids = {
+    grama: `${idBase}-grama`,
+    luzGrama: `${idBase}-luz-grama`,
+    copa: `${idBase}-copa`,
+    sombraCopa: `${idBase}-sombra-copa`,
+    zebra: `${idBase}-zebra`,
+    luzTotem: `${idBase}-luz-totem`,
+  };
 
   const areaRef = useRef(null);
   const avisoRef = useRef(null);
@@ -312,21 +374,42 @@ export default function Maquete({ vagas, online = false, telaCheia = false, aoMo
                 <stop offset="0" stopColor="#ffeeaa" stopOpacity="0.42" />
                 <stop offset="1" stopColor="#ffeeaa" stopOpacity="0" />
               </radialGradient>
-              {/* Arbustos do canteiro: copas de tamanhos diferentes, fora de grade. */}
-              <pattern
-                id={idPlantas}
-                width="2.2"
-                height="2"
-                patternUnits="userSpaceOnUse"
-                patternTransform="rotate(14)"
-              >
-                <circle className="maquete-planta" cx="0.55" cy="0.6" r="0.42" />
-                <circle className="maquete-planta clara" cx="1.5" cy="1.35" r="0.36" />
-                <circle className="maquete-planta" cx="1.8" cy="0.35" r="0.22" />
+              {/* Faixas do cortador, na mesma direção em todos os canteiros. */}
+              <pattern id={ids.grama} width="2.4" height="2.4" patternUnits="userSpaceOnUse">
+                <rect className="maquete-grama-a" width="2.4" height="2.4" />
+                <rect className="maquete-grama-b" width="2.4" height="1.2" />
               </pattern>
+              <radialGradient id={ids.luzGrama} cx="0.35" cy="0.3" r="0.9">
+                <stop offset="0" stopColor="#fff" stopOpacity="0.05" />
+                <stop offset="1" stopColor="#000" stopOpacity="0.3" />
+              </radialGradient>
+              <radialGradient id={ids.copa} cx="0.38" cy="0.34" r="0.7">
+                <stop offset="0" stopColor="#4c7d55" />
+                <stop offset="0.55" stopColor="#30573a" />
+                <stop offset="1" stopColor="#1f3b27" />
+              </radialGradient>
+              <radialGradient id={ids.sombraCopa}>
+                <stop offset="0.4" stopColor="#000" stopOpacity="0.45" />
+                <stop offset="1" stopColor="#000" stopOpacity="0" />
+              </radialGradient>
+              {/* Meio-fio zebrado: sinalização viária, como a identidade. */}
+              <pattern
+                id={ids.zebra}
+                width="0.7"
+                height="0.7"
+                patternUnits="userSpaceOnUse"
+                patternTransform="rotate(45)"
+              >
+                <rect width="0.7" height="0.7" fill="#0f1219" />
+                <rect width="0.35" height="0.7" fill="#ffc300" />
+              </pattern>
+              <radialGradient id={ids.luzTotem} cx="0.5" cy="0.15" r="0.85">
+                <stop offset="0" stopColor="#ffc300" stopOpacity="0.38" />
+                <stop offset="1" stopColor="#ffc300" stopOpacity="0" />
+              </radialGradient>
             </defs>
 
-            <Canteiros patio={patio} idPlantas={idPlantas} />
+            <Canteiros patio={patio} ids={ids} />
             <Pintura patio={patio} />
 
             {patio.vagas.map((geo) => {
@@ -413,7 +496,7 @@ export default function Maquete({ vagas, online = false, telaCheia = false, aoMo
               })}
             </g>
 
-            <Totem patio={patio} online={online} totemRef={totemRef} />
+            <Totem patio={patio} online={online} totemRef={totemRef} ids={ids} />
 
             {Array.from({ length: LUGARES_EM_MOVIMENTO }, (_, i) => (
               <g
@@ -469,6 +552,7 @@ export default function Maquete({ vagas, online = false, telaCheia = false, aoMo
       </div>
 
       <ul className="maquete-legenda" aria-label="Legenda">
+        <li><i className="totem" />Totem</li>
         <li><i className="livre" />Livre</li>
         <li><i className="ocupada" />Ocupada</li>
         <li><i className="reservada" />Reservada no app</li>

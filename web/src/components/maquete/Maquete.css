@@ -87,24 +87,36 @@
 .maquete-sinal {
   fill: rgba(244, 246, 249, 0.42);
   font-family: var(--font-display);
-  font-size: 1.6px;
-  letter-spacing: 0.14px;
+  font-size: 1.4px;
+  letter-spacing: 0.16px;
   dominant-baseline: central;
 }
 .maquete-sinal-fim { text-anchor: end; }
 
-/* Canteiro com meio-fio claro e arbustos; a ilha do totem é concreto. */
-.maquete-canteiro {
-  fill: #18241c;
-  stroke: rgba(214, 220, 228, 0.22);
-  stroke-width: 0.14;
+.maquete-retencao {
+  fill: none;
+  stroke: rgba(244, 246, 249, 0.5);
+  stroke-width: 0.24;
 }
-.maquete-planta { fill: #24402c; }
-.maquete-planta.clara { fill: #2d4d35; }
+
+/* Canteiro: meio-fio de concreto, gramado aparado em faixas de dois tons e
+   árvores vistas de cima. Verdes frios e baixos, para não brigar com o âmbar. */
+.maquete-meio-fio {
+  fill: #2b3038;
+  stroke: rgba(255, 255, 255, 0.07);
+  stroke-width: 0.06;
+}
+.maquete-grama-a { fill: #1d2f22; }
+.maquete-grama-b { fill: #223729; }
+/* Contorno em unidades da copa (o grupo é escalado pelo raio da árvore). */
+.maquete-copa {
+  stroke: rgba(8, 18, 11, 0.32);
+  stroke-width: 0.04;
+}
 .maquete-ilha {
-  fill: #2b3039;
-  stroke: rgba(214, 220, 228, 0.32);
-  stroke-width: 0.14;
+  fill: #2d323b;
+  stroke: rgba(214, 220, 228, 0.18);
+  stroke-width: 0.08;
 }
 
 /* ---- vagas ---- */
@@ -207,29 +219,38 @@
 }
 
 /* ---- totem ---- */
+.maquete-totem-sombra { fill: rgba(0, 0, 0, 0.45); }
 .maquete-totem-corpo {
-  fill: #0f1219;
-  stroke: rgba(255, 255, 255, 0.4);
-  stroke-width: 0.08;
+  fill: #12161d;
+  stroke: rgba(255, 255, 255, 0.2);
+  stroke-width: 0.06;
 }
-.maquete-totem-tela { fill: #39414f; }
-.maquete-totem.online .maquete-totem-tela { fill: var(--ambar); }
-.maquete-totem-luz { fill: #828a99; }
-.maquete-totem.online .maquete-totem-luz { fill: #29d07e; }
-.maquete-totem-halo {
-  fill: var(--ambar);
+/* Borda de cima pegando luz: o gabinete tem volume, não é um retângulo chapado. */
+.maquete-totem-brilho {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.16);
+  stroke-width: 0.06;
+  stroke-linecap: round;
+}
+.maquete-totem-tela { fill: #07090d; }
+/* Os dois botões da tela inicial do totem: ENTRADA e SAÍDA. */
+.maquete-totem-botao { fill: #39414f; }
+.maquete-totem.online .maquete-totem-botao { fill: var(--ambar); fill-opacity: 0.88; }
+.maquete-totem-toque {
+  fill: #fff6cf;
+  opacity: 0;
+  transition: opacity var(--dur-rapida) ease-out;
+}
+.maquete-totem-luz-chao {
   opacity: 0;
   transition: opacity var(--dur-media) ease-out;
 }
-.maquete-totem[data-atendendo="sim"] .maquete-totem-halo { opacity: 0.3; }
-.maquete-totem-rotulo {
-  fill: rgba(244, 246, 249, 0.55);
-  font-family: var(--font-display);
-  font-size: 1.2px;
-  letter-spacing: 0.12px;
-  text-anchor: middle;
-  dominant-baseline: central;
-}
+.maquete-totem[data-atendendo="sim"] .maquete-totem-luz-chao { opacity: 1; }
+.maquete-totem[data-atendendo="sim"] .maquete-totem-toque { opacity: 0.22; }
+.maquete-totem-led { fill: #828a99; }
+.maquete-totem-led-halo { fill: #29d07e; opacity: 0; }
+.maquete-totem.online .maquete-totem-led { fill: #29d07e; }
+.maquete-totem.online .maquete-totem-led-halo { opacity: 0.28; }
 
 /* ---- último movimento, numa linha acima do pátio ---- */
 .maquete-aviso {
@@ -284,6 +305,12 @@
   height: 12px;
   border-radius: 3px;
   background: var(--border);
+}
+.maquete-legenda i.totem {
+  width: 14px;
+  border-radius: 3px;
+  background: #12161d;
+  box-shadow: inset 0 -4px 0 var(--accent), inset 0 0 0 1px rgba(255, 255, 255, 0.18);
 }
 .maquete-legenda i.livre { background: transparent; box-shadow: inset 0 0 0 1.5px var(--text-muted); }
 .maquete-legenda i.ocupada { background: #7a8294; }
