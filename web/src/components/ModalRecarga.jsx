@@ -101,11 +101,15 @@ export default function ModalRecarga({ placa, saldoAtual, aoFechar, aoConcluir }
       setEtapa("ok");
       aoConcluir?.(valorFinal);
     } catch (err) {
+      // O detalhe técnico (ex.: permission-denied das regras) fica no
+      // console; na tela, só o que o motorista pode fazer.
       console.error("Falha ao creditar saldo:", err);
       setErro(
-        `${err?.code || ""}`.includes("permission")
-          ? "O banco recusou a escrita. Verifique as regras do Firestore."
-          : err.message || "Não foi possível concluir a recarga."
+        !err?.code && err?.message
+          ? err.message
+          : err?.code === "unavailable"
+            ? "Sem conexão com o ParaAí. Confira sua internet e tente de novo."
+            : "Não foi possível adicionar o saldo agora. Tente de novo em instantes."
       );
       setEtapa("pagamento");
     }

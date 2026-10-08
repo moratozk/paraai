@@ -340,7 +340,11 @@
 
 @media (max-width: 560px) {
   .valores-grid { grid-template-columns: repeat(2, 1fr); }
-  .pix-area { flex-direction: column; }
+  /* Empilhado, o código precisa esticar até a borda do cartão para o
+     reticências funcionar; centralizado, ele crescia até o tamanho do texto
+     e vazava pelos dois lados. */
+  .pix-area { flex-direction: column; align-items: stretch; }
+  .pix-qr { align-self: center; }
 }
 
 @media (max-width: 380px) {

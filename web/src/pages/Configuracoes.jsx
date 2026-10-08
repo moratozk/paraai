@@ -102,6 +102,8 @@ export default function Configuracoes() {
     }
   }
 
+  const tipoConta = TIPOS_DE_CONTA[userData?.role] || TIPOS_DE_CONTA.motorista;
+
   const ABAS = [
     { id: "perfil", rotulo: "Perfil", icone: "👤" },
     { id: "email", rotulo: "E-mail", icone: "✉️" },
@@ -173,17 +175,9 @@ export default function Configuracoes() {
                 <div className="field">
                   <div className="info-row">
                     <span className="label">Tipo de conta</span>
-                    <span>
-                      {userData?.role === "operador"
-                        ? "Dono de estacionamento"
-                        : "Motorista"}
-                    </span>
+                    <span>{tipoConta.nome}</span>
                   </div>
-                  <span className="field-hint">
-                    {userData?.role === "operador"
-                      ? "Sua conta administra um estacionamento da rede."
-                      : "Estacionamentos são cadastrados pela administração da rede ParaAí."}
-                  </span>
+                  <span className="field-hint">{tipoConta.descricao}</span>
                 </div>
 
                 <button
@@ -320,6 +314,21 @@ export default function Configuracoes() {
   );
 }
 
+const TIPOS_DE_CONTA = {
+  admin: {
+    nome: "Administrador da rede",
+    descricao: "Sua conta cadastra e acompanha os estacionamentos da rede ParaAí.",
+  },
+  operador: {
+    nome: "Dono de estacionamento",
+    descricao: "Sua conta administra um estacionamento da rede.",
+  },
+  motorista: {
+    nome: "Motorista",
+    descricao: "Estacionamentos são cadastrados pela administração da rede ParaAí.",
+  },
+};
+
 function traduzErro(err) {
   switch (err?.code) {
     case "auth/wrong-password":
@@ -338,11 +347,14 @@ function traduzErro(err) {
     case "auth/network-request-failed":
       return "Sem conexão. Verifique sua internet.";
     case "auth/operation-not-allowed":
-      return (
-        "O Firebase bloqueou a troca de e-mail. No Console, em Authentication → " +
-        "Configurações, verifique a opção de proteção de enumeração de e-mail."
-      );
+      // No Firebase: Authentication > Configurações > proteção contra
+      // enumeração de e-mail. Quem usa o site não tem o que fazer aqui.
+      console.error("Troca de e-mail recusada pela configuração da conta:", err);
+      return "A troca de e-mail está indisponível no momento. Tente mais tarde.";
     default:
-      return err?.message || "Não foi possível concluir. Tente novamente.";
+      // Erros com `code` vêm do Firebase e não são para o motorista; os sem
+      // `code` são nossos (AuthContext) e já estão em português.
+      console.error("Falha ao atualizar a conta:", err);
+      return (!err?.code && err?.message) || "Não foi possível concluir. Tente novamente.";
   }
 }

@@ -571,13 +571,15 @@ function mapAuthError(code) {
   }
 }
 
+// Termina a frase de erro do cadastro. O motivo técnico (regras do banco
+// recusando a escrita, por exemplo) vai para o console, não para a tela.
 function traduzErroFirestore(err) {
-  const texto = `${err?.code || ""} ${err?.message || ""}`.toLowerCase();
-  if (texto.includes("permission")) {
-    return (
-      "o banco de dados recusou a escrita (permission-denied). Publique as " +
-      "regras do arquivo firestore.rules no Console do Firebase."
-    );
+  console.error("Falha ao salvar os dados do cadastro:", err);
+  if (`${err?.code || ""}`.includes("permission")) {
+    return "não conseguimos salvar seus dados agora.";
   }
-  return err?.message || "erro inesperado.";
+  if (err?.code === "unavailable") {
+    return "sem conexão com o ParaAí.";
+  }
+  return "aconteceu um erro inesperado.";
 }
