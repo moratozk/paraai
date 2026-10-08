@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { obterTipoVaga } from "../utils/mapaVagas";
+import { descreverVeiculo } from "../utils/veiculo";
 import "./MapaVagas.css";
 
 function Vaga({ vaga, selecionada, onSelecionar }) {
   const classificacao = obterTipoVaga(vaga.tipo, vaga.numero);
   const especial = classificacao.tipo === "comum" ? null : classificacao;
+  const carro = descreverVeiculo(vaga);
   const descricao = vaga.ocupada
-    ? `Vaga ${vaga.numero} ocupada${vaga.placa ? ` pela placa ${vaga.placa}` : ""}`
+    ? `Vaga ${vaga.numero} ocupada${vaga.placa ? ` pela placa ${vaga.placa}` : ""}${carro ? `, ${carro}` : ""}`
     : `Vaga ${vaga.numero} livre`;
 
   return (
@@ -109,7 +111,9 @@ export default function MapaVagas({ vagas, nomeEstacionamento }) {
           </div>
           <p className="mapa-editor-nota">
             {vagaAtual.ocupada
-              ? `Placa ${vagaAtual.placa || "não informada"}.`
+              ? `Placa ${vagaAtual.placa || "não informada"}${
+                  descreverVeiculo(vagaAtual) ? ` · ${descreverVeiculo(vagaAtual)}` : ""
+                }.`
               : "Sem veículo registrado."}
             {tipoAtual && tipoAtual.tipo !== "comum" && ` Vaga para ${tipoAtual.rotulo}.`}
           </p>

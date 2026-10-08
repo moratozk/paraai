@@ -8,6 +8,7 @@ import {
   useVagasPublicas,
 } from "../hooks/useParkingData";
 import { formatarDataHora, formatarDuracaoAoVivo } from "../utils/format";
+import { dadosDaCor, descreverVeiculo } from "../utils/veiculo";
 import { atualizarTipoVagaAdmin } from "../services/estacionamentos";
 import { obterTipoVaga, TIPOS_VAGA_EDITAVEIS } from "../utils/mapaVagas";
 import "./Pages.css";
@@ -216,7 +217,9 @@ export default function MonitoramentoVagasAdmin() {
         disabled={!vaga.visivel}
         aria-label={`Vaga ${vaga.numero}, ${rotuloStatus(status)}${
           vaga.placa ? `, placa ${vaga.placa}` : ""
-        }${vaga.especial ? `, destinada a ${vaga.especial.rotulo}` : ""}`}
+        }${descreverVeiculo(vaga) ? `, ${descreverVeiculo(vaga)}` : ""}${
+          vaga.especial ? `, destinada a ${vaga.especial.rotulo}` : ""
+        }`}
       >
         <span className="monitor-vaga-topo">
           <strong>{String(vaga.numero).padStart(2, "0")}</strong>
@@ -391,6 +394,21 @@ export default function MonitoramentoVagasAdmin() {
                 </span>
                 <dl>
                   <div><dt>Placa</dt><dd>{selecionada.placa || "Não informada"}</dd></div>
+                  {selecionada.ocupada && (
+                    <div>
+                      <dt>Veículo</dt>
+                      <dd>
+                        {dadosDaCor(selecionada.cor) ? (
+                          <span className="cor-do-veiculo">
+                            <i style={{ "--amostra": dadosDaCor(selecionada.cor).amostra }} aria-hidden="true" />
+                            {descreverVeiculo(selecionada)}
+                          </span>
+                        ) : (
+                          descreverVeiculo(selecionada) || "Não informado"
+                        )}
+                      </dd>
+                    </div>
+                  )}
                   <div>
                     <dt>Tipo</dt>
                     <dd>{selecionada.especial?.rotulo || "Comum"}</dd>
@@ -490,7 +508,12 @@ export default function MonitoramentoVagasAdmin() {
                   <button type="button" key={vaga.id} onClick={() => selecionarVaga(vaga)}>
                     <strong>Vaga {String(vaga.numero).padStart(2, "0")}</strong>
                     <span className="placa-tag placa-tag-sm">{vaga.placa || "SEM PLACA"}</span>
-                    <span>{vaga.reservada ? "Reserva no aplicativo" : "Entrada pelo totem"}</span>
+                    {/* Vaga ocupada sempre veio do totem: no lugar disso, o carro. */}
+                    <span>
+                      {vaga.reservada
+                        ? "Reserva no aplicativo"
+                        : descreverVeiculo(vaga) || "Entrada pelo totem"}
+                    </span>
                     <b>
                       {vaga.reservada
                         ? `até ${horaCurta(vaga.reservadaAte)}`

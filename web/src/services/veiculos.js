@@ -14,6 +14,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase/firebaseConfig";
 import { direitoVagaValido } from "../utils/mapaVagas";
+import { prepararDescricao } from "../utils/veiculo";
 
 // Cadastra (ou reivindica) a placa para o usuário logado.
 // Cria o documento no formato exato que o firmware espera encontrar:
@@ -21,7 +22,9 @@ import { direitoVagaValido } from "../utils/mapaVagas";
 // só às regras e ao painel. O nome do dono não vai para o veículo: qualquer
 // totem lê esse documento, e o nome já está no perfil (users/{uid}).
 // vagaEspecial: direito declarado na conta ("" = nenhum), copiado para o
-// veículo porque é o veículo que o totem lê na entrada.
+// veículo porque é o veículo que o totem lê na entrada. Marca, modelo e cor
+// vão depois, em atualizarDescricaoVeiculo: a placa não pode deixar de ser
+// cadastrada por causa deles.
 export async function registrarVeiculo({ uid, placa, vagaEspecial = "" }) {
   const ref = doc(db, "veiculos", placa);
   const snap = await getDoc(ref);
@@ -80,6 +83,19 @@ export async function atualizarDireitoVaga({ uid, placa, vagaEspecial }) {
     });
   }
   await batch.commit();
+}
+
+// Marca, modelo e cor informados pelo dono. Campo vazio é apagado. Se o carro
+// estiver estacionado, a vaga continua com o que valia na entrada até a saída.
+export async function atualizarDescricaoVeiculo({ placa, descricao }) {
+  const limpos = prepararDescricao(descricao);
+  if (!limpos) throw new Error("Confira a marca, o modelo e a cor do veículo.");
+  await updateDoc(doc(db, "veiculos", placa), {
+    marca: limpos.marca || deleteField(),
+    modelo: limpos.modelo || deleteField(),
+    cor: limpos.cor || deleteField(),
+    atualizadoEm: serverTimestamp(),
+  });
 }
 
 // Recarga de saldo (simulada - não há gateway de pagamento; o valor é

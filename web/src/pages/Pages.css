@@ -568,14 +568,18 @@
 .placa-tag { font-size: var(--t-apoio); padding: 0.35rem 0.6rem 0.35rem 0; }
 .placa-tag-sm { font-size: var(--t-legenda); padding: 0.25rem 0.45rem 0.25rem 0; }
 
-.placa-form { display: flex; gap: 0.6rem; flex-wrap: wrap; }
-.placa-form input {
-  flex: 1;
-  min-width: 150px;
+/* Cadastro da placa: placa, depois marca, modelo e cor opcionais. */
+.placa-form { display: grid; }
+.placa-form .campo-placa {
   font-family: var(--font-mono);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+.placa-form-extra {
+  margin: -0.3rem 0 0.9rem;
+  color: var(--text-muted);
+  font-size: var(--t-apoio);
 }
 
 /* ==========================================================================
@@ -707,6 +711,24 @@
 .totem-list-item > div { display: grid; gap: 0.2rem; }
 
 .profile-summary { text-align: center; }
+.profile-summary .perfil-carro {
+  margin: 0.55rem 0 0;
+  color: var(--text-secondary);
+  font-size: var(--t-apoio);
+  font-weight: 600;
+}
+
+/* Bolinha da cor ao lado do nome (Perfil e painéis). */
+.cor-do-veiculo { display: inline-flex; align-items: center; gap: 0.45rem; }
+.cor-do-veiculo i {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--amostra);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.28), 0 0 0 1px var(--border-strong);
+}
+.descricao-remover { margin-top: 0.6rem; }
 
 .profile-avatar {
   width: 88px;
@@ -1040,10 +1062,6 @@
 
   .totem-list-item { align-items: stretch; flex-direction: column; }
   .totem-list-item .btn { width: 100%; }
-
-  .placa-form { flex-direction: column; }
-  .placa-form .field,
-  .placa-form .btn { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

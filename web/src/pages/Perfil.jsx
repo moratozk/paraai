@@ -3,9 +3,21 @@ import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useVeiculo, useEstacionamento } from "../hooks/useParkingData";
 import { Link } from "react-router-dom";
-import { registrarVeiculo, atualizarDireitoVaga } from "../services/veiculos";
+import {
+  registrarVeiculo,
+  atualizarDireitoVaga,
+  atualizarDescricaoVeiculo,
+} from "../services/veiculos";
 import CampoDireitoVaga from "../components/CampoDireitoVaga";
+import CampoVeiculo from "../components/CampoVeiculo";
 import { rotuloDireito } from "../utils/mapaVagas";
+import {
+  dadosDaCor,
+  descreverVeiculo,
+  descricaoParaFormulario,
+  descricaoPreenchida,
+  marcaEModelo,
+} from "../utils/veiculo";
 import { criarEstacionamento } from "../services/estacionamentos";
 import {
   criarCredencialTotem,
@@ -16,6 +28,15 @@ import { buscarCep, cepCompleto, formatarCep } from "../services/cep";
 import ModalRecarga from "../components/ModalRecarga";
 import { normalizarPlaca, placaValida, formatarMoeda } from "../utils/format";
 import "./Pages.css";
+
+const DESCRICAO_VAZIA = { marca: "", modelo: "", cor: "" };
+
+// Erro do Firebase em inglês ("Missing or insufficient permissions") não serve
+// para o motorista; a validação do formulário já vem em português.
+function mensagemDaDescricao(err) {
+  const generica = "Não foi possível salvar o modelo e a cor agora. Tente novamente.";
+  return err?.code ? generica : err?.message || generica;
+}
 
 export default function Perfil() {
   const { user, userData } = useAuth();
@@ -40,6 +61,10 @@ export default function Perfil() {
     .toUpperCase();
 
   const [placaInput, setPlacaInput] = useState("");
+  const [descricaoNova, setDescricaoNova] = useState(DESCRICAO_VAZIA);
+  // Modelo e cor: null = só exibindo; objeto = editando.
+  const [descricaoEdicao, setDescricaoEdicao] = useState(null);
+  const [salvandoDescricao, setSalvandoDescricao] = useState(false);
   // Direito a vaga especial: null = só exibindo; texto = editando.
   const [direitoEdicao, setDireitoEdicao] = useState(null);
   const [declarouDireito, setDeclarouDireito] = useState(false);
@@ -207,6 +232,20 @@ export default function Perfil() {
     }
   }
 
+  async function salvarDescricao(descricao) {
+    setSalvandoDescricao(true);
+    try {
+      await atualizarDescricaoVeiculo({ placa, descricao });
+      toast.sucesso(descricaoPreenchida(descricao) ? "Modelo e cor salvos." : "Modelo e cor removidos.");
+      setDescricaoEdicao(null);
+    } catch (err) {
+      console.error("Falha ao salvar modelo e cor:", err);
+      toast.erro(mensagemDaDescricao(err));
+    } finally {
+      setSalvandoDescricao(false);
+    }
+  }
+
   async function handleCadastrarPlaca(e) {
     e.preventDefault();
     setMensagem(null);
@@ -231,6 +270,17 @@ export default function Perfil() {
       setPlacaInput("");
       setMensagem({ tipo: "ok", texto: "Veículo cadastrado com sucesso!" });
       toast.sucesso(`Placa ${placaNova} cadastrada!`);
+      // A placa já vale; modelo e cor são um extra e podem ser refeitos no
+      // cartão "Modelo e cor" se esta segunda gravação falhar.
+      if (descricaoPreenchida(descricaoNova)) {
+        try {
+          await atualizarDescricaoVeiculo({ placa: placaNova, descricao: descricaoNova });
+        } catch (err) {
+          console.error("Falha ao salvar modelo e cor:", err);
+          toast.erro("Placa cadastrada, mas o modelo e a cor não foram salvos. Informe de novo abaixo.");
+        }
+      }
+      setDescricaoNova(DESCRICAO_VAZIA);
     } catch (err) {
       setMensagem({
         tipo: "erro",
@@ -265,7 +315,14 @@ export default function Perfil() {
           ) : role === "operador" ? (
             <span className="status-pill warning">Operador</span>
           ) : (
-            placa && <span className="placa-tag">{placa}</span>
+            placa && (
+              <>
+                <span className="placa-tag">{placa}</span>
+                {descreverVeiculo(veiculo) && (
+                  <p className="perfil-carro">{descreverVeiculo(veiculo)}</p>
+                )}
+              </>
+            )
           )}
         </div>
 
@@ -467,10 +524,11 @@ export default function Perfil() {
                 o padrão antigo (ABC1234) e o Mercosul (ABC1D23).
               </p>
               <form onSubmit={handleCadastrarPlaca} className="placa-form">
-                <div className="field" style={{ marginBottom: 0, flex: 1 }}>
+                <div className="field">
                   <label htmlFor="placa">Placa do veículo</label>
                   <input
                     id="placa"
+                    className="campo-placa"
                     type="text"
                     value={placaInput}
                     onChange={(e) => setPlacaInput(normalizarPlaca(e.target.value))}
@@ -479,9 +537,19 @@ export default function Perfil() {
                     autoComplete="off"
                   />
                 </div>
+                <p className="placa-form-extra">
+                  Modelo e cor são opcionais. Com eles, o totem mostra o seu
+                  carro na tela quando você digita a placa.
+                </p>
+                <CampoVeiculo
+                  id="novoVeiculo"
+                  valor={descricaoNova}
+                  onValor={setDescricaoNova}
+                  desabilitado={processando}
+                />
                 <button
                   type="submit"
-                  className="btn btn-primary"
+                  className="btn btn-primary btn-block"
                   disabled={processando}
                 >
                   {processando ? "Cadastrando..." : "Cadastrar"}
@@ -529,6 +597,85 @@ export default function Perfil() {
             </>
           )}
         </div>
+
+        {placa && (
+          <div className="card vehicle-card">
+            <h2>Modelo e cor</h2>
+            {descricaoEdicao === null ? (
+              <>
+                <div className="info-row">
+                  <span className="label">Modelo</span>
+                  <span>{marcaEModelo(veiculo) || "Não informado"}</span>
+                </div>
+                <div className="info-row">
+                  <span className="label">Cor</span>
+                  {dadosDaCor(veiculo?.cor) ? (
+                    <span className="cor-do-veiculo">
+                      <i
+                        style={{ "--amostra": dadosDaCor(veiculo.cor).amostra }}
+                        aria-hidden="true"
+                      />
+                      {dadosDaCor(veiculo.cor).rotulo}
+                    </span>
+                  ) : (
+                    <span>Não informada</span>
+                  )}
+                </div>
+                <p className="muted-note">
+                  Quando você digita a placa, o totem mostra o modelo e a cor na
+                  confirmação. O estacionamento vê os dois só enquanto o carro
+                  está lá.
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-block"
+                  onClick={() => setDescricaoEdicao(descricaoParaFormulario(veiculo))}
+                >
+                  {descricaoPreenchida(descricaoParaFormulario(veiculo))
+                    ? "Alterar"
+                    : "Informar modelo e cor"}
+                </button>
+              </>
+            ) : (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  salvarDescricao(descricaoEdicao);
+                }}
+              >
+                <CampoVeiculo
+                  id="descricaoVeiculo"
+                  valor={descricaoEdicao}
+                  onValor={setDescricaoEdicao}
+                  desabilitado={salvandoDescricao}
+                />
+                <div className="acoes-form">
+                  <button type="submit" className="btn btn-primary" disabled={salvandoDescricao}>
+                    {salvandoDescricao ? "Salvando..." : "Salvar"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    disabled={salvandoDescricao}
+                    onClick={() => setDescricaoEdicao(null)}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+                {descricaoPreenchida(descricaoParaFormulario(veiculo)) && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm btn-block descricao-remover"
+                    disabled={salvandoDescricao}
+                    onClick={() => salvarDescricao(DESCRICAO_VAZIA)}
+                  >
+                    Remover modelo e cor
+                  </button>
+                )}
+              </form>
+            )}
+          </div>
+        )}
 
         <div className="card vehicle-card">
           <h2>Vaga especial</h2>
