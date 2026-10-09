@@ -614,6 +614,9 @@
   color: var(--accent-text);
   font-weight: 800;
 }
+@media (pointer: coarse) {
+  .checkout-voltar { min-height: 44px; }
+}
 
 .checkout-resumo-topo {
   display: grid;

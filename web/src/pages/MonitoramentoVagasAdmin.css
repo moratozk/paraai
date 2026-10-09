@@ -310,6 +310,9 @@
 }
 
 @media (max-width: 480px) {
+  /* "Reservadas" não cabe num quarto da largura do celular e ficava cortada
+     numa rolagem escondida: os quatro filtros vão em duas linhas. */
+  .monitor-controles .segmented { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .monitor-resumo { grid-template-columns: 1fr 1fr; gap: 0.65rem; }
   .monitor-kpi { padding: 0.9rem; }
   .monitor-kpi strong { font-size: var(--t-titulo-g); }

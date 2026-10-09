@@ -132,7 +132,7 @@
   place-items: center;
   border-radius: 14px 14px 7px 7px;
   background: var(--danger);
-  color: #fff;
+  color: var(--danger-contrast);
   font-family: var(--font-mono);
   font-size: var(--t-legenda);
   font-weight: 800;
@@ -191,12 +191,16 @@
   border: 1px solid var(--accent);
   border-radius: var(--radius-sm);
   background: var(--accent-soft);
+  /* Sobre o fundo âmbar o cinza apagado cai para 3,9:1 no tema escuro:
+     dentro do editor, rótulos e notas usam o cinza secundário. */
+  --text-muted: var(--text-secondary);
 }
 .mapa-editor-resumo { display: grid; gap: 0.25rem; min-width: 130px; }
 .mapa-editor-resumo strong { font-size: var(--t-corpo); }
 .mapa-editor-resumo .status-pill.danger {
   border-color: var(--danger);
-  background: var(--danger-soft);
+  /* Fundo opaco: o vermelho suave sobre o âmbar escurecia demais o selo. */
+  background: color-mix(in srgb, var(--danger) 12%, var(--bg-solid));
   color: var(--danger);
 }
 .mapa-editor-placa { margin: 0; }
