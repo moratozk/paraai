@@ -27,6 +27,34 @@ em 06/10/2026** a partir da `main` (`26a97e5`); o site no ar é o build dessa
 versão. **O firmware da `main` foi gravado no totem no mesmo dia** e testado:
 uma placa sem direito declarado recebeu a primeira vaga comum livre.
 
+## Saldo protegido e extrato da carteira (09/10/2026)
+
+Achado na revisão geral de 08/10/2026: a regra do Firestore deixava o dono da
+placa gravar qualquer `saldo` no próprio veículo. No emulador passaram saldo
+de 1.000.000, texto no lugar do número, dívida zerada e saldo de -500.
+
+- **O saldo só sobe com registro.** A recarga simulada grava, no mesmo lote, o
+  crédito (`increment`) e um documento em `veiculos/{placa}/recargas/{id}` com
+  `valor`, `forma` (`pix` ou `cartao`), `uid` e `criadaEm` (hora do servidor).
+  As regras conferem um contra o outro: o registro é novo, o veículo aponta
+  para ele em `ultimaRecarga` e o saldo sobe exatamente o valor dele, de
+  R$ 0,01 a R$ 1.000, em centavos. Ninguém altera nem apaga um registro. O
+  totem continua só debitando junto com o recibo da saída, e painel e totem
+  criam o veículo com saldo 0.
+- **Extrato no Perfil** (`components/ExtratoCarteira.jsx`): recargas como
+  crédito e estadias encerradas como débito, da mais recente para a mais
+  antiga, com a parte não coberta pelo saldo. Só quem recarregou lê o registro
+  (nem o estacionamento, nem o totem, nem o administrador). As recargas
+  anteriores a esta versão não têm registro: quando o saldo passa da soma do
+  extrato, ele avisa que essas recargas não aparecem.
+- **Tela de recarga:** o valor digitado segue o formato brasileiro ("1.000" é
+  mil reais, não um; mais de dois centavos é recusado) e o "Novo saldo" do fim
+  deixou de somar a recarga duas vezes.
+- **Publicação: regras e site juntos, regras primeiro.** O site antigo não
+  recarrega com as regras novas, e o novo não recarrega com as antigas (nelas
+  a subcoleção `recargas` não existe). O firmware não muda: já cria o veículo
+  com saldo 0 e só debita.
+
 ## Wi-Fi na tela do totem (07/10/2026)
 
 Pedido do dono do projeto: trocar a rede sem editar código nem depender do
@@ -625,6 +653,10 @@ na Arduino IDE e gravar.
    regras novas, e o firmware novo só copia o que as regras deixaram gravar.
    Falta testar no hardware.
 
+9. **Saldo protegido e extrato (09/10/2026, PR próprio).** Publicar as regras
+   e logo em seguida o site: entre uma coisa e outra, a recarga falha (o saldo
+   não muda). Depois, fazer uma recarga e conferir o extrato no Perfil.
+
 ---
 
 ## Decisões já tomadas (não refazer sem motivo)
@@ -753,6 +785,10 @@ Usar o mesmo tom nos dois reprova em um dos casos.
 `--danger-contrast`, nunca `#fff` fixo: no tema escuro esses tons são claros e
 o branco fica em 2:1 e 3,2:1. No claro, verde, vermelho e âmbar de texto
 passam em 4,5:1 também sobre os próprios fundos suaves.
+
+**Saldo não se grava direto.** Qualquer crédito novo precisa do registro em
+`veiculos/{placa}/recargas` no mesmo lote, como faz `adicionarSaldo`
+(`services/veiculos.js`); um `updateDoc` com `saldo` é recusado pelas regras.
 
 **Firebase App Check** precisa continuar em "Monitorando" (não forçado), senão
 bloqueia tanto o site quanto o ESP32.
