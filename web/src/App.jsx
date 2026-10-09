@@ -7,6 +7,7 @@ import Navbar from "./components/Navbar";
 import PrivateRoute from "./components/PrivateRoute";
 import PublicRoute from "./components/PublicRoute";
 import AvisoConfiguracao from "./components/AvisoConfiguracao";
+import ErroDeTela from "./components/ErroDeTela";
 
 // Cada tela vira um pacote separado. Assim a home não baixa de uma vez os
 // painéis, gráficos, formulários e modal de recarga que talvez nem sejam usados.
@@ -24,6 +25,13 @@ const Configuracoes = lazy(() => import("./pages/Configuracoes"));
 const MonitoramentoVagasAdmin = lazy(() => import("./pages/MonitoramentoVagasAdmin"));
 const MaqueteVirtual = lazy(() => import("./pages/MaqueteVirtual"));
 
+const carregando = (
+  <div className="estado-central" role="status" aria-live="polite">
+    <span className="spinner" aria-hidden="true" />
+    <span>Carregando…</span>
+  </div>
+);
+
 export default function App() {
   return (
     <ThemeProvider>
@@ -34,14 +42,8 @@ export default function App() {
               <AvisoConfiguracao />
               <Navbar />
 
-              <Suspense
-                fallback={
-                  <div className="estado-central" role="status" aria-live="polite">
-                    <span className="spinner" aria-hidden="true" />
-                    <span>Carregando…</span>
-                  </div>
-                }
-              >
+              <ErroDeTela carregando={carregando}>
+              <Suspense fallback={carregando}>
                 <Routes>
                 <Route path="/" element={<PublicRoute><Home /></PublicRoute>} />
                 <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
@@ -117,6 +119,7 @@ export default function App() {
                   />
                 </Routes>
               </Suspense>
+              </ErroDeTela>
             </div>
           </BrowserRouter>
         </AuthProvider>

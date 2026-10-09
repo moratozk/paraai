@@ -27,6 +27,36 @@ em 06/10/2026** a partir da `main` (`26a97e5`); o site no ar é o build dessa
 versão. **O firmware da `main` foi gravado no totem no mesmo dia** e testado:
 uma placa sem direito declarado recebeu a primeira vaga comum livre.
 
+## App instalável no celular (09/10/2026)
+
+O site virou um app que se instala pelo navegador (PWA), sem loja:
+
+- **Instalar:** no Android e no computador (Chrome e Edge), "Instalar o app"
+  aparece no menu da conta e no menu de três traços quando o navegador oferece
+  a instalação; no iPhone, o mesmo item explica o caminho (Compartilhar e
+  "Adicionar à Tela de Início"). Aberto como app, o item some. O app abre no
+  painel (`/dashboard`, que leva ao login quem não entrou), sem a barra do
+  navegador, com a logo como ícone. `icone-maskable-512.png` e
+  `apple-touch-icon.png` são a própria `logo.png` sobre o mesmo âmbar, sem
+  redesenho: o "P" no lugar, só a moldura arredondada vira fundo.
+- **Sem internet:** o service worker (`public/sw.js`) mostra
+  `public/offline.html`, com a logo e o tema escolhido, em vez do erro do
+  navegador, e recarrega sozinho quando a rede volta. Ele não guarda telas nem
+  dados: tudo continua vindo do Firebase, e cada publicação chega na hora.
+- **Depois de cada publicação:** quem estava com o site aberto e abria uma tela
+  ainda não visitada pedia um arquivo que a publicação apagou, e a página
+  ficava inteira em branco. Agora o site recarrega uma vez para pegar a versão
+  nova (`src/pwa.js`); se ainda falhar, aparece "Esta tela não abriu", com o
+  menu no topo e o botão de recarregar (`components/ErroDeTela.jsx`). No
+  `firebase.json`, o `no-cache` passou a valer para `/` e para os endereços de
+  todas as telas, e não só para `/index.html`, além do `sw.js`.
+- A barra do navegador e a do app acompanham o tema (`ThemeContext`), e o
+  `index.html` aplica o tema claro antes do primeiro quadro: quem usa o claro
+  não vê mais o escuro piscar ao abrir o site.
+
+Sem mudança nas regras do Firestore. Só o site precisa ser publicado (os
+cabeçalhos do `firebase.json` vão junto com ele).
+
 ## Comprovante da estadia (09/10/2026)
 
 Cada estadia encerrada tem um comprovante (`components/ComprovanteEstadia.jsx`):
@@ -691,6 +721,12 @@ na Arduino IDE e gravar.
    e logo em seguida o site: entre uma coisa e outra, a recarga falha (o saldo
    não muda). Depois, fazer uma recarga e conferir o extrato no Perfil.
 
+10. **App instalável (09/10/2026, PR próprio).** Depois de publicar o site,
+    instalar no celular (Android: menu e "Instalar o app"; iPhone: Compartilhar
+    e "Adicionar à Tela de Início"), abrir pelo ícone e ligar o modo avião para
+    ver a página sem internet. O pedido de instalação do navegador só foi
+    simulado nos testes locais.
+
 ---
 
 ## Decisões já tomadas (não refazer sem motivo)
@@ -841,6 +877,13 @@ uma placa nova continua no Firebase já implantado.
 **`getComputedStyle` devolve valor em cache** logo após trocar o atributo do
 tema. Para auditar contraste, force um repaint antes de medir — sem isso o
 resultado é falso.
+
+**Service worker só no site publicado.** `registrarServiceWorker` (`src/pwa.js`)
+não roda no `npm run dev`; para testar, use `npm run build` e `npm run preview`.
+Ao mudar `public/offline.html`, troque `VERSAO` em `public/sw.js`, senão o
+celular continua com a página guardada antes. O service worker não deve passar
+a guardar arquivos de tela nem respostas do Firebase: o site conta com cada
+publicação chegando na hora.
 
 **Vite pode servir arquivo vazio** depois de certas edições. Se um componente
 sumir sem erro no console, limpe `node_modules/.vite` e reinicie.

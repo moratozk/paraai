@@ -6,6 +6,26 @@
     <meta name="theme-color" content="#0a0c11" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ParaAí — Tecnologia para estacionamentos</title>
+    <meta
+      name="description"
+      content="ParaAí liga motoristas e estacionamentos: vagas livres ao vivo, entrada e saída pelo totem com a placa do carro e a estadia calculada pelo tempo exato."
+    />
+    <!-- App instalável: manifesto, ícone do iPhone e nome curto na tela inicial. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="ParaAí" />
+    <script>
+      // Tema salvo aplicado antes do primeiro quadro, para quem usa o claro não
+      // ver o escuro piscar enquanto o site carrega (ver ThemeContext).
+      try {
+        if (localStorage.getItem("para-ai-theme") === "light") {
+          document.documentElement.setAttribute("data-theme", "light");
+          document.querySelector('meta[name="theme-color"]').setAttribute("content", "#e9e7e3");
+        }
+      } catch {
+        // Sem armazenamento, fica o escuro, que é o padrão.
+      }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">

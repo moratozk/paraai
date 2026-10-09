@@ -19,12 +19,19 @@ function temaSalvo() {
   }
 }
 
+// Cor da barra do navegador e do app instalado: o --bg-primary de cada tema
+// (index.css). O index.html aplica a mesma antes do primeiro quadro.
+const COR_DA_BARRA = { dark: "#0a0c11", light: "#e9e7e3" };
+
 export function ThemeProvider({ children }) {
   // Padrão: escuro ("asfalto à noite" é o tema-assinatura da identidade)
   const [theme, setTheme] = useState(() => temaSalvo() || "dark");
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute("content", COR_DA_BARRA[theme] || COR_DA_BARRA.dark);
     try {
       localStorage.setItem("para-ai-theme", theme);
     } catch {
