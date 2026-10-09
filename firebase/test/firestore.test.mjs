@@ -2,7 +2,7 @@ import { after, before, beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc, deleteDoc, writeBatch, Timestamp, increment, deleteField, setLogLevel } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where, setDoc, updateDoc, deleteDoc, writeBatch, Timestamp, increment, deleteField, serverTimestamp, setLogLevel } from 'firebase/firestore';
 import { createMockUserToken } from '@firebase/util';
 
 // Nunca aceitar projeto/host de produção, nem carregar Credenciais.h/.env.
@@ -137,8 +137,10 @@ test('entrada rejeita veículo inativo', async () => {
   await assertFails(updateDoc(ref('totem-a', 'veiculos/XYZ1234'), { vagaAtual: 2, horaEntrada: agora, estacionamentoId: 'EST-A', tarifaHoraEntrada: 8.5 }));
 });
 test('cadastro acadêmico no totem continua compatível com reivindicação pelo motorista', async () => {
-  const dados = { ...livre, cadastradoNoTotem: true };
+  const dados = { ...livre, saldo: 0, cadastradoNoTotem: true };
   delete dados.ownerUid; delete dados.ownerNome; delete dados.atualizadoEm;
+  // A carteira nasce vazia também no totem.
+  await assertFails(setDoc(ref('totem-a', 'veiculos/NEW1234'), { ...dados, saldo: 100 }));
   await assertSucceeds(setDoc(ref('totem-a', 'veiculos/NEW1234'), dados));
   await assertSucceeds(updateDoc(ref('motorista-a', 'veiculos/NEW1234'), { ownerUid: 'motorista-a', ownerNome: 'Ana', atualizadoEm: Timestamp.now() }));
   await assertFails(updateDoc(ref('motorista-b', 'veiculos/NEW1234'), { ownerUid: 'motorista-b', ownerNome: 'B', atualizadoEm: Timestamp.now() }));
@@ -146,14 +148,122 @@ test('cadastro acadêmico no totem continua compatível com reivindicação pelo
 test('painel cadastra veículo sem o nome do dono e a recarga apaga o nome legado', async () => {
   const novo = { ativo: true, vagaAtual: 0, horaEntrada: 0, saldo: 0, estacionamentoId: '',
     tarifaHoraEntrada: 0, ownerUid: 'motorista-a', atualizadoEm: Timestamp.now() };
+  // Saldo inicial só por recarga: o painel não cria carteira já com crédito.
+  for (const saldo of [10, 0.01, -5, '0']) {
+    await assertFails(setDoc(ref('motorista-a', 'veiculos/NEW1234'), { ...novo, saldo }));
+  }
   await assertSucceeds(setDoc(ref('motorista-a', 'veiculos/NEW1234'), novo));
-  await assertSucceeds(updateDoc(ref('motorista-a', 'veiculos/ABC1D23'),
-    { saldo: increment(10), ownerNome: deleteField(), atualizadoEm: Timestamp.now() }));
+  await assertSucceeds(loteRecarga('motorista-a', { valor: 10 }).commit());
   assert.ok(!('ownerNome' in (await getDoc(ref('motorista-a', 'veiculos/ABC1D23'))).data()));
 });
-test('recarga simulada do próprio veículo permanece compatível', async () => {
-  await assertSucceeds(updateDoc(ref('motorista-a', 'veiculos/ABC1D23'), { saldo: increment(50), atualizadoEm: Timestamp.now() }));
-  await assertFails(updateDoc(ref('motorista-b', 'veiculos/ABC1D23'), { saldo: increment(50) }));
+
+// ---------------------------------------------------------------------------
+// Recarga simulada: o saldo só sobe junto com o registro do extrato
+// (veiculos/{placa}/recargas/{id}), criado no mesmo lote e com o mesmo valor.
+// ---------------------------------------------------------------------------
+let recargasCriadas = 0;
+function loteRecarga(uid, { placa = 'ABC1D23', valor = 50, forma = 'pix', id = `recarga-${++recargasCriadas}`,
+  credito = valor, ultimaRecarga = id, registro = {}, comRegistro = true, comCredito = true } = {}) {
+  const d = db(uid);
+  const batch = writeBatch(d);
+  if (comRegistro) {
+    batch.set(doc(d, `veiculos/${placa}/recargas/${id}`),
+      { valor, forma, uid, criadaEm: serverTimestamp(), ...registro });
+  }
+  if (comCredito) {
+    batch.update(doc(d, `veiculos/${placa}`), { saldo: increment(credito), ultimaRecarga,
+      ownerNome: deleteField(), atualizadoEm: serverTimestamp() });
+  }
+  return batch;
+}
+async function saldoDe(placa) {
+  let saldo;
+  await env.withSecurityRulesDisabled(async c => {
+    saldo = (await getDoc(doc(c.firestore(), `veiculos/${placa}`))).data().saldo;
+  });
+  return saldo;
+}
+
+test('recarga simulada: crédito e registro do extrato no mesmo lote', async () => {
+  await assertSucceeds(loteRecarga('motorista-a', { valor: 50, id: 'r1' }).commit());
+  await assertSucceeds(loteRecarga('motorista-a', { valor: 0.01, forma: 'cartao', id: 'r2' }).commit());
+  await assertSucceeds(loteRecarga('motorista-a', { valor: 1000, id: 'r3' }).commit());
+  assert.ok(Math.abs(await saldoDe('ABC1D23') - 1150.01) < 1e-9);
+  const registro = (await getDoc(ref('motorista-a', 'veiculos/ABC1D23/recargas/r2'))).data();
+  assert.equal(registro.valor, 0.01);
+  assert.equal(registro.forma, 'cartao');
+  assert.ok(registro.criadaEm instanceof Timestamp);
+  assert.equal((await getDoc(ref('motorista-a', 'veiculos/ABC1D23'))).data().ultimaRecarga, 'r3');
+});
+test('recarga simulada: dono não grava saldo direto, nem crédito sem registro', async () => {
+  const veiculo = ref('motorista-a', 'veiculos/ABC1D23');
+  for (const alteracao of [
+    { saldo: increment(50) }, { saldo: 1000000 }, { saldo: 'abc' }, { saldo: -500 },
+    { saldo: increment(50), ultimaRecarga: 'inexistente' }
+  ]) await assertFails(updateDoc(veiculo, { ...alteracao, atualizadoEm: Timestamp.now() }));
+  // Pendência não some sem recarga.
+  await env.withSecurityRulesDisabled(c => updateDoc(doc(c.firestore(), 'veiculos/XYZ1234'), { saldo: -6.3 }));
+  await assertFails(updateDoc(ref('motorista-b', 'veiculos/XYZ1234'), { saldo: 0, atualizadoEm: Timestamp.now() }));
+  await assertFails(loteRecarga('motorista-a', { comRegistro: false }).commit());
+  await assertFails(loteRecarga('motorista-a', { comCredito: false }).commit());
+  assert.equal(await saldoDe('ABC1D23'), 100);
+  assert.equal(await saldoDe('XYZ1234'), -6.3);
+});
+test('recarga simulada: valor, forma e registro conferidos pelas regras', async () => {
+  for (const valor of [0, -1, 1000.01, 10.555, 0.001, '10', null]) {
+    await assertFails(loteRecarga('motorista-a', { valor, credito: Number(valor) || 0 }).commit());
+  }
+  await assertFails(loteRecarga('motorista-a', { valor: 10, credito: 50 }).commit());
+  await assertFails(loteRecarga('motorista-a', { valor: 50, credito: 10 }).commit());
+  await assertFails(loteRecarga('motorista-a', { forma: 'boleto' }).commit());
+  await assertFails(loteRecarga('motorista-a', { registro: { aprovada: true } }).commit());
+  await assertFails(loteRecarga('motorista-a', { registro: { uid: 'motorista-b' } }).commit());
+  await assertFails(loteRecarga('motorista-a', { registro: { criadaEm: Timestamp.fromMillis(Date.now() - 86400000) } }).commit());
+  // O registro precisa ser o que o veículo aponta como última recarga.
+  await assertFails(loteRecarga('motorista-a', { ultimaRecarga: 'outra' }).commit());
+  // Um registro não cobre dois créditos no mesmo lote.
+  const d = db('motorista-a');
+  const dupla = writeBatch(d);
+  dupla.set(doc(d, 'veiculos/ABC1D23/recargas/dupla'),
+    { valor: 50, forma: 'pix', uid: 'motorista-a', criadaEm: serverTimestamp() });
+  dupla.update(doc(d, 'veiculos/ABC1D23'), { saldo: increment(50), ultimaRecarga: 'dupla', atualizadoEm: serverTimestamp() });
+  dupla.update(doc(d, 'veiculos/ABC1D23'), { saldo: increment(50), atualizadoEm: serverTimestamp() });
+  await assertFails(dupla.commit());
+  assert.equal(await saldoDe('ABC1D23'), 100);
+});
+test('recarga simulada: cada registro credita uma vez e ninguém o altera', async () => {
+  await assertSucceeds(loteRecarga('motorista-a', { valor: 20, id: 'unica' }).commit());
+  // Repetir o crédito apontando para um registro que já existe.
+  await assertFails(loteRecarga('motorista-a', { valor: 20, id: 'unica', comRegistro: false }).commit());
+  await assertFails(loteRecarga('motorista-a', { valor: 20, id: 'unica' }).commit());
+  const registro = ref('motorista-a', 'veiculos/ABC1D23/recargas/unica');
+  await assertFails(updateDoc(registro, { valor: 1000 }));
+  await assertFails(deleteDoc(registro));
+  assert.equal(await saldoDe('ABC1D23'), 120);
+});
+test('recarga simulada: só o dono recarrega e só quem recarregou lê o extrato', async () => {
+  await assertFails(loteRecarga('motorista-b', { placa: 'ABC1D23' }).commit());
+  await assertFails(loteRecarga('motorista-b', { placa: 'ABC1D23', registro: { uid: 'motorista-a' } }).commit());
+  await assertSucceeds(loteRecarga('motorista-a', { valor: 30, id: 'da-ana' }).commit());
+  await assertSucceeds(loteRecarga('motorista-b', { placa: 'XYZ1234', valor: 15, id: 'do-bruno' }).commit());
+  const extrato = uid => getDocs(query(collection(db(uid), 'veiculos/ABC1D23/recargas'), where('uid', '==', uid)));
+  assert.deepEqual((await assertSucceeds(extrato('motorista-a'))).docs.map(item => item.id), ['da-ana']);
+  await assertFails(getDocs(collection(db('motorista-a'), 'veiculos/ABC1D23/recargas')));
+  await assertFails(getDoc(ref('motorista-b', 'veiculos/ABC1D23/recargas/da-ana')));
+  await assertFails(getDoc(ref('totem-a', 'veiculos/ABC1D23/recargas/da-ana')));
+  await assertFails(getDoc(ref('operador-a', 'veiculos/ABC1D23/recargas/da-ana')));
+  // Placa do totem ainda sem dono não recebe recarga.
+  await env.withSecurityRulesDisabled(c => setDoc(doc(c.firestore(), 'veiculos/NEW1234'),
+    { ativo: true, vagaAtual: 0, horaEntrada: 0, saldo: 0, estacionamentoId: '', cadastradoNoTotem: true }));
+  await assertFails(loteRecarga('motorista-a', { placa: 'NEW1234' }).commit());
+});
+test('recarga simulada: totem continua registrando entrada e saída depois dela', async () => {
+  await assertSucceeds(loteRecarga('motorista-a', { valor: 50 }).commit());
+  await assertSucceeds(loteSaida(db('totem-a'), recibo, { ...saida, saldo: 141.5 }).commit());
+  await assertSucceeds(loteRecarga('motorista-b', { placa: 'XYZ1234', valor: 10 }).commit());
+  await assertSucceeds(loteEntrada(db('totem-a')).commit());
+  assert.equal(await saldoDe('ABC1D23'), 141.5);
+  assert.equal(await saldoDe('XYZ1234'), 110);
 });
 
 function loteSaida(d, dadosRecibo = recibo, dadosVeiculo = saida) {
@@ -281,9 +391,9 @@ test('dívida anterior não entra na pendência da estadia atual', async () => {
   await assertSucceeds(lote(8.5).commit());
 });
 test('pendência bloqueia nova entrada até a recarga do motorista', async () => {
-  await env.withSecurityRulesDisabled(c => updateDoc(doc(c.firestore(), 'veiculos/XYZ1234'), { saldo: -3.5 }));
+  await env.withSecurityRulesDisabled(c => updateDoc(doc(c.firestore(), 'veiculos/XYZ1234'), { saldo: -3.504 }));
   await assertFails(loteEntrada(db('totem-a')).commit());
-  await assertSucceeds(updateDoc(ref('motorista-b', 'veiculos/XYZ1234'), { saldo: increment(3.499), atualizadoEm: Timestamp.now() }));
+  await assertSucceeds(loteRecarga('motorista-b', { placa: 'XYZ1234', valor: 3.5 }).commit());
   // Resíduo abaixo de meio centavo não é pendência.
   await assertSucceeds(loteEntrada(db('totem-a')).commit());
 });
@@ -313,10 +423,18 @@ function escrita(path, dados, currentDocument) {
   return { update: { name: `projects/${projectId}/databases/(default)/documents/${path}`, fields: campos(dados) },
     updateMask: { fieldPaths: Object.keys(dados) }, currentDocument };
 }
+test('REST do ESP: cadastro no totem com saldo zero em double, como o firmware grava', async () => {
+  const criar = (placa, saldo) => rest(`/veiculos?documentId=${placa}`, { fields: {
+    ativo: { booleanValue: true }, vagaAtual: { integerValue: '0' }, horaEntrada: { integerValue: '0' },
+    saldo: { doubleValue: saldo }, estacionamentoId: { stringValue: '' },
+    tarifaHoraEntrada: { doubleValue: 0 }, cadastradoNoTotem: { booleanValue: true } } });
+  assert.equal((await criar('NEW1234', 0)).status, 200);
+  assert.equal((await criar('NEW5678', 5)).status, 403);
+});
 test('REST do ESP: versão antiga não sobrescreve recarga concorrente', async () => {
   const original = await rest('/veiculos/ABC1D23');
   assert.equal(original.status, 200);
-  await updateDoc(ref('motorista-a', 'veiculos/ABC1D23'), { saldo: increment(50), atualizadoEm: Timestamp.now() });
+  await loteRecarga('motorista-a', { valor: 50 }).commit();
   const resultado = await rest(':commit', { writes: [
     escrita('veiculos/ABC1D23', saida, { updateTime: original.data.updateTime }),
     escrita('estacionamentos/EST-A/vagas/1', vagaLogica(''), { exists: true }),

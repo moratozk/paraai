@@ -48,6 +48,25 @@ export function formatarMoeda(valor) {
   });
 }
 
+// Valor digitado em reais. Vírgula separa os centavos e o ponto, opcional,
+// os milhares ("1.000,50"). Sem vírgula, ponto seguido de três dígitos é
+// milhar ("1.000") e de um ou dois é decimal ("35.5"), como alguns teclados
+// de celular escrevem. Mais de dois centavos ou formato ambíguo dá NaN.
+export function lerValorEmReais(texto) {
+  const valor = String(texto ?? "").trim();
+  let numero;
+  if (/^(\d{1,3}(\.\d{3})+|\d+),\d{0,2}$/.test(valor)) {
+    numero = Number(valor.replace(/\./g, "").replace(",", "."));
+  } else if (/^[1-9]\d{0,2}(\.\d{3})+$/.test(valor)) {
+    numero = Number(valor.replace(/\./g, ""));
+  } else if (/^\d+(\.\d{0,2})?$/.test(valor)) {
+    numero = Number(valor);
+  } else {
+    return NaN;
+  }
+  return Math.round(numero * 100) / 100;
+}
+
 // Parte da cobrança que o saldo não cobriu. Recibos antigos não têm o campo e
 // contam como pagos. Meio centavo é a mesma tolerância do totem e das regras.
 const TOLERANCIA_SALDO = 0.005;

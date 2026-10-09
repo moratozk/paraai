@@ -1,0 +1,59 @@
+/* Extrato da carteira, no Perfil do motorista. */
+.extrato-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.extrato-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.extrato-item:last-child { border-bottom: none; }
+
+.extrato-icone {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg-input);
+  color: var(--text-secondary);
+}
+.extrato-icone svg { width: 1.1rem; height: 1.1rem; }
+.extrato-icone.credito {
+  border-color: color-mix(in srgb, var(--success) 45%, transparent);
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.extrato-texto {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+  font-size: var(--t-apoio);
+}
+.extrato-texto strong { overflow-wrap: anywhere; }
+.extrato-texto > span {
+  font-size: var(--t-legenda);
+  color: var(--text-muted);
+}
+.extrato-detalhe > span { white-space: nowrap; }
+.extrato-texto > .extrato-pendente {
+  font-weight: 600;
+  color: var(--accent-text);
+}
+
+.extrato-valor {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.extrato-valor.credito { color: var(--success); }
+
+.extrato-card > .btn { margin-top: 0.75rem; }
+.extrato-card > .muted-note { margin-bottom: 0; }

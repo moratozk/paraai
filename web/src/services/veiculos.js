@@ -4,6 +4,7 @@
 // =========================================================================
 
 import {
+  collection,
   doc,
   getDoc,
   updateDoc,
@@ -98,14 +99,39 @@ export async function atualizarDescricaoVeiculo({ placa, descricao }) {
   });
 }
 
+// Limites da recarga, os mesmos das regras do Firestore.
+export const RECARGA_MINIMA = 0.01;
+export const RECARGA_MAXIMA = 1000;
+
 // Recarga de saldo (simulada - não há gateway de pagamento; o valor é
-// creditado diretamente, para fins de demonstração do TCC).
-export async function adicionarSaldo(placa, valor) {
-  if (!(valor > 0)) throw new Error("Valor de recarga inválido.");
-  await updateDoc(doc(db, "veiculos", placa), {
-    saldo: increment(valor),
+// creditado diretamente, para fins de demonstração do TCC). O crédito e o
+// registro da recarga (o extrato) vão no mesmo lote: as regras só aceitam o
+// saldo subir junto com um registro novo do mesmo valor.
+export async function adicionarSaldo({ uid, placa, valor, forma }) {
+  const centavos = Math.round(valor * 100);
+  if (
+    !Number.isFinite(valor) ||
+    Math.abs(valor * 100 - centavos) > 1e-6 ||
+    valor < RECARGA_MINIMA ||
+    valor > RECARGA_MAXIMA
+  ) {
+    throw new Error("Valor de recarga inválido.");
+  }
+  const veiculoRef = doc(db, "veiculos", placa);
+  const recargaRef = doc(collection(veiculoRef, "recargas"));
+  const batch = writeBatch(db);
+  batch.set(recargaRef, {
+    valor: centavos / 100,
+    forma: forma === "cartao" ? "cartao" : "pix",
+    uid,
+    criadaEm: serverTimestamp(),
+  });
+  batch.update(veiculoRef, {
+    saldo: increment(centavos / 100),
+    ultimaRecarga: recargaRef.id,
     // Limpa o nome gravado por versões antigas do painel.
     ownerNome: deleteField(),
     atualizadoEm: serverTimestamp(),
   });
+  await batch.commit();
 }
