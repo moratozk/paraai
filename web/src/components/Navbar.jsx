@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { useToast } from "../context/ToastContext";
 import { useRolagem, useSecaoAtiva } from "../hooks/useScrollFX";
+import { instalarApp, useInstalacaoApp } from "../pwa";
 import Logo from "./Logo";
 import "./Navbar.css";
 
@@ -53,6 +54,9 @@ export default function Navbar() {
   // menu do avatar (dropdown)
   const [contaAberta, setContaAberta] = useState(false);
   const contaRef = useRef(null);
+
+  // "Instalar o app" só aparece quando o navegador instala (ou no iPhone).
+  const instalacao = useInstalacaoApp();
 
   // A barra só fica transparente no topo da home, onde há a foto do hero atrás.
   // Em qualquer outra página ela é sólida desde o início — senão o topo vira
@@ -108,6 +112,18 @@ export default function Navbar() {
   function irPara(rota) {
     setContaAberta(false);
     navigate(rota);
+  }
+
+  async function handleInstalar() {
+    setContaAberta(false);
+    setMenuAberto(false);
+    if (instalacao === "ios") {
+      toast.info("Para instalar, toque em Compartilhar e depois em “Adicionar à Tela de Início”.");
+      return;
+    }
+    if ((await instalarApp()) === "accepted") {
+      toast.sucesso("Pronto: o ParaAí foi instalado neste aparelho.");
+    }
   }
 
   const operador = userData?.role === "operador";
@@ -233,6 +249,11 @@ export default function Navbar() {
                     <button role="menuitem" onClick={() => irPara("/configuracoes")}>
                       <span aria-hidden="true">⚙️</span> Configurações
                     </button>
+                    {instalacao && (
+                      <button role="menuitem" onClick={handleInstalar}>
+                        <span aria-hidden="true">📲</span> Instalar o app
+                      </button>
+                    )}
                   </div>
 
                   <div className="conta-menu-rodape">
@@ -289,6 +310,11 @@ export default function Navbar() {
               ))}
               <Link to="/perfil">Meu perfil</Link>
               <Link to="/configuracoes">Configurações</Link>
+              {instalacao && (
+                <button type="button" className="menu-mobile-item" onClick={handleInstalar}>
+                  Instalar o app
+                </button>
+              )}
               <button className="btn btn-outline btn-block" onClick={handleLogout}>
                 Sair
               </button>
@@ -300,6 +326,11 @@ export default function Navbar() {
                   {s.label}
                 </a>
               ))}
+              {instalacao && (
+                <button type="button" className="menu-mobile-item" onClick={handleInstalar}>
+                  Instalar o app
+                </button>
+              )}
               <Link to="/login" className="btn btn-outline btn-block">
                 Entrar
               </Link>
