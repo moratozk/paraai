@@ -5,7 +5,10 @@ import "./AvisoConfiguracao.css";
 // Banner de diagnóstico: aparece quando o Firestore recusa leitura/escrita.
 // Sem ele, o "permission-denied" fica só no console do navegador e os
 // sintomas (perfil que não salva, conta de estacionamento que vira
-// motorista) parecem bugs aleatórios do site.
+// motorista) parecem bugs aleatórios do site. O texto é para quem usa o site;
+// a causa mais comum é o firestore.rules publicado estar atrás do site
+// (publique as regras antes do site, ver ESTADO.md), e o erro completo fica
+// no console.
 export default function AvisoConfiguracao() {
   const { erroPermissao } = useAuth();
   const [dispensado, setDispensado] = useState(false);
@@ -19,12 +22,10 @@ export default function AvisoConfiguracao() {
           !
         </span>
         <div className="aviso-config-texto">
-          <strong>Banco de dados sem permissão de acesso.</strong> As regras de
-          segurança do Firestore ainda não foram publicadas, então nada é salvo
-          — o cadastro de estacionamento não consegue gravar o papel da conta e
-          ela aparece como motorista. No Console do Firebase, vá em{" "}
-          <em>Firestore Database → Regras</em>, cole o conteúdo do arquivo{" "}
-          <code>firestore.rules</code> do projeto e clique em Publicar.
+          <strong>Não conseguimos carregar os dados da sua conta.</strong> Até
+          isso se resolver, o que você mudar pode não ser salvo. Atualize a
+          página em alguns minutos; se o aviso continuar, fale com a equipe do
+          ParaAí.
         </div>
         <button
           className="aviso-config-fechar"

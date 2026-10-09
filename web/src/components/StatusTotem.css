@@ -100,7 +100,8 @@
 .totem-passos code,
 .totem-id {
   font-family: var(--font-mono);
-  font-size: 0.82em;
+  /* 0.82em do texto de apoio dava 11,5 px; o mínimo do projeto é 12 px. */
+  font-size: max(0.82em, var(--t-legenda));
   padding: 0.12rem 0.4rem;
   border-radius: 4px;
   background: var(--bg-input);

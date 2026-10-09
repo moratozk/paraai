@@ -18,6 +18,7 @@
 #include <time.h>
 #include <math.h>
 #include "Atendimento.h"
+#include "LogicaTotem.h"
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7789.h>
 #include <XPT2046_Touchscreen.h>
@@ -30,12 +31,17 @@
 #include "ParaAiMedio.h"
 #include "ParaAiPequeno.h"
 #include <Fonts/FreeMonoBold12pt7b.h>
+#include <Fonts/FreeMonoBold9pt7b.h>
 
 #define FONTE_GIGANTE (&ParaAiGrande)          // cap-height 32px
 #define FONTE_GRANDE  (&ParaAiMedio)           // cap-height 21px
 #define FONTE_MEDIA   (&ParaAiPequeno)         // cap-height 15px
 #define FONTE_PEQUENA (&ParaAiPequeno)
 #define FONTE_PLACA   (&FreeMonoBold12pt7b)    // mono, como placa de veículo
+// Nome de rede e senha são texto livre. As fontes próprias vão só até 'z' e
+// não têm _ " [ ] { } | ~; a mono da Adafruit cobre todo o ASCII imprimível.
+#define FONTE_LITERAL         (&FreeMonoBold12pt7b)  // 14px por caractere
+#define FONTE_LITERAL_PEQUENA (&FreeMonoBold9pt7b)   // 11px por caractere
 
 // -------------------------------------------------------------------------
 // PINOS DA TELA + TOUCH - placa ESP32-2432S028R ("CYD", 2,8"), versão de
@@ -153,7 +159,7 @@ static ConexaoTotem conexaoVisual = ConexaoTotem::INICIANDO;
 static bool feedbackAtivo = false;
 static int feedbackX, feedbackY, feedbackW, feedbackH;
 static char feedbackCaractere;
-static bool feedbackNumero;
+static const GFXfont* feedbackFonte = nullptr;
 static unsigned long feedbackDesde = 0;
 
 enum FormatoPlaca {
@@ -204,20 +210,27 @@ void definirOperacaoVisual(Operacao operacao);
 void atualizarDigitacao(String placa, FormatoPlaca formato, ModoTecladoInterno anterior);
 void atualizarFeedbackTeclado();
 void realcarTecla(int x, int y, int w, int h, char caractere, bool numero);
+void realcarTeclaComFonte(int x, int y, int w, int h, char caractere, const GFXfont* fonte);
 void atualizarProcessamento(String mensagem, unsigned long decorrido);
 void desenharBotaoConcluir();
 bool verificarToqueConcluir();
 bool executarCalibracaoTouch(bool forcar);
 bool verificarPressaoLongaStatus();
 void desenharTelaConfiguracoes();
-int  verificarToqueConfiguracoes(); // 1 = WiFi, 2 = calibrar, 3 = voltar
+// 1 = Wi-Fi na tela, 2 = calibrar, 3 = voltar, 4 = Wi-Fi pelo celular
+int  verificarToqueConfiguracoes();
 const char PIN_APAGAR = '<', PIN_CONFIRMAR = '>';
 void desenharTelaPin(const char* aviso = nullptr);
 void atualizarDigitosPin(uint8_t digitos);
 char verificarToquePin();           // '0'..'9', PIN_APAGAR, PIN_CONFIRMAR ou 0
 void desenharTelaPortalWifi(String ap, String senha, String ip, String mensagem);
 void desenharTelaTestandoWifi(String ssid);
+void atualizarTestandoWifi(unsigned long decorrido);
 bool verificarToqueCancelarPortalWifi();
+String textoLiteralExibivel(const String& bruto);
+int  desenharTextoLiteral(String texto, int x, int yCentro, int largura, uint16_t cor, bool centralizar,
+                          bool permitirGrande = true);
+void desenharPontosCarregando(int cx, int cy, int raio, unsigned long decorrido);
 
 // helpers internos
 void initCores();
@@ -320,6 +333,7 @@ int alturaFonte(const GFXfont *fonte, uint8_t tamanho) {
   else if (fonte == FONTE_MEDIA)   base = 15;
   else if (fonte == FONTE_PEQUENA) base = 15;
   else if (fonte == FONTE_PLACA)   base = 17;
+  else if (fonte == FONTE_LITERAL_PEQUENA) base = 11;
   else                             base = 7;   // fonte padrão 5x7
   return base * tamanho;
 }
@@ -374,6 +388,36 @@ void textoCentralizadoEm(String texto, int xCaixa, int yCaixa, int wCaixa, int h
     tft.setCursor(x, yTopo + h);
   }
   tft.print(texto);
+}
+
+// Nome de rede pronto para a fonte mono: sem acento e sem controle. Só para
+// exibir; a conexão usa sempre os bytes originais.
+String textoLiteralExibivel(const String& bruto) {
+  char exibivel[2 * paraai::WIFI_SENHA_MAX + 2];
+  paraai::textoWifiExibivel(bruto.c_str(), exibivel, sizeof(exibivel));
+  return String(exibivel);
+}
+
+// Texto livre (SSID, senha) na mono: a de 14px por caractere quando cabe em
+// `largura`, senão a de 11px, e só então cortado com "...". Nunca cai para as
+// fontes próprias, que perderiam os símbolos. Retorna a largura desenhada.
+int desenharTextoLiteral(String texto, int x, int yCentro, int largura, uint16_t cor, bool centralizar,
+                         bool permitirGrande) {
+  const GFXfont* fonte = FONTE_LITERAL;
+  int avanco = 14, topoAteBase = 13;  // medidas do 'H' em FreeMonoBold12pt7b
+  if (!permitirGrande || (int)texto.length() * avanco > largura) {
+    fonte = FONTE_LITERAL_PEQUENA;
+    avanco = 11; topoAteBase = 10;    // FreeMonoBold9pt7b
+  }
+  const int cabem = largura / avanco;
+  if ((int)texto.length() > cabem) texto = texto.substring(0, cabem > 3 ? cabem - 3 : 0) + "...";
+  const int w = (int)texto.length() * avanco;
+  tft.setFont(fonte);
+  tft.setTextSize(1);
+  tft.setTextColor(cor);
+  tft.setCursor(centralizar ? x + (largura - w) / 2 : x, yCentro - (topoAteBase + 1) / 2 + topoAteBase);
+  tft.print(texto);
+  return w;
 }
 
 bool toqueDentro(int tx, int ty, int x, int y, int w, int h) {
@@ -1201,17 +1245,21 @@ void atualizarFeedbackTeclado() {
   tft.fillRoundRect(feedbackX, feedbackY, feedbackW, feedbackH, 5, corBotao);
   tft.drawRoundRect(feedbackX, feedbackY, feedbackW, feedbackH, 5, corBotaoBorda);
   textoCentralizadoEm(String(feedbackCaractere), feedbackX, feedbackY, feedbackW, feedbackH,
-    corTexto, feedbackNumero ? FONTE_GRANDE : FONTE_MEDIA);
+    corTexto, feedbackFonte);
 }
 
 void realcarTecla(int x, int y, int w, int h, char caractere, bool numero) {
+  realcarTeclaComFonte(x, y, w, h, caractere, numero ? FONTE_GRANDE : FONTE_MEDIA);
+}
+
+void realcarTeclaComFonte(int x, int y, int w, int h, char caractere, const GFXfont* fonte) {
   // Se outro toque chegar rápido, restaurar o anterior antes de realçar.
   if (feedbackAtivo) { feedbackDesde = millis() - 100; atualizarFeedbackTeclado(); }
   feedbackX = x; feedbackY = y; feedbackW = w; feedbackH = h;
-  feedbackCaractere = caractere; feedbackNumero = numero;
+  feedbackCaractere = caractere; feedbackFonte = fonte;
   feedbackDesde = millis(); feedbackAtivo = true;
   tft.fillRoundRect(x, y, w, h, 5, corDestaque);
-  textoCentralizadoEm(String(caractere), x, y, w, h, corFundo, numero ? FONTE_GRANDE : FONTE_MEDIA);
+  textoCentralizadoEm(String(caractere), x, y, w, h, corFundo, fonte);
 }
 
 EventoTeclado verificarToqueTeclado(String placaAtual, FormatoPlaca formato) {
@@ -1482,24 +1530,31 @@ bool verificarPressaoLongaStatus() {
   return false;
 }
 
+// TROCAR WIFI escolhe a rede na própria tela; o portal pelo celular continua
+// como alternativa (senha com acento, toque ruim).
 void desenharTelaConfiguracoes() {
   tft.fillScreen(corFundo);
   desenharCabecalho();
-  centralizarTexto("CONFIGURACOES", 42, corTexto, FONTE_GRANDE);
+  centralizarTexto("CONFIGURACOES", 40, corTexto, FONTE_GRANDE);
 
-  tft.fillRoundRect(20, 76, 280, 46, 8, corPainel);
-  tft.drawRoundRect(20, 76, 280, 46, 8, corDestaque);
-  textoCentralizadoEm("TROCAR WIFI", 20, 76, 280, 46,
+  tft.fillRoundRect(20, 70, 280, 40, 8, corPainel);
+  tft.drawRoundRect(20, 70, 280, 40, 8, corDestaque);
+  textoCentralizadoEm("TROCAR WIFI", 20, 70, 280, 40,
                       corDestaque, FONTE_GRANDE);
 
-  tft.fillRoundRect(20, 134, 280, 46, 8, corPainel);
-  tft.drawRoundRect(20, 134, 280, 46, 8, corBotaoBorda);
-  textoCentralizadoEm("RECALIBRAR TOUCH", 20, 134, 280, 46,
+  tft.fillRoundRect(20, 116, 280, 36, 8, corPainel);
+  tft.drawRoundRect(20, 116, 280, 36, 8, corBotaoBorda);
+  textoCentralizadoEm("WIFI PELO CELULAR", 20, 116, 280, 36,
                       corTexto, FONTE_MEDIA);
 
-  tft.fillRoundRect(70, 194, 180, 38, 7, corPainel);
-  tft.drawRoundRect(70, 194, 180, 38, 7, corBotaoBorda);
-  textoCentralizadoEm("VOLTAR", 70, 194, 180, 38,
+  tft.fillRoundRect(20, 158, 280, 36, 8, corPainel);
+  tft.drawRoundRect(20, 158, 280, 36, 8, corBotaoBorda);
+  textoCentralizadoEm("RECALIBRAR TOUCH", 20, 158, 280, 36,
+                      corTexto, FONTE_MEDIA);
+
+  tft.fillRoundRect(70, 200, 180, 36, 7, corPainel);
+  tft.drawRoundRect(70, 200, 180, 36, 7, corBotaoBorda);
+  textoCentralizadoEm("VOLTAR", 70, 200, 180, 36,
                       corTextoFraco, FONTE_MEDIA);
   bloquearToqueAtualAteSoltar();
 }
@@ -1507,9 +1562,10 @@ void desenharTelaConfiguracoes() {
 int verificarToqueConfiguracoes() {
   int x, y;
   if (!lerNovoToque(x, y)) return 0;
-  if (toqueDentro(x, y, 20, 76, 280, 46)) return 1;
-  if (toqueDentro(x, y, 20, 134, 280, 46)) return 2;
-  if (toqueDentro(x, y, 70, 194, 180, 38)) return 3;
+  if (toqueDentro(x, y, 20, 70, 280, 40)) return 1;
+  if (toqueDentro(x, y, 20, 116, 280, 36)) return 4;
+  if (toqueDentro(x, y, 20, 158, 280, 36)) return 2;
+  if (toqueDentro(x, y, 70, 200, 180, 36)) return 3;
   return 0;
 }
 
@@ -1609,15 +1665,43 @@ void desenharTelaPortalWifi(String ap, String senha, String ip, String mensagem)
 }
 
 void desenharTelaTestandoWifi(String ssid) {
+  feedbackAtivo = false;
   tft.fillScreen(corFundo);
   desenharCabecalho();
   desenharIconeCarregando(160, 88, 24);
   centralizarTexto("TESTANDO A REDE", 126, corTexto, FONTE_GRANDE);
-  centralizarTexto(limitarTextoUI(ssid, 28), 154, corDestaque, FONTE_MEDIA);
+  // O SSID pode ter _ [ ] { } e acento: sempre na mono, nunca nas fontes próprias.
+  desenharTextoLiteral(textoLiteralExibivel(ssid), 10, 161, TELA_W - 20, corDestaque, true);
   centralizarTexto("Aguarde alguns segundos", 176,
                    corTextoFraco, FONTE_PEQUENA);
   desenharBotaoCancelarPortal();
   bloquearToqueAtualAteSoltar();
+}
+
+// Oito pontos girando, como na tela de processamento.
+void desenharPontosCarregando(int cx, int cy, int raio, unsigned long decorrido) {
+  tft.fillRect(cx - raio - 6, cy - raio - 6, 2 * raio + 12, 2 * raio + 12, corFundo);
+  const int fase = (decorrido / 120) % 8;
+  for (int i = 0; i < 8; ++i) {
+    const float a = i * PI / 4;
+    tft.fillCircle(cx + raio * cos(a), cy + raio * sin(a), i == fase ? 5 : 3,
+                   i == fase ? corDestaque : corBotaoBorda);
+  }
+}
+
+// Usada pelo teste da tela de Wi-Fi: anima e mostra há quanto tempo testa.
+void atualizarTestandoWifi(unsigned long decorrido) {
+  static unsigned long ultimoFrame = 0;
+  static unsigned long segundoAnterior = ~0UL;
+  if (millis() - ultimoFrame < 90) return;
+  ultimoFrame = millis();
+  desenharPontosCarregando(160, 88, 24, decorrido);
+  if (decorrido / 1000 != segundoAnterior) {
+    segundoAnterior = decorrido / 1000;
+    tft.fillRect(0, 174, TELA_W, 22, corFundo);  // até a perna do "g" (base + 4)
+    centralizarTexto(String(segundoAnterior) + " s - aguarde a conexao", 176,
+                     corTextoFraco, FONTE_PEQUENA);
+  }
 }
 
 bool verificarToqueCancelarPortalWifi() {

@@ -1,7 +1,7 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **06/10/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **07/10/2026**.
 
 ---
 
@@ -25,6 +25,31 @@ revisão visual e nova tela inicial). **Regras do Firestore e site publicados
 em 06/10/2026** a partir da `main` (`26a97e5`); o site no ar é o build dessa
 versão. **O firmware da `main` foi gravado no totem no mesmo dia** e testado:
 uma placa sem direito declarado recebeu a primeira vaga comum livre.
+
+## Wi-Fi na tela do totem (07/10/2026)
+
+Pedido do dono do projeto: trocar a rede sem editar código nem depender do
+celular, com acesso para quem cuida do totem e não para o motorista.
+
+- **TROCAR WIFI** (menu de manutenção, atrás do PIN) abre
+  `totem/AssistenteWiFi.h`: lista as redes 2,4 GHz com senha (mais forte
+  primeiro, quatro por página, a rede em uso marcada como ATUAL), teclado
+  completo (maiúsculas, ?123 e #+=, cobrindo os 95 caracteres ASCII
+  imprimíveis) e OUTRA REDE para rede oculta. A senha aparece como foi
+  digitada, sem opção de ocultar (decisão do dono do projeto).
+- Só salva depois de conectar de verdade (até 20 s). Senha errada, rede fora
+  de alcance ou cancelamento voltam ao teclado com a senha e um aviso, e a
+  rede anterior é retomada. O aviso vem do motivo da desconexão informado pelo
+  ESP-IDF (`classificarFalhaWifi` em `LogicaTotem.h`).
+- O portal pelo celular continua no menu como **WIFI PELO CELULAR** e no
+  Serial `W`: é o caminho quando o toque está ruim ou a senha tem acento.
+- Sem rede alguma configurada, a lista abre sozinha no primeiro uso (sem PIN,
+  como o portal antes). Sem toque por 3 min, fecha sem alterar nada.
+- SSID e senha usam a fonte mono da Adafruit, porque as fontes próprias não
+  têm `_ " [ ] { } | ~`. Acentos do SSID somem só na tela; a conexão usa os
+  bytes originais.
+- Testes no PC cobrem cada tecla, as larguras dos textos e o fluxo inteiro com
+  um rádio simulado. **Ainda não gravado nem testado no totem.**
 
 ## Nova tela inicial (06/10/2026)
 
@@ -248,7 +273,21 @@ Feita sobre o PR #7 a partir de uma revisão de código; cada parte é um commit
   pelo totem; o mapa do operador é só leitura.
 - Qualquer pessoa digita a placa de outra e abre estadia no nome dela (placa é
   pública). Hoje é limitação declarada; ideia: aviso no app a cada entrada e
-  saída, com "não fui eu".
+  saída, com "não fui eu". Como esse botão só age depois do prejuízo, ficaram
+  reservadas em 07/10/2026, para os autores decidirem, três formas de impedir
+  a entrada em vez de contestá-la. As três valem só para placa com dono: o
+  autocadastro do totem segue como hoje, e a saída continua livre.
+  1. **Código de entrada no app** (a preferida): "Vou entrar" gera 4 a 6
+     dígitos de uso único, válidos por poucos minutos, que o motorista digita
+     no totem depois da placa; as regras do Firestore conferem. Não precisa
+     de plano pago, e espiar o código não adianta. Exige o celular na entrada
+     (dá para gerar antes de chegar, se a garagem não tiver sinal).
+  2. **PIN pessoal** cadastrado no app: dispensa o celular, mas é sempre o
+     mesmo e pode ser visto por cima do ombro; exige limite de tentativas
+     conferido no servidor.
+  3. **Aprovação no app** ("confirme no seu celular"): a mais elegante, mas
+     deixa a entrada lenta e depende do app aberto ou de notificação (no
+     iPhone, só com o site instalado na tela inicial).
 - Totens leem `estacionamentoId`/`horaEntrada` de qualquer veículo (custo da
   carteira global): dá para saber onde uma placa está estacionada.
 - Rede institucional (WPA2-Enterprise ou login no navegador) não é suportada;
@@ -493,20 +532,31 @@ na Arduino IDE e gravar.
    Confirmar no Serial que o Firestore conecta com o certificado validado.
 
 2. **Testar o fluxo completo do novo totem no hardware** — entrada/saída,
-   reinicialização com estadia aberta, troca/perda de Wi-Fi, responsividade
-   durante Firebase, calibração com gabinete e estabilidade prolongada.
+   reinicialização com estadia aberta, troca/perda de Wi-Fi (incluindo a nova
+   tela de Wi-Fi: lista, senha errada, rede oculta e persistência após
+   reiniciar), responsividade durante Firebase, calibração com gabinete e
+   estabilidade prolongada.
    As validações físicas anteriores referem-se ao firmware antigo.
 
-3. **Recuperação de senha no Firebase.** Conferido no console em 06/10/2026:
-   os domínios autorizados são só `localhost`, `paraai-9514f.firebaseapp.com`
-   e `paraai-9514f.web.app`. O site fica em `paraai.web.app`, e o e-mail de
-   recuperação pede para voltar a esse endereço, então o Firebase **recusa o
-   envio** até `paraai.web.app` entrar em Authentication > Configurações >
-   Domínios autorizados. Com o domínio autorizado, o link abre a página padrão
-   do Firebase (em português) e depois volta para o login. Para usar a tela
-   própria (`/redefinir-senha`), antes ela precisa tratar os outros e-mails do
-   Firebase: o URL de ação do modelo vale para todos, inclusive a confirmação
-   de troca de e-mail (`mode=verifyAndChangeEmail`), que hoje quebraria.
+3. **E-mails de conta (recuperação de senha).** Em 07/10/2026 o dono do
+   projeto autorizou `paraai.web.app` nos domínios do Firebase e o e-mail
+   passou a chegar, mas no modelo padrão ("app paraai-9514f", link cru) e na
+   caixa de spam. O site também deixou de mostrar "e-mail enviado" quando o
+   Firebase recusa o envio e, se o destino não estiver autorizado, reenvia sem
+   link de retorno.
+   - **O Firebase bloqueou a edição dos modelos neste projeto** ("As
+     atualizações de modelos de e-mail não estão disponíveis"): não dá para
+     trocar remetente, assunto, texto, domínio nem URL de ação pelo console.
+     O e-mail segue no padrão; na demonstração, marcar "Não é spam".
+   - Pronto no código, à espera de uma saída: o modelo
+     `firebase/emails/redefinir-senha.html` e a página `/acao`
+     (`AcaoConta.jsx`), que trata redefinir senha, confirmar e-mail novo
+     (`verifyAndChangeEmail`) e desfazer troca (`recoverEmail`).
+   - **Ideia guardada:** o próprio ParaAí enviar o e-mail (Cloud Function com
+     `generatePasswordResetLink` + conta de envio), o que resolve visual e
+     spam. Exige o plano Blaze, com cartão, e o dono do projeto preferiu não
+     cadastrar por ora. Alternativa grátis: pedir ao suporte do Firebase que
+     libere os modelos. Detalhes em `firebase/emails/README.md`.
 
 4. Pagamento é simulado — não há gateway real.
 

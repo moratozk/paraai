@@ -9,8 +9,8 @@
 //
 // Onde encontrar cada valor:
 //   WIFI_SSID / WIFI_PASSWORD -> rede Wi-Fi 2.4GHz de contingência. Vazio,
-//                    o totem abre o portal de configuração sozinho no
-//                    primeiro uso. Depois, troque pela tela, sem recompilar.
+//                    o totem abre a lista de redes sozinho no primeiro uso.
+//                    Depois, troque pela tela (PIN), sem recompilar.
 //   MANUTENCAO_PIN -> 4 a 8 dígitos pedidos antes das configurações do
 //                    totem (troca de Wi-Fi e calibração). Prefira 6 ou mais.
 //   API_KEY      -> Firebase Console > Configurações do projeto > Geral
@@ -29,9 +29,9 @@
 #define CREDENCIAIS_H
 
 // Fallback usado se ainda não houver uma rede validada na memória do ESP32.
-// Deixe vazio para configurar pela tela: sem nenhuma rede, o totem abre a rede
-// temporária de configuração sozinho. Com rede definida, ele só reconecta;
-// para trocar, segure o status do cabeçalho por 3 s e informe o PIN.
+// Deixe vazio para configurar pela tela: sem nenhuma rede, o totem abre a
+// lista de redes sozinho. Com rede definida, ele só reconecta; para trocar,
+// segure o status do cabeçalho por 3 s, informe o PIN e toque TROCAR WIFI.
 #define WIFI_SSID     ""
 #define WIFI_PASSWORD ""
 

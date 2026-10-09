@@ -13,6 +13,8 @@ import {
   verifyBeforeUpdateEmail,
   verifyPasswordResetCode,
   confirmPasswordReset,
+  checkActionCode,
+  applyActionCode,
 } from "firebase/auth";
 import { doc, setDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
@@ -102,16 +104,32 @@ export function AuthProvider({ children }) {
   }
 
   // O `url` abaixo é o destino após a redefinição. O domínio dele precisa estar
-  // em Authentication > Domínios autorizados, senão o Firebase recusa o envio.
-  // Não aponte o URL de ação dos modelos para /redefinir-senha enquanto ela só
-  // tratar redefinição de senha: esse URL vale para todos os e-mails do
-  // Firebase, inclusive a confirmação de troca de e-mail (ver ESTADO.md).
-  function recuperarSenha(email) {
+  // em Authentication > Domínios autorizados, senão o Firebase recusa o envio;
+  // nesse caso reenviamos sem destino, para o e-mail chegar mesmo assim (só
+  // falta o botão de voltar ao site depois de trocar a senha).
+  // O URL de ação dos modelos vale para todos os e-mails do Firebase; se um
+  // dia puder ser trocado (hoje o projeto não deixa editar os modelos), aponte
+  // para /acao (pages/AcaoConta.jsx), que trata cada tipo. /redefinir-senha só
+  // trata senha e quebraria a confirmação de troca de e-mail.
+  async function recuperarSenha(email) {
     auth.languageCode = "pt-BR";
-    return sendPasswordResetEmail(auth, email, {
-      url: `${window.location.origin}/login`,
-      handleCodeInApp: false,
-    });
+    try {
+      await sendPasswordResetEmail(auth, email, {
+        url: `${window.location.origin}/login`,
+        handleCodeInApp: false,
+      });
+    } catch (err) {
+      const destinoRecusado = [
+        "auth/unauthorized-continue-uri",
+        "auth/invalid-continue-uri",
+        "auth/missing-continue-uri",
+      ].includes(err.code);
+      if (!destinoRecusado) throw err;
+      console.warn(
+        `Domínio ${window.location.host} fora dos domínios autorizados do Firebase; e-mail enviado sem link de retorno.`
+      );
+      await sendPasswordResetEmail(auth, email);
+    }
   }
 
   // Confere se o código de recuperação é válido; devolve o e-mail dono dele
@@ -122,6 +140,16 @@ export function AuthProvider({ children }) {
   // Efetiva a troca de senha usando o código do e-mail
   function redefinirSenhaComCodigo(codigo, novaSenha) {
     return confirmPasswordReset(auth, codigo, novaSenha);
+  }
+
+  // Links dos demais e-mails (confirmar e-mail novo, desfazer troca): ler
+  // mostra a qual endereço o código se refere; aplicar usa o código de vez.
+  function lerCodigoDeAcao(codigo) {
+    return checkActionCode(auth, codigo);
+  }
+
+  function aplicarCodigoDeAcao(codigo) {
+    return applyActionCode(auth, codigo);
   }
 
   // ---- Gestão da conta (todas exigem senha atual por segurança) ----
@@ -256,6 +284,8 @@ export function AuthProvider({ children }) {
     recuperarSenha,
     validarCodigoSenha,
     redefinirSenhaComCodigo,
+    lerCodigoDeAcao,
+    aplicarCodigoDeAcao,
     alterarPerfil,
     alterarSenha,
     alterarEmail,

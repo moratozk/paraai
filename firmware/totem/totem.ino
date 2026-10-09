@@ -6,6 +6,7 @@
 #include "Atendimento.h"
 #include "LogicaTotem.h"
 #include "DisplayUI.ino"
+#include "AssistenteWiFi.h"
 #include "ConfiguracaoWiFi.ino"
 
 #ifndef MANUTENCAO_PIN
@@ -24,7 +25,7 @@ unsigned long inicio = 0, ultimaInteracao = 0, resultadoDesde = 0;
 unsigned long ultimaTentativaWifi = 0, processamentoDesde = 0;
 const unsigned long INATIVIDADE_MS = 60000;
 const unsigned long RESULTADO_MS = 8000;
-int manutencaoSolicitada = 0; // 0 central, 1 Wi-Fi, 2 calibração
+int manutencaoSolicitada = 0; // 0 central, 1 Wi-Fi na tela, 2 calibração, 3 Wi-Fi pelo celular
 bool manutencaoExigePin = true;
 uint8_t errosPin = 0;
 bool pinBloqueado = false;
@@ -67,13 +68,14 @@ void enviar(PedidoTotem pedido) {
   processamentoDesde = millis();
   desenharTelaProcessando("Aguarde um instante");
 }
-void trocarWifi() {
+void trocarWifi(bool pelaTela) {
   // A tarefa Firebase está pausada durante toda a manutenção. Sem disputa
   // pelo rádio, sem fechar conexão enquanto há uma transação em andamento.
-  ResultadoConfiguracaoWifi resultado = executarPortalConfiguracaoWifi(true);
+  ResultadoConfiguracaoWifi resultado = pelaTela ? executarConfiguracaoWifiNaTela()
+                                                 : executarPortalConfiguracaoWifi(true);
   portalAutomaticoPendente = false;
   if (resultado == WIFI_CONFIG_SUCESSO) {
-    desenharTelaResultado(RESULTADO_SUCESSO, "WI-FI CONFIGURADO", obterSsidWifiConfigurado(), "Reiniciando o atendimento");
+    desenharTelaWifiConectado(obterSsidWifiConfigurado());
     delay(1500);
     ESP.restart();
   }
@@ -132,15 +134,16 @@ void manutencao() {
     voltarAoInicio();
     return;
   }
-  if (manutencaoSolicitada == 1) trocarWifi();
+  if (manutencaoSolicitada == 1) trocarWifi(true);
   else if (manutencaoSolicitada == 2) executarCalibracaoTouch(true);
+  else if (manutencaoSolicitada == 3) trocarWifi(false);
   else {
     desenharTelaConfiguracoes();
     unsigned long interacao = millis();
     while (millis() - interacao < INATIVIDADE_MS) {
       int acao = verificarToqueConfiguracoes();
       if (acao == 3) break;
-      if (acao == 1) { trocarWifi(); interacao = millis(); desenharTelaConfiguracoes(); }
+      if (acao == 1 || acao == 4) { trocarWifi(acao == 1); interacao = millis(); desenharTelaConfiguracoes(); }
       if (acao == 2) { executarCalibracaoTouch(true); interacao = millis(); desenharTelaConfiguracoes(); }
       delay(10);
     }
@@ -167,7 +170,7 @@ void setup() {
   inicio = ultimaTentativaWifi = millis();
   servicoIniciado = iniciarAtendimento();
   voltarAoInicio();
-  Serial.println("[TOTEM] Atendimento iniciado. S=status; W=Wi-Fi; C=calibracao.");
+  Serial.println("[TOTEM] Atendimento iniciado. S=status; W=Wi-Fi pelo celular; C=calibracao.");
 }
 
 void loop() {
@@ -257,7 +260,8 @@ void loop() {
         WiFi.status() == WL_CONNECTED ? "conectado" : "offline",
         static_cast<int>(status.conexao), ESP.getFreeHeap());
     }
-    if (tela == Tela::INICIO && (c == 'w' || c == 'W')) pedirManutencao(1, false);
+    // Serial é o acesso de quem está com o toque ruim: abre o portal pelo celular.
+    if (tela == Tela::INICIO && (c == 'w' || c == 'W')) pedirManutencao(3, false);
     if (tela == Tela::INICIO && (c == 'c' || c == 'C')) pedirManutencao(2, false);
   }
   delay(8);

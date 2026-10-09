@@ -14,7 +14,8 @@ virtual e a evolução do site ficam para a próxima etapa.
 | totem/DisplayUI.ino | Tela, calibração, antirrepetição e animação |
 | totem/Atendimento.h / Atendimento.cpp | Mensagens e tarefa exclusiva do Firebase |
 | totem/LogicaTotem.h | Validação de placa, capacidade, tarifa e cálculo de cobrança |
-| totem/ConfiguracaoWiFi.ino | Portal local, teste da rede e persistência |
+| totem/AssistenteWiFi.h | Wi-Fi na própria tela: lista de redes, teclado completo e teste |
+| totem/ConfiguracaoWiFi.ino | Rádio da tela de Wi-Fi, portal pelo celular, teste da rede e persistência |
 | totem/Credenciais.example.h | Modelo; Credenciais.h real permanece fora do Git |
 | touch-calibration/ | Sketch avulso para medir o touch |
 | test/ | Lógica C++ e interface com periféricos simulados, rodando no PC |
@@ -62,24 +63,46 @@ Para refazer: segurar o status superior direito por 3 segundos, informar o
 PIN de manutenção e escolher RECALIBRAR TOUCH, enviar C pelo Serial na inicial ou manter o dedo na tela
 durante a splash. Uma calibração inconsistente não substitui a anterior.
 
-### Trocar Wi-Fi pelo celular
+### Trocar Wi-Fi na tela do totem
+
+Não é preciso mexer no código nem no `Credenciais.h` para mudar de rede.
 
 1. Na inicial, segurar o status superior direito por 3 segundos, informar o
    PIN (`MANUTENCAO_PIN` em Credenciais.h) e escolher TROCAR WIFI.
-2. Conectar o celular à rede temporária ParaAi-XXXXXX, com a senha exibida na
+2. O totem procura as redes ao redor e lista as de 2,4 GHz com senha, da mais
+   forte para a mais fraca, quatro por página (setas à direita). A rede em uso
+   aparece como ATUAL. ATUALIZAR procura de novo; OUTRA REDE serve para rede
+   oculta (digita-se o nome exato).
+3. Tocar na rede e digitar a senha no teclado completo: maiúsculas (um toque
+   vale para uma letra; dois toques fixam), ?123 e #+= para números e
+   símbolos. A senha aparece como foi digitada, para conferir. CONECTAR só
+   acende com 8 a 63 caracteres.
+4. O totem testa por até 20 segundos e só salva a rede se conectar. Senha
+   errada, rede fora de alcance ou cancelamento voltam ao teclado com a senha
+   digitada e um aviso; a rede anterior é retomada. Sucesso reinicia o
+   atendimento.
+
+Sem toque por 3 minutos, a tela de Wi-Fi fecha sem alterar nada. Só quando não
+há rede alguma configurada (NVS vazia e `WIFI_SSID` vazio) ela abre sozinha
+após 15 segundos, sem PIN. Com rede definida, uma queda de energia apenas
+reconecta quando o roteador voltar. Cinco PINs errados bloqueiam a manutenção
+por 5 minutos.
+
+### Trocar Wi-Fi pelo celular (alternativa)
+
+No mesmo menu, WIFI PELO CELULAR abre o portal: útil para senha com acento,
+que o teclado da tela não tem, ou quando o toque está ruim. Serial W (USB,
+gabinete aberto) abre o portal sem PIN.
+
+1. Conectar o celular à rede temporária ParaAi-XXXXXX, com a senha exibida na
    tela. Se aparecer aviso de rede sem internet, manter a conexão local.
-3. Abrir http://192.168.4.1, selecionar a rede ou informar SSID oculto e senha.
-4. O totem testa por até 15 segundos. Só salva a rede se conectar; senha
+2. Abrir http://192.168.4.1, selecionar a rede ou informar SSID oculto e senha.
+3. O totem testa por até 15 segundos. Só salva a rede se conectar; senha
    errada preserva a anterior. Sucesso reinicia o atendimento.
 
-Só quando não há rede alguma configurada (NVS vazia e `WIFI_SSID` vazio) o
-portal abre sozinho após 15 segundos, sem PIN. Com rede definida, uma queda de
-energia apenas reconecta quando o roteador voltar. Pode ser cancelado e expira
-em 10 minutos. Serial W/C (USB, gabinete aberto) dispensa o PIN e é a
-alternativa quando o touch precisa de manutenção. Cinco PINs errados bloqueiam
-a manutenção por 5 minutos.
+O portal pode ser cancelado e expira em 10 minutos.
 
-Somente Wi-Fi 2,4 GHz pessoal protegido; não aceita redes abertas, WEP ou
+Nos dois caminhos, somente Wi-Fi 2,4 GHz pessoal protegido; não aceita redes abertas, WEP ou
 empresariais. Redes com login adicional de hotel/escola não são suportadas.
 WPA3 depende do core e do ponto de acesso. SSID/senha ficam em um único blob
 validado na NVS (paraai-net). O portal tem token de sessão e só atende o AP;
@@ -213,7 +236,7 @@ Antes de desenhar o gabinete 3D, medir a placa real. Preservar
 acesso USB/reset, suporte do display, espaço dos fios e fixação sem pressionar
 o touch. Recalibrar já com a tela fixada. Nenhum STL foi criado nesta etapa.
 
-Serial a 115200: S mostra conexão e memória livre; W abre Wi-Fi; C recalibra.
+Serial a 115200: S mostra conexão e memória livre; W abre o Wi-Fi pelo celular; C recalibra.
 W/C só na inicial. Não existem comandos de catraca.
 
 ## Verificação e instalação controlada
@@ -269,6 +292,10 @@ As antigas reservas paraai-res da NVS não são utilizadas nem apagadas.
 
 - Calibrar com o display montado; testar bordas, formatos, corrigir/apagar/
   cancelar, dedo mantido e troca entre telas.
+- Trocar Wi-Fi na tela: lista e páginas, rede ATUAL, senha com símbolos e
+  maiúsculas, senha errada, rede oculta, cancelar no teste, 3 min sem toque e
+  persistência após reiniciar. Conferir se o aviso de senha errada aparece em
+  poucos segundos no roteador real.
 - Trocar Wi-Fi pelo celular, senha errada, rede oculta, cancelar, expiração,
   perda de sinal e persistência após reiniciar.
 - Entrada/saída sem sensores conectados; reiniciar com estadia aberta e
