@@ -745,8 +745,11 @@
   .rodape-grade { grid-template-columns: 1fr 1fr; }
   .rodape-marca { grid-column: 1 / -1; }
 
-  /* A lista deixa de flutuar e encaixa sob o cartão, ainda sobreposta. */
+  /* A lista deixa de flutuar e encaixa sob o cartão, ainda sobreposta.
+     O cartão ganha folga embaixo do tamanho da sobreposição, para a lista
+     cobrir só o fundo e nunca a frase. */
   .porque-visual { padding-bottom: 0; }
+  .porque-cartao { padding-bottom: calc(2.5rem + clamp(1.4rem, 3vw, 2.2rem)); }
   .porque-lista {
     position: relative;
     right: auto;

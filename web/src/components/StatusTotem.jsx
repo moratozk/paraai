@@ -5,8 +5,12 @@ import "./StatusTotem.css";
  * Situação do totem, em três estados que pedem respostas diferentes:
  *
  *  - nunca conectou  → o equipamento ainda não foi ligado. Mostra o passo a
- *                      passo da primeira conexão, com o ID que precisa ser
- *                      colado no Credenciais.h.
+ *                      passo da primeira conexão, com o código do
+ *                      estacionamento que a instalação usa (no firmware, é o
+ *                      ESTACIONAMENTO_ID do Credenciais.h; ver
+ *                      firmware/README.md). A tela não cita a placa
+ *                      eletrônica, arquivos nem programas: quem lê é o dono
+ *                      do estacionamento.
  *  - online          → recebeu heartbeat há pouco. Discreto, só confirma.
  *  - offline         → já funcionou antes, mas parou de responder. Precisa
  *                      chamar atenção e sugerir o que verificar.
@@ -26,7 +30,7 @@ export default function StatusTotem({ estacionamento, online, onCopiarId }) {
           <div>
             <h3>Seu totem ainda não se conectou</h3>
             <p>
-              Assim que o ESP32 ligar e alcançar a internet, este painel passa a
+              Assim que o totem ligar e alcançar a internet, este painel passa a
               mostrar as vagas em tempo real.
             </p>
           </div>
@@ -34,17 +38,12 @@ export default function StatusTotem({ estacionamento, online, onCopiarId }) {
 
         <ol className="totem-passos">
           <li>
-            <strong>Abra</strong> <code>Main/Credenciais.h</code> no Arduino IDE
-            (copie de <code>Credenciais.example.h</code> se ainda não existir).
+            <strong>Gere o acesso do totem</strong> em Perfil. A senha aparece
+            uma vez só: guarde-a para a instalação.
           </li>
           <li>
-            <strong>Preencha</strong> o acesso do totem (gerado em Perfil) e um
-            PIN de manutenção. O Wi-Fi pode ficar em branco: o totem abre a
-            configuração na própria tela.
-          </li>
-          <li>
-            <strong>Cole o identificador</strong> deste estacionamento em{" "}
-            <code>ESTACIONAMENTO_ID</code>:
+            <strong>Passe para a instalação</strong> esse acesso, um PIN de
+            manutenção à sua escolha e o código deste estacionamento:
             <span className="totem-id-linha">
               <code className="totem-id">{estacionamento?.id}</code>
               {onCopiarId && (
@@ -59,13 +58,14 @@ export default function StatusTotem({ estacionamento, online, onCopiarId }) {
             </span>
           </li>
           <li>
-            <strong>Grave</strong> o firmware e ligue o equipamento. A conexão
+            <strong>Ligue o totem.</strong> Se ele ainda não conhecer nenhuma
+            rede, a própria tela dele mostra como escolher o Wi-Fi. A conexão
             aparece aqui em menos de um minuto.
           </li>
         </ol>
 
         <p className="totem-nota">
-          O Wi-Fi precisa ser de 2,4 GHz — o ESP32 não enxerga redes de 5 GHz.
+          O Wi-Fi precisa ser de 2,4 GHz: o totem não se conecta a redes de 5 GHz.
         </p>
       </section>
     );

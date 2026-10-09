@@ -5,18 +5,25 @@
 // ParaAi - configuracao local de Wi-Fi
 // -------------------------------------------------------------------------
 // Mantem somente SSID e senha da rede local na NVS. As credenciais do
-// Firebase continuam exclusivamente no Credenciais.h e nunca passam pelo
-// portal de configuracao.
+// Firebase continuam exclusivamente no Credenciais.h e nunca passam pela
+// tela de Wi-Fi nem pelo portal de configuracao.
+//
+// Duas formas de trocar a rede, ambas atras do PIN de manutencao:
+//  - na propria tela (AssistenteWiFi.h): lista, senha no teclado e teste;
+//  - pelo celular: rede temporaria do totem e pagina local (portal).
 // =========================================================================
 
 #include <Arduino.h>
 #include <stddef.h>
 #include <string.h>
+#include <atomic>
 #include <WiFi.h>
 #include <Preferences.h>
 #include <WebServer.h>
 #include <DNSServer.h>
 #include <esp_system.h>
+#include "LogicaTotem.h"
+#include "AssistenteWiFi.h"  // exige DisplayUI.ino antes (ver totem.ino)
 
 enum ResultadoConfiguracaoWifi {
   WIFI_CONFIG_SUCESSO,
@@ -24,11 +31,14 @@ enum ResultadoConfiguracaoWifi {
   WIFI_CONFIG_EXPIRADA
 };
 
-// Interface implementada em DisplayUI.ino. As declaracoes locais deixam o
-// modulo compilavel mesmo quando a ordem dos .ino mudar na Arduino IDE.
-void desenharTelaPortalWifi(String ap, String senha, String ip, String mensagem);
-void desenharTelaTestandoWifi(String ssid);
-bool verificarToqueCancelarPortalWifi();
+// classificarFalhaWifi (LogicaTotem.h) usa estes numeros sem depender do SDK.
+static_assert(WIFI_REASON_ASSOC_LEAVE == 8 && WIFI_REASON_MIC_FAILURE == 14 &&
+              WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT == 15 && WIFI_REASON_NO_AP_FOUND == 201 &&
+              WIFI_REASON_AUTH_FAIL == 202 && WIFI_REASON_HANDSHAKE_TIMEOUT == 204 &&
+              WIFI_REASON_NO_AP_FOUND_W_COMPATIBLE_SECURITY == 210 &&
+              WIFI_REASON_NO_AP_FOUND_IN_AUTHMODE_THRESHOLD == 211 &&
+              WIFI_REASON_NO_AP_FOUND_IN_RSSI_THRESHOLD == 212,
+              "Motivos de desconexao do ESP-IDF mudaram; revise classificarFalhaWifi.");
 
 namespace ParaAiWifiConfig {
 
@@ -57,10 +67,8 @@ struct DadosWifiPersistidos {
   uint32_t checksum;
 };
 
-struct RedePortal {
-  String ssid;
-  int32_t rssi;
-};
+// A mesma estrutura alimenta a lista na tela e o formulario do portal.
+typedef RedeWifiTela RedePortal;
 
 String ssidConfigurado;
 String senhaConfigurada;
@@ -158,13 +166,8 @@ const char* rotuloSinal(int32_t rssi) {
   return "fraco";
 }
 
-uint8_t buscarRedes(RedePortal* redes, uint8_t capacidade) {
-  int16_t total = WiFi.scanNetworks(false, false, false, 120);
-  if (total <= 0) {
-    WiFi.scanDelete();
-    return 0;
-  }
-
+// Filtra o resultado de uma busca ja concluida e libera a memoria dela.
+uint8_t coletarRedes(int16_t total, RedePortal* redes, uint8_t capacidade) {
   uint8_t quantidade = 0;
   for (int16_t i = 0; i < total; i++) {
     // O totem nao aceita rede aberta: o provisionamento transporta a senha
@@ -219,6 +222,15 @@ uint8_t buscarRedes(RedePortal* redes, uint8_t capacidade) {
     redes[j + 1] = atual;
   }
   return quantidade;
+}
+
+uint8_t buscarRedes(RedePortal* redes, uint8_t capacidade) {
+  int16_t total = WiFi.scanNetworks(false, false, false, 120);
+  if (total <= 0) {
+    WiFi.scanDelete();
+    return 0;
+  }
+  return coletarRedes(total, redes, capacidade);
 }
 
 String gerarCodigoAleatorio(size_t tamanho) {
@@ -605,6 +617,126 @@ ResultadoConfiguracaoWifi executarPortalConfiguracaoWifi(bool permitirCancelar) 
   }
 
   return resultado;
+}
+
+// -------------------------------------------------------------------------
+// Radio da tela de Wi-Fi (AssistenteWiFi.h)
+// -------------------------------------------------------------------------
+namespace ParaAiWifiConfig {
+
+// Escritos pela tarefa de eventos do Wi-Fi enquanto uma rede e testada.
+std::atomic<uint8_t> motivoUltimaFalha{0};
+std::atomic<uint8_t> falhasSenha{0};
+std::atomic<uint8_t> falhasSemRede{0};
+std::atomic<uint8_t> falhasTotal{0};
+
+void registrarDesconexao(WiFiEvent_t, WiFiEventInfo_t info) {
+  const uint8_t motivo = info.wifi_sta_disconnected.reason;
+  const paraai::FalhaWifi falha = paraai::classificarFalhaWifi(motivo);
+  if (falha == paraai::FalhaWifi::NENHUMA) return;  // a propria troca desligou a anterior
+  motivoUltimaFalha = motivo;
+  if (falha == paraai::FalhaWifi::SENHA) falhasSenha++;
+  if (falha == paraai::FalhaWifi::SEM_REDE) falhasSemRede++;
+  falhasTotal++;
+}
+
+class AcoesWifiEsp32 : public AcoesWifiTela {
+public:
+  AcoesWifiEsp32() : ssidAnterior_(ssidConfigurado), senhaAnterior_(senhaConfigurada) {}
+  ~AcoesWifiEsp32() override { pararEventos(); }
+
+  bool iniciarBusca() override {
+    // Enquanto tenta reconectar a uma rede ausente, o ESP recusa a busca.
+    // Parar a tentativa nao apaga nada; a saida da tela reconecta.
+    if (WiFi.status() != WL_CONNECTED) WiFi.disconnect(false, false);
+    return WiFi.scanNetworks(true, false, false, 120) != WIFI_SCAN_FAILED;
+  }
+
+  int consultarBusca(RedeWifiTela* redes, uint8_t capacidade) override {
+    const int16_t total = WiFi.scanComplete();
+    if (total == WIFI_SCAN_RUNNING) return -1;
+    if (total < 0) {
+      WiFi.scanDelete();
+      return -2;
+    }
+    return coletarRedes(total, redes, capacidade);
+  }
+
+  void cancelarBusca() override { WiFi.scanDelete(); }
+
+  void iniciarTeste(const String& ssid, const String& senha) override {
+    if (!eventoAtivo_) {
+      evento_ = WiFi.onEvent(registrarDesconexao, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+      eventoAtivo_ = true;
+    }
+    WiFi.disconnect(false, false);
+    delay(80);
+    // Zera depois de desligar: eventos atrasados da rede anterior nao contam.
+    motivoUltimaFalha = 0;
+    falhasSenha = 0;
+    falhasSemRede = 0;
+    falhasTotal = 0;
+    WiFi.begin(ssid.c_str(), senha.c_str());
+  }
+
+  TesteWifi consultarTeste(bool prazoEsgotado) override {
+    if (WiFi.status() == WL_CONNECTED) return TesteWifi::CONECTOU;
+    // O core tenta de novo sozinho; duas recusas do mesmo tipo bastam. Com
+    // WL_CONNECT_FAILED depois de uma falha deste teste, ele ja desistiu.
+    const bool desistiu = prazoEsgotado || falhasSenha >= 2 || falhasSemRede >= 2 ||
+                          (falhasTotal > 0 && WiFi.status() == WL_CONNECT_FAILED);
+    if (!desistiu) return TesteWifi::EM_ANDAMENTO;
+    switch (paraai::classificarFalhaWifi(motivoUltimaFalha)) {
+      case paraai::FalhaWifi::SENHA:    return TesteWifi::SENHA;
+      case paraai::FalhaWifi::SEM_REDE: return TesteWifi::SEM_REDE;
+      default:                          return TesteWifi::FALHOU;
+    }
+  }
+
+  void encerrarTeste(bool manterNovaRede) override {
+    pararEventos();
+    if (!manterNovaRede) iniciarConexaoBruta(ssidAnterior_, senhaAnterior_);
+  }
+
+  bool salvarRede(const String& ssid, const String& senha) override {
+    if (!salvarBlob(ssid, senha)) return false;
+    ssidConfigurado = ssid;
+    senhaConfigurada = senha;
+    configuracaoCarregada = true;
+    return true;
+  }
+
+  String redeConfigurada() override { return ssidConfigurado; }
+
+private:
+  const String ssidAnterior_;
+  const String senhaAnterior_;
+  wifi_event_id_t evento_ = 0;
+  bool eventoAtivo_ = false;
+
+  void pararEventos() {
+    if (!eventoAtivo_) return;
+    WiFi.removeEvent(evento_);
+    eventoAtivo_ = false;
+  }
+};
+
+}  // namespace ParaAiWifiConfig
+
+ResultadoConfiguracaoWifi executarConfiguracaoWifiNaTela() {
+  using namespace ParaAiWifiConfig;
+  if (!configuracaoCarregada) carregarConfiguracaoWifi();
+
+  ResultadoAssistenteWifi resultado;
+  {
+    AcoesWifiEsp32 acoes;
+    resultado = executarAssistenteWifi(acoes);
+  }  // o destrutor solta o evento de desconexao
+
+  if (resultado == ResultadoAssistenteWifi::CONECTOU) return WIFI_CONFIG_SUCESSO;
+  // A rede salva continua a mesma; se a busca ou o teste a derrubaram, volta.
+  if (WiFi.status() != WL_CONNECTED) iniciarReconexaoWifiConfigurado();
+  return resultado == ResultadoAssistenteWifi::CANCELADO ? WIFI_CONFIG_CANCELADA : WIFI_CONFIG_EXPIRADA;
 }
 
 #endif  // PARAAI_CONFIGURACAO_WIFI_H

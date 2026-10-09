@@ -139,7 +139,8 @@ não mudar retroativamente durante uma estadia.
    `TOTEM_EMAIL`, `TOTEM_PASSWORD` e `ESTACIONAMENTO_ID`; selecione a partição
    **Huge APP** e grave no ESP32.
 
-No novo firmware, Wi-Fi é configurável pelo celular e a calibração do touch
+No novo firmware, o Wi-Fi é escolhido na própria tela do totem (lista de redes
+e senha no teclado, atrás do PIN de manutenção) ou pelo celular, e a calibração do touch
 fica salva no próprio ESP32. Regras e firmware devem ser instalados juntos
 em manutenção: a saída exige débito, vaga e recibo no mesmo commit. Consulte
 [o checklist de instalação e testes](firmware/README.md#verificação-e-instalação-controlada)
