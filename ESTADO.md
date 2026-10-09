@@ -20,12 +20,15 @@ estadia e cobrança simulada. O operador acompanha pelo painel. A ocupação é
 lógica; a maquete virtual do administrador mostra os mesmos registros com
 carros andando num pátio desenhado (ver "Maquete virtual", abaixo).
 
-Projeto acadêmico (TCC). A `main` tem tudo: a integração (PR #9) e, desde
-06/10/2026, os PRs #10 a #15 (pinos e tela da CYD, pastas, vagas especiais,
-revisão visual e nova tela inicial). **Regras do Firestore e site publicados
-em 06/10/2026** a partir da `main` (`26a97e5`); o site no ar é o build dessa
-versão. **O firmware da `main` foi gravado no totem no mesmo dia** e testado:
-uma placa sem direito declarado recebeu a primeira vaga comum livre.
+Projeto acadêmico (TCC). A `main` tem tudo: a integração (PR #9), desde
+06/10/2026 os PRs #10 a #15 (pinos e tela da CYD, pastas, vagas especiais,
+revisão visual e nova tela inicial) e, desde 09/10/2026, os PRs #19 a #23
+(recuperação de senha, Wi-Fi na tela do totem, maquete virtual, modelo e cor
+do veículo e revisão geral). **Regras do Firestore e site publicados em
+09/10/2026** a partir da `main` (`4ce749d`); o site no ar é o build dessa
+versão. **O firmware do totem ainda é o gravado em 06/10/2026** (anterior aos
+PRs #20 e #22), testado naquele dia: uma placa sem direito declarado recebeu a
+primeira vaga comum livre. As regras novas continuam aceitando esse firmware.
 
 ## Wi-Fi na tela do totem (07/10/2026)
 
@@ -617,13 +620,11 @@ na Arduino IDE e gravar.
    sem direito declarado recebeu a vaga comum, não a PCD. Para gravar de novo:
    placa na COM3 e modo de gravação (segurar BOOT, apertar RST, soltar BOOT).
 
-8. **Modelo e cor do veículo (08/10/2026, PR próprio).** Para funcionar por
-   inteiro, nesta ordem: publicar as regras (sem elas, o Perfil não salva
-   modelo e cor, mas o cadastro da placa continua funcionando), publicar o
-   site e gravar o firmware novo, que mostra "GOL PRATA" e copia modelo e cor
-   para a vaga. Qualquer ordem é segura: firmware antigo continua aceito pelas
-   regras novas, e o firmware novo só copia o que as regras deixaram gravar.
-   Falta testar no hardware.
+8. **Modelo e cor do veículo (08/10/2026, PR #22).** Regras e site publicados
+   em 09/10/2026. Falta gravar o firmware novo, que mostra "GOL PRATA" e copia
+   modelo e cor para a vaga (até lá a maquete pinta o carro pela placa), e
+   testar no hardware. O firmware antigo continua aceito pelas regras novas, e
+   o novo só copia o que as regras deixaram gravar.
 
 ---
 
