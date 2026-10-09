@@ -27,6 +27,19 @@ em 06/10/2026** a partir da `main` (`26a97e5`); o site no ar é o build dessa
 versão. **O firmware da `main` foi gravado no totem no mesmo dia** e testado:
 uma placa sem direito declarado recebeu a primeira vaga comum livre.
 
+## Comprovante da estadia (09/10/2026)
+
+Cada estadia encerrada tem um comprovante (`components/ComprovanteEstadia.jsx`):
+estacionamento e endereço, placa, vaga, entrada, saída, permanência, tarifa
+congelada na entrada, valor, quanto saiu da carteira e o que ficou pendente,
+com o código da estadia (o id do recibo em `historico`). O motorista abre pelo
+"Últimos acessos" do painel (a linha inteira) e pelo botão "Ver" em "Meus
+acessos"; o dono do estacionamento, pelo mesmo botão em "Movimentações".
+"Imprimir ou salvar PDF" usa a impressão do navegador: só a folha sai, com
+tinta escura sobre papel branco, mesmo no tema escuro. O texto avisa que a
+carteira é simulada e que o comprovante não tem valor fiscal. Sem mudança nas
+regras: tudo vem do recibo que o totem já grava e que ninguém altera.
+
 ## Painel da rede do administrador (09/10/2026)
 
 A conta `admin` deixou de ver só a lista de estacionamentos e passou a ter o

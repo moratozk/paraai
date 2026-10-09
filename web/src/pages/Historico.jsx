@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import ComprovanteEstadia from "../components/ComprovanteEstadia";
 import {
   useCatalogoEstacionamentos,
   useHistoricoPlaca,
@@ -36,6 +37,7 @@ export default function Historico() {
   const { estacionamentos } = useCatalogoEstacionamentos();
 
   const { historico, loading } = role === "operador" ? porEst : porPlaca;
+  const [comprovante, setComprovante] = useState(null);
 
   const registros = useMemo(
     () =>
@@ -47,11 +49,8 @@ export default function Historico() {
     [historico]
   );
 
-  const nomesPorEstacionamento = useMemo(
-    () =>
-      Object.fromEntries(
-        estacionamentos.map((item) => [item.id, item.nome || item.id])
-      ),
+  const estacionamentosPorId = useMemo(
+    () => Object.fromEntries(estacionamentos.map((item) => [item.id, item])),
     [estacionamentos]
   );
 
@@ -132,6 +131,7 @@ export default function Historico() {
                     <th>Duração</th>
                     <th>Valor</th>
                     <th>Situação</th>
+                    <th>Comprovante</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -146,7 +146,7 @@ export default function Historico() {
                         )}
                         {role === "motorista" && (
                           <td data-label="Estacionamento">
-                            {nomesPorEstacionamento[item.estacionamentoId] || "Rede ParaAí"}
+                            {estacionamentosPorId[item.estacionamentoId]?.nome || "Rede ParaAí"}
                           </td>
                         )}
                         <td data-label="Vaga">Vaga {item.vaga}</td>
@@ -170,6 +170,20 @@ export default function Historico() {
                             {estado.rotulo}
                           </span>
                         </td>
+                        <td data-label="Comprovante">
+                          {item.status === "ativa" || !Number(item.saida) ? (
+                            "—"
+                          ) : (
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-sm"
+                              aria-label={`Ver comprovante da saída de ${formatarDataHora(item.saida)}`}
+                              onClick={() => setComprovante(item)}
+                            >
+                              Ver
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}
@@ -178,6 +192,14 @@ export default function Historico() {
             </div>
           </div>
         </>
+      )}
+
+      {comprovante && (
+        <ComprovanteEstadia
+          estadia={comprovante}
+          estacionamento={estacionamentosPorId[comprovante.estacionamentoId]}
+          aoFechar={() => setComprovante(null)}
+        />
       )}
     </div>
   );
