@@ -1,18 +1,14 @@
 // Fluxo completo do ParaAí nos emuladores, na ordem da apresentação: cadastro
 // com o aceite da política, placa, recarga simulada, reserva no mapa, entrada
 // no totem, mapa ao vivo do dono, saída e a cobrança no painel, no comprovante
-// e no extrato. O totem é simulado aqui com as mesmas gravações do firmware
-// (firmware/totem/Atendimento.cpp), e elas passam pelas regras de verdade
-// (firebase/firestore.rules), carregadas no emulador antes de tudo.
-import { readFile } from "node:fs/promises";
+// e no extrato. O totem é simulado (patio.js) com as mesmas leituras e
+// gravações do firmware (firmware/totem/Atendimento.cpp), e elas passam pelas
+// regras de verdade (firebase/firestore.rules), carregadas no emulador antes
+// de tudo.
 import { expect, test } from "@playwright/test";
-import { initializeTestEnvironment } from "@firebase/rules-unit-testing";
-import { doc, getDoc, Timestamp, writeBatch } from "firebase/firestore";
-import { calcularCobranca } from "../web/src/utils/cobranca.js";
 import { formatarDuracao, formatarMoeda } from "../web/src/utils/format.js";
+import { abrirEmuladores, criarConta, lerSemRegras, prepararPatio, totemSimulado, uidDaConta } from "./patio.js";
 
-const PROJETO = "demo-paraai";
-const AUTH = `http://${process.env.FIREBASE_AUTH_EMULATOR_HOST}`;
 const SENHA = "Teste1234";
 const EST = "EST-BANCA";
 const NOME_EST = "Pátio da Banca";
@@ -21,157 +17,41 @@ const TOTEM = "totem-banca";
 const PLACA = "TCC2E26";
 const MOTORISTA = { nome: "Marina Alves", email: "marina@paraai.test", celular: "19991234567" };
 const DONO = { nome: "Otávio Lima", email: "otavio@paraai.test" };
-// Tipos da tabela padrão (contratos/vagas-especiais.csv): 1 e 2 PCD.
-const VAGAS = { 1: "pcd", 2: "pcd", 3: "comum", 4: "comum" };
 
 // O site formata com espaço sem quebra depois de "R$"; o Playwright compara
 // com os espaços normalizados.
 const moeda = (valor) => formatarMoeda(valor).replace(/\s/g, " ");
 
 let env;
+let totem;
+const lerNoBanco = (caminho) => lerSemRegras(env, caminho);
 
-async function criarConta(email, nome) {
-  const resposta = await fetch(
-    `${AUTH}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-key`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password: SENHA, displayName: nome, returnSecureToken: true }),
-    }
-  );
-  const dados = await resposta.json();
-  if (!dados.localId) throw new Error(`Conta ${email}: ${JSON.stringify(dados)}`);
-  return dados.localId;
-}
-
-async function uidDaConta(email) {
-  const resposta = await fetch(
-    `${AUTH}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=demo-key`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password: SENHA, returnSecureToken: true }),
-    }
-  );
-  return (await resposta.json()).localId;
-}
-
-async function lerSemRegras(caminho) {
-  let dados;
-  await env.withSecurityRulesDisabled(async (contexto) => {
-    const snap = await getDoc(doc(contexto.firestore(), caminho));
-    dados = snap.exists() ? snap.data() : null;
-  });
-  return dados;
-}
-
-// Estacionamento com quatro vagas no mapa, o dono dele e um totem pareado.
-// Cada projeto (computador e celular) começa dos emuladores vazios.
+// Estacionamento com quatro vagas no mapa (1 e 2 PCD, como na tabela padrão
+// de contratos/vagas-especiais.csv), o dono dele e um totem pareado, que manda
+// o primeiro sinal de vida ao ligar. Cada projeto (computador e celular)
+// começa dos emuladores vazios.
 test.beforeAll(async () => {
-  const [host, porta] = process.env.FIRESTORE_EMULATOR_HOST.split(":");
-  env = await initializeTestEnvironment({
-    projectId: PROJETO,
-    firestore: {
-      host,
-      port: Number(porta),
-      rules: await readFile(new URL("../firebase/firestore.rules", import.meta.url), "utf8"),
-    },
-  });
-  await env.clearFirestore();
-  await fetch(`${AUTH}/emulator/v1/projects/${PROJETO}/accounts`, { method: "DELETE" });
-  const donoUid = await criarConta(DONO.email, DONO.nome);
-
-  await env.withSecurityRulesDisabled(async (contexto) => {
-    const db = contexto.firestore();
-    const agora = Timestamp.now();
-    const endereco = {
+  env = await abrirEmuladores();
+  const donoUid = await criarConta({ email: DONO.email, senha: SENHA, nome: DONO.nome });
+  await prepararPatio(env, {
+    id: EST,
+    nome: NOME_EST,
+    tarifa: TARIFA,
+    tipos: ["pcd", "pcd", "comum", "comum"],
+    endereco: {
       cep: "13469-111", logradouro: "Rua Emílio de Menezes", numero: "s/n",
       bairro: "Vila Amorim", cidade: "Americana", uf: "SP",
-    };
-    const publico = {
-      nome: NOME_EST, numVagas: 4, tarifaHora: TARIFA, ativo: true, ...endereco,
-      modoDisponibilidade: "mapa", vagasLivresMapeadas: 4,
-    };
-    const lote = writeBatch(db);
-    lote.set(doc(db, "users", donoUid), {
-      name: DONO.nome, email: DONO.email, role: "operador", estacionamentoId: EST, createdAt: agora,
-    });
-    lote.set(doc(db, "estacionamentos", EST), { ...publico, ownerUid: donoUid, criadoEm: agora });
-    lote.set(doc(db, "catalogoEstacionamentos", EST), {
-      ...publico, ultimaAtualizacaoMapa: agora, atualizadoEm: agora,
-    });
-    for (const [vaga, tipo] of Object.entries(VAGAS)) {
-      lote.set(doc(db, "estacionamentos", EST, "vagas", vaga),
-        { ocupada: false, placa: "", origemOcupacao: "registro" });
-      lote.set(doc(db, "catalogoEstacionamentos", EST, "vagas", vaga),
-        { ocupada: false, tipo, reservadaAte: 0 });
-    }
-    lote.set(doc(db, "totems", TOTEM), {
-      estacionamentoId: EST, nome: "Totem da entrada", ativo: true, criadoEm: agora,
-    });
-    await lote.commit();
+    },
+    dono: { uid: donoUid, ...DONO },
+    totem: { uid: TOTEM, nome: "Totem da entrada", email: "totem-banca@dispositivo.paraai.test" },
   });
+  totem = totemSimulado(env, { uid: TOTEM, estacionamentoId: EST });
+  expect(await totem.sinal()).toBe(true);
 });
 
 test.afterAll(async () => {
   await env?.cleanup();
 });
-
-// ---- Totem: as mesmas gravações do firmware, com a conta do equipamento ----
-const totem = () => env.authenticatedContext(TOTEM).firestore();
-
-// Entrada pela placa: usa a vaga reservada pelo dono da placa e consome a
-// reserva no mesmo lote. As regras aceitam até 5 minutos de diferença no
-// relógio do totem; a entrada fica 4 minutos no passado para a estadia ter
-// tempo e valor de verdade sem o teste esperar.
-async function totemRegistraEntrada(placa) {
-  const d = totem();
-  const veiculo = (await getDoc(doc(d, "veiculos", placa))).data();
-  const reserva = (await getDoc(doc(d, "reservas", veiculo.ownerUid))).data();
-  expect(reserva?.status).toBe("ativa");
-  const vaga = reserva.vaga;
-  const lote = writeBatch(d);
-  lote.update(doc(d, "veiculos", placa), {
-    vagaAtual: vaga,
-    horaEntrada: Math.floor(Date.now() / 1000) - 240,
-    estacionamentoId: EST,
-    tarifaHoraEntrada: TARIFA,
-  });
-  lote.set(doc(d, "estacionamentos", EST, "vagas", String(vaga)),
-    { ocupada: true, placa, origemOcupacao: "registro" });
-  lote.update(doc(d, "catalogoEstacionamentos", EST, "vagas", String(vaga)),
-    { ocupada: true, reservadaAte: 0 });
-  lote.update(doc(d, "reservas", veiculo.ownerUid), { status: "utilizada" });
-  await lote.commit();
-  return vaga;
-}
-
-// Saída: a conta do totem (a mesma de web/src/utils/cobranca.js, conferida
-// pelos contratos), o débito, a vaga livre e o recibo, juntos.
-async function totemRegistraSaida(placa) {
-  const d = totem();
-  const veiculo = (await getDoc(doc(d, "veiculos", placa))).data();
-  const saida = Math.floor(Date.now() / 1000);
-  const conta = calcularCobranca({
-    entrada: veiculo.horaEntrada, saida, tarifa: veiculo.tarifaHoraEntrada, saldo: veiculo.saldo,
-  });
-  const vaga = String(veiculo.vagaAtual);
-  const recibo = {
-    placa, vaga: veiculo.vagaAtual, entrada: veiculo.horaEntrada, saida,
-    duracaoMinutos: conta.duracaoMinutos, valorCobrado: conta.valor, valorPendente: conta.pendente,
-    tarifaHora: veiculo.tarifaHoraEntrada, estacionamentoId: EST,
-  };
-  const lote = writeBatch(d);
-  lote.update(doc(d, "veiculos", placa), {
-    vagaAtual: 0, horaEntrada: 0, estacionamentoId: "", tarifaHoraEntrada: 0, saldo: conta.saldoFinal,
-  });
-  lote.update(doc(d, "estacionamentos", EST, "vagas", vaga),
-    { ocupada: false, placa: "", origemOcupacao: "registro" });
-  lote.update(doc(d, "catalogoEstacionamentos", EST, "vagas", vaga), { ocupada: false });
-  lote.set(doc(d, "historico", `${placa}_${veiculo.horaEntrada}`), recibo);
-  await lote.commit();
-  return { ...recibo, saldoFinal: conta.saldoFinal };
-}
 
 // ---- Navegador ----------------------------------------------------------
 
@@ -224,11 +104,11 @@ test("motorista e dono: do cadastro à cobrança, com o totem pelas regras", asy
     await expect(motorista).toHaveURL(/\/dashboard$/);
     await expect(motorista.getByRole("heading", { name: /Olá, Marina/ })).toBeVisible();
     // O perfil é gravado logo depois do acesso: esperar antes de sair da página.
-    const uid = await uidDaConta(MOTORISTA.email);
+    const uid = await uidDaConta(MOTORISTA.email, SENHA);
     await expect
-      .poll(async () => (await lerSemRegras(`users/${uid}`))?.versaoPrivacidade ?? null)
+      .poll(async () => (await lerNoBanco(`users/${uid}`))?.versaoPrivacidade ?? null)
       .toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    const perfil = await lerSemRegras(`users/${uid}`);
+    const perfil = await lerNoBanco(`users/${uid}`);
     expect(perfil).toMatchObject({ role: "motorista", name: MOTORISTA.nome, telefone: "(19) 99123-4567" });
     expect(typeof perfil.privacidadeAceitaEm?.toMillis).toBe("function");
     await expect(motorista.getByText("Não conseguimos carregar os dados da sua conta.")).toHaveCount(0);
@@ -250,7 +130,7 @@ test("motorista e dono: do cadastro à cobrança, com o totem pelas regras", asy
     await expect(recarga.getByRole("heading", { name: "Saldo adicionado!" })).toBeVisible();
     await recarga.getByRole("button", { name: "Concluir" }).click();
     await expect(cartao(motorista, "Meu veículo").locator(".money")).toHaveText(moeda(50));
-    expect((await lerSemRegras(`veiculos/${PLACA}`)).saldo).toBe(50);
+    expect((await lerNoBanco(`veiculos/${PLACA}`)).saldo).toBe(50);
   });
 
   await test.step("reserva da vaga 3 no mapa do estacionamento", async () => {
@@ -284,8 +164,10 @@ test("motorista e dono: do cadastro à cobrança, com o totem pelas regras", asy
   });
 
   await test.step("entrada no totem pela placa, na vaga reservada", async () => {
-    vaga = await totemRegistraEntrada(PLACA);
-    expect(vaga).toBe(3);
+    // Quatro minutos no passado, para a estadia ter tempo e valor sem esperar.
+    const entrada = await totem.entrada(PLACA, { segundosAtras: 240 });
+    expect(entrada).toMatchObject({ titulo: "ENTRADA CONFIRMADA", vaga: 3, reservada: true });
+    vaga = entrada.vaga;
     // Os dois painéis mudam sozinhos, sem recarregar a página.
     await expect(motorista.locator(".stat-value.situacao")).toHaveText("Estacionado");
     await expect(motorista.locator(".reserva-ativa")).toHaveCount(0);
@@ -294,11 +176,13 @@ test("motorista e dono: do cadastro à cobrança, com o totem pelas regras", asy
     await expect(
       dono.getByRole("button", { name: `Vaga ${vaga} ocupada pela placa ${PLACA}`, exact: true })
     ).toBeVisible();
-    expect((await lerSemRegras(`reservas/${await uidDaConta(MOTORISTA.email)}`)).status).toBe("utilizada");
+    expect((await lerNoBanco(`reservas/${await uidDaConta(MOTORISTA.email, SENHA)}`)).status).toBe("utilizada");
   });
 
   await test.step("saída no totem: débito, vaga livre e recibo juntos", async () => {
-    recibo = await totemRegistraSaida(PLACA);
+    const saida = await totem.saida(PLACA);
+    expect(saida.titulo).toBe("SAIDA CONFIRMADA");
+    recibo = { ...saida.recibo, saldoFinal: saida.saldoFinal };
     expect(recibo.duracaoMinutos).toBeGreaterThanOrEqual(4);
     expect(recibo.valorCobrado).toBeGreaterThan(0);
     expect(recibo.valorPendente).toBe(0);
@@ -308,7 +192,7 @@ test("motorista e dono: do cadastro à cobrança, com o totem pelas regras", asy
       .getByRole("row")
       .filter({ hasText: PLACA });
     await expect(linha).toContainText(moeda(recibo.valorCobrado));
-    expect((await lerSemRegras(`veiculos/${PLACA}`)).saldo).toBeCloseTo(50 - recibo.valorCobrado, 9);
+    expect((await lerNoBanco(`veiculos/${PLACA}`)).saldo).toBeCloseTo(50 - recibo.valorCobrado, 9);
   });
 
   await test.step("cobrança no painel e no comprovante", async () => {

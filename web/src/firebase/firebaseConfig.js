@@ -18,13 +18,24 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
-// Teste do fluxo completo (e2e/): com estas duas variáveis o site usa os
-// emuladores locais. Só vale para projeto de demonstração ("demo-..."), que o
-// Firebase nunca liga a dados reais. O site publicado não tem nenhuma delas.
+// Teste do fluxo completo e demonstração sem internet (e2e/): com estas duas
+// variáveis o site usa os emuladores locais. Só vale para projeto de
+// demonstração ("demo-..."), que o Firebase nunca liga a dados reais. O site
+// publicado não tem nenhuma delas.
 const emuladorAuth = import.meta.env.VITE_EMULADOR_AUTH;
 const emuladorFirestore = import.meta.env.VITE_EMULADOR_FIRESTORE;
-if (firebaseConfig.projectId?.startsWith("demo-") && emuladorAuth && emuladorFirestore) {
-  connectAuthEmulator(auth, `http://${emuladorAuth}`, { disableWarnings: true });
+const usaEmuladores = Boolean(
+  firebaseConfig.projectId?.startsWith("demo-") && emuladorAuth && emuladorFirestore
+);
+
+// Também para o login de um app à parte, como o que cria o acesso do totem.
+export function ligarAuthAoEmulador(instancia) {
+  if (usaEmuladores) connectAuthEmulator(instancia, `http://${emuladorAuth}`, { disableWarnings: true });
+  return instancia;
+}
+
+ligarAuthAoEmulador(auth);
+if (usaEmuladores) {
   const [host, porta] = emuladorFirestore.split(":");
   connectFirestoreEmulator(db, host, Number(porta));
 }
