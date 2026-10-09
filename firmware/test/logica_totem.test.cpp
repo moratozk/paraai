@@ -1,8 +1,59 @@
 #include "../totem/LogicaTotem.h"
 #include <cassert>
 #include <cstdio>
+#include <cstdlib>
+#include <fstream>
 #include <limits>
 #include <initializer_list>
+#include <sstream>
+#include <string>
+#include <vector>
+
+// Casos compartilhados com o site e as regras, em contratos/ na raiz do
+// repositório (ver contratos/README.md). O teste roda de firmware/test, como
+// no CI. Arquivo ausente ou cabeçalho diferente falha, em vez de pular.
+struct LinhaCsv {
+  std::string texto;
+  std::vector<std::string> campos;
+};
+static std::vector<LinhaCsv> lerCsv(const char* nome, const char* cabecalho) {
+  const std::string caminho = std::string("../../contratos/") + nome;
+  std::ifstream arquivo(caminho);
+  if (!arquivo) {
+    std::fprintf(stderr, "Nao abriu %s: rode o teste de dentro de firmware/test.\n", caminho.c_str());
+    std::exit(1);
+  }
+  std::vector<LinhaCsv> linhas;
+  std::string texto;
+  bool primeira = true;
+  while (std::getline(arquivo, texto)) {
+    if (!texto.empty() && texto.back() == '\r') texto.pop_back();
+    if (texto.empty() || texto[0] == '#') continue;
+    if (primeira) {
+      primeira = false;
+      if (texto != cabecalho) {
+        std::fprintf(stderr, "%s: cabecalho \"%s\", esperado \"%s\".\n", nome, texto.c_str(), cabecalho);
+        std::exit(1);
+      }
+      continue;
+    }
+    LinhaCsv linha{texto, {}};
+    std::stringstream partes(texto);
+    std::string campo;
+    while (std::getline(partes, campo, ',')) linha.campos.push_back(campo);
+    linhas.push_back(linha);
+  }
+  if (linhas.empty()) {
+    std::fprintf(stderr, "%s: nenhum caso.\n", nome);
+    std::exit(1);
+  }
+  return linhas;
+}
+static void confere(bool ok, const char* nome, const LinhaCsv& linha) {
+  if (ok) return;
+  std::fprintf(stderr, "contratos/%s: o totem discorda do caso \"%s\".\n", nome, linha.texto.c_str());
+  std::exit(1);
+}
 
 int main() {
   using namespace paraai;
@@ -172,5 +223,40 @@ int main() {
     assert(textoWifiExibivel("abcdef", curto, sizeof(curto)) == 3 && std::strcmp(curto, "abc") == 0);
     assert(textoWifiExibivel(nullptr, t, sizeof(t)) == 0 && t[0] == '\0');
   }
+  // Os mesmos casos de web/test/contratos.test.js e firebase/test: a conta da
+  // saída tem de dar o mesmo centavo no site, no totem e nas regras.
+  for (const LinhaCsv& caso : lerCsv("cobranca.csv", "segundos,tarifa,saldo,valor,saldo_final,pendente")) {
+    confere(caso.campos.size() == 6, "cobranca.csv", caso);
+    Cobranca saida;
+    const bool calculou = calcularCobranca(entrada, entrada + std::stoll(caso.campos[0]),
+                                           std::stod(caso.campos[1]), std::stod(caso.campos[2]), saida);
+    confere(calculou && saida.valor == std::stod(caso.campos[3]) &&
+                std::abs(saida.saldoFinal - std::stod(caso.campos[4])) < 1e-9 &&
+                std::abs(saida.pendente - std::stod(caso.campos[5])) < 1e-9,
+            "cobranca.csv", caso);
+  }
+  {
+    // Vagas fora da tabela são comuns, até o limite de vagas.
+    TipoVaga esperado[MAX_VAGAS + 1];
+    for (TipoVaga& tipo : esperado) tipo = TipoVaga::COMUM;
+    for (const LinhaCsv& caso : lerCsv("vagas-especiais.csv", "vaga,tipo")) {
+      const int vaga = caso.campos.size() == 2 ? std::atoi(caso.campos[0].c_str()) : 0;
+      confere(vaga >= 1 && vaga <= MAX_VAGAS && lerTipoVaga(caso.campos[1].c_str(), esperado[vaga]),
+              "vagas-especiais.csv", caso);
+    }
+    for (int vaga = 1; vaga <= MAX_VAGAS; ++vaga) {
+      if (tipoDaVaga(nullptr, vaga) != esperado[vaga]) {
+        std::fprintf(stderr, "contratos/vagas-especiais.csv: o totem discorda do tipo da vaga %d.\n", vaga);
+        return 1;
+      }
+    }
+  }
+  for (const LinhaCsv& caso : lerCsv("placas.csv", "placa,valida")) {
+    confere(caso.campos.size() == 2 && (caso.campos[1] == "sim" || caso.campos[1] == "nao") &&
+                placaValida(caso.campos[0].c_str()) == (caso.campos[1] == "sim"),
+            "placas.csv", caso);
+  }
+
   std::puts("LogicaTotem: placas, capacidade, tarifa, cobranca, PIN, escolha de vaga e Wi-Fi pela tela aprovados.");
+  std::puts("LogicaTotem: casos de contratos/ (cobranca, vagas especiais e placas) iguais ao site e as regras.");
 }

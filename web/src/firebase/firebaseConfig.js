@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { connectAuthEmulator, getAuth } from "firebase/auth";
+import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
 
 export const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -17,4 +17,16 @@ const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+
+// Teste do fluxo completo (e2e/): com estas duas variáveis o site usa os
+// emuladores locais. Só vale para projeto de demonstração ("demo-..."), que o
+// Firebase nunca liga a dados reais. O site publicado não tem nenhuma delas.
+const emuladorAuth = import.meta.env.VITE_EMULADOR_AUTH;
+const emuladorFirestore = import.meta.env.VITE_EMULADOR_FIRESTORE;
+if (firebaseConfig.projectId?.startsWith("demo-") && emuladorAuth && emuladorFirestore) {
+  connectAuthEmulator(auth, `http://${emuladorAuth}`, { disableWarnings: true });
+  const [host, porta] = emuladorFirestore.split(":");
+  connectFirestoreEmulator(db, host, Number(porta));
+}
+
 export default app;

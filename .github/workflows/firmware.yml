@@ -5,11 +5,13 @@ on:
     branches: [main]
     paths:
       - 'firmware/**'
+      - 'contratos/**'
       - '.github/workflows/firmware.yml'
   push:
     branches: [main]
     paths:
       - 'firmware/**'
+      - 'contratos/**'
       - '.github/workflows/firmware.yml'
 
 permissions:

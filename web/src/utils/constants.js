@@ -1,9 +1,10 @@
 // =========================================================================
-// Constantes compartilhadas com o firmware do totem (Main/Main.ino).
-// Se alterar aqui, altere lá também (e vice-versa).
+// Constantes do site. As que também existem no totem
+// (firmware/totem/LogicaTotem.h) ou nas regras (firebase/firestore.rules)
+// dizem onde; os testes de web/test/contratos.test.js conferem as três.
 // =========================================================================
 
-// Quantidade de vagas físicas monitoradas pelo ESP32 (NUM_VAGAS no firmware)
+// Vagas de um estacionamento que ainda não informou numVagas.
 export const TOTAL_VAGAS = 4;
 
 // Tarifa de segurança usada apenas enquanto os dados do estacionamento ainda
@@ -14,3 +15,7 @@ export const VALOR_POR_HORA = 5.0;
 // O totem grava um heartbeat a cada 60s; acima deste limite sem notícias,
 // o painel considera o dispositivo offline.
 export const TOTEM_OFFLINE_APOS_SEGUNDOS = 150;
+
+// Limites da recarga simulada, os mesmos de valorDeRecargaValido nas regras.
+export const RECARGA_MINIMA = 0.01;
+export const RECARGA_MAXIMA = 1000;

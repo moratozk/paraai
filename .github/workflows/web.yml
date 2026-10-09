@@ -38,5 +38,10 @@ jobs:
       - name: Verificar qualidade
         run: npm run lint
 
+      # Contas e validações do site, e os contratos com o totem e as regras
+      # (os casos de contratos/ e as fontes de firmware/ e firebase/).
+      - name: Testar contas e contratos
+        run: npm test
+
       - name: Gerar versão de produção
         run: npm run build

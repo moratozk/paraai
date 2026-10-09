@@ -31,6 +31,18 @@ const vagaLogica = placa => ({ placa, ocupada: placa !== '', origemOcupacao: 're
 const db = uid => env.authenticatedContext(uid).firestore();
 const ref = (uid, path) => doc(db(uid), path);
 
+// Casos compartilhados com o site e o totem (contratos/ na raiz do
+// repositório): CSV simples, com cabeçalho e comentários em "#".
+async function lerCsv(nome) {
+  const linhas = (await readFile(new URL(`../../contratos/${nome}`, import.meta.url), 'utf8'))
+    .split(/\r?\n/).map(linha => linha.trim()).filter(linha => linha && !linha.startsWith('#'));
+  const [cabecalho, ...dados] = linhas;
+  const campos = cabecalho.split(',');
+  return dados.map(linha => ({ linha, ...Object.fromEntries(linha.split(',').map((v, i) => [campos[i], v])) }));
+}
+const casosDeCobranca = await lerCsv('cobranca.csv');
+const tiposDasVagas = await lerCsv('vagas-especiais.csv');
+
 before(async () => {
   env = await initializeTestEnvironment({ projectId, firestore: {
     host: host.split(':')[0], port: 8180,
@@ -406,6 +418,37 @@ test('recibo imutável: repetição da saída não debita outra vez', async () =
   await assertFails(getDoc(ref('motorista-b', `historico/ABC1D23_${entrada}`)));
 });
 
+// A mesma conta do site e do totem (contratos/cobranca.csv): para cada caso,
+// as regras aceitam o valor e a pendência esperados e recusam um centavo a
+// mais ou a menos, com o débito do saldo coerente com o valor tentado.
+function pendenteDaEstadia(saldo, valor) {
+  const saldoFinal = saldo - valor;
+  return saldoFinal >= 0 ? 0 : saldoFinal + valor <= 0 ? valor : -saldoFinal;
+}
+for (const caso of casosDeCobranca) {
+  test(`contrato da saída ${caso.linha}: só o centavo do site e do totem`, async () => {
+    const segundos = Number(caso.segundos), tarifa = Number(caso.tarifa), saldo = Number(caso.saldo);
+    const valor = Number(caso.valor), pendente = Number(caso.pendente);
+    const horaSaida = Math.floor(Date.now() / 1000), horaEntrada = horaSaida - segundos;
+    await env.withSecurityRulesDisabled(c => setDoc(doc(c.firestore(), 'veiculos/ABC1D23'),
+      { ...aberta, horaEntrada, tarifaHoraEntrada: tarifa, saldo }));
+    const sair = (valorCobrado, valorPendente = pendenteDaEstadia(saldo, valorCobrado)) => {
+      const d = db('totem-a'), batch = writeBatch(d);
+      batch.update(doc(d, 'veiculos/ABC1D23'), { ...saida, saldo: saldo - valorCobrado });
+      batch.update(doc(d, 'estacionamentos/EST-A/vagas/1'), vagaLogica(''));
+      batch.set(doc(d, `historico/ABC1D23_${horaEntrada}`), { ...recibo, entrada: horaEntrada, saida: horaSaida,
+        duracaoMinutos: Math.floor(segundos / 60), valorCobrado, valorPendente, tarifaHora: tarifa });
+      return batch.commit();
+    };
+    await assertFails(sair(valor + 0.01));
+    if (valor >= 0.01) await assertFails(sair(valor - 0.01));
+    await assertFails(sair(valor, pendente + 0.01));
+    await assertSucceeds(sair(valor, pendente));
+    const depois = (await getDoc(ref('motorista-a', 'veiculos/ABC1D23'))).data();
+    assert.ok(Math.abs(depois.saldo - Number(caso.saldo_final)) < 1e-9, `saldo ${depois.saldo}`);
+  });
+}
+
 async function rest(path, body, uid = 'totem-a', method = body ? 'POST' : 'GET') {
   const response = await fetch(`${base}${path}`, {
     method,
@@ -543,6 +586,35 @@ test('vaga sem tipo gravado segue a tabela padrão do site e do totem', async ()
   await assertSucceeds(declararDireito('motorista-b', 'XYZ1234', 'pcd'));
   await assertSucceeds(loteReserva(db('motorista-b'), 'motorista-b').batch.commit());
 });
+
+// Tabela das vagas sem "tipo" gravado (contratos/vagas-especiais.csv), a mesma
+// do site e do totem. Vaga fora da tabela é comum: a 13 e a 200 conferem isso.
+const tipoEsperado = new Map(tiposDasVagas.map(({ vaga, tipo }) => [Number(vaga), tipo]));
+for (const vaga of [...tipoEsperado.keys(), 13, 200]) {
+  const tipo = tipoEsperado.get(vaga) ?? 'comum';
+  test(`contrato da vaga ${vaga} sem tipo gravado: ${tipo}, como no site e no totem`, async () => {
+    await env.withSecurityRulesDisabled(async c => {
+      const batch = writeBatch(c.firestore());
+      batch.update(doc(c.firestore(), 'catalogoEstacionamentos/EST-A'), { numVagas: 200 });
+      batch.set(doc(c.firestore(), `catalogoEstacionamentos/EST-A/vagas/${vaga}`), { ocupada: false });
+      await batch.commit();
+    });
+    const reservar = () => loteReserva(db('motorista-b'), 'motorista-b',
+      { vaga, criadaEm: Math.floor(Date.now() / 1000) }).batch.commit();
+    if (tipo === 'comum') {
+      await assertSucceeds(reservar());
+      return;
+    }
+    // Especial: sem direito, ou com direito de outro tipo, não reserva.
+    await assertFails(reservar());
+    for (const outro of ['pcd', 'idoso', 'gestante'].filter(direito => direito !== tipo)) {
+      await assertSucceeds(declararDireito('motorista-b', 'XYZ1234', outro));
+      await assertFails(reservar());
+    }
+    await assertSucceeds(declararDireito('motorista-b', 'XYZ1234', tipo));
+    await assertSucceeds(reservar());
+  });
+}
 
 test('cancelar libera a vaga; ninguém libera a reserva de outra conta', async () => {
   const d = db('motorista-b');

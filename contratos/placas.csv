@@ -1,0 +1,19 @@
+# Placas como o totem e as regras recebem (maiúsculas, sem hífen nem espaço).
+# O site também tira hífen e espaço e passa para maiúsculas enquanto a pessoa digita.
+placa,valida
+ABC1234,sim
+ABC1D23,sim
+ZZZ9Z99,sim
+AAA0000,sim
+FTC4A21,sim
+ABC123,nao
+ABC12345,nao
+abc1234,nao
+ABC-1234,nao
+123ABCD,nao
+AB11D23,nao
+ABCA123,nao
+ABC1DD3,nao
+ABC1D2X,nao
+ABC1_23,nao
+ABC1d23,nao
