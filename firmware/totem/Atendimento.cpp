@@ -43,12 +43,14 @@ void estado(ConexaoTotem conexao, const char* etapa = "") {
   xQueueOverwrite(statusFila, &s);
 }
 RespostaTotem resposta(TipoResposta tipo, const char* titulo,
-                       const String& detalhe = "", const String& ajuda = "") {
+                       const String& detalhe = "", const String& ajuda = "",
+                       const String& carro = "") {
   RespostaTotem r{};
   r.tipo = tipo;
   snprintf(r.titulo, sizeof(r.titulo), "%s", titulo);
   snprintf(r.detalhe, sizeof(r.detalhe), "%s", detalhe.c_str());
   snprintf(r.ajuda, sizeof(r.ajuda), "%s", ajuda.c_str());
+  snprintf(r.carro, sizeof(r.carro), "%s", carro.c_str());
   return r;
 }
 // Separa "talvez não tenha chegado ao servidor" (rede) de recusa das regras,
@@ -286,11 +288,17 @@ void escrita(std::vector<firebase_firestore_document_write_t>& lote, const Strin
   }
   lote.push_back(e);
 }
-void dadosVaga(FirebaseJson& vaga, const String& placa) {
+// Máscara das gravações da vaga. Campo da máscara ausente no conteúdo é
+// apagado: leituraValida (não fingimos uma leitura física) e, na saída ou em
+// carro sem descrição, modelo e cor.
+constexpr const char* CAMPOS_VAGA = "placa,ocupada,origemOcupacao,leituraValida,modelo,cor";
+void dadosVaga(FirebaseJson& vaga, const String& placa, const String& modelo = "", const String& cor = "") {
   vaga.set("fields/placa/stringValue", placa);
   vaga.set("fields/ocupada/booleanValue", !placa.isEmpty());
   vaga.set("fields/origemOcupacao/stringValue", "registro");
-  // leituraValida é removido pelo updateMask, não fingimos uma leitura física.
+  // Copiados do veículo para o painel do pátio; as regras conferem a cópia.
+  if (!modelo.isEmpty()) vaga.set("fields/modelo/stringValue", modelo);
+  if (!cor.isEmpty()) vaga.set("fields/cor/stringValue", cor);
 }
 enum class Sincronia : uint8_t { OK, REDE, CONFIGURACAO };
 Sincronia falhaSincronia() {
@@ -364,6 +372,16 @@ RespostaTotem executar(const Solicitacao& pedido) {
     // Direito a vaga especial declarado pelo dono no site (autodeclaração).
     String declarado;
     texto(veiculo, "fields/vagaEspecial/stringValue", declarado);
+    // Modelo e cor informados no site: "GOL PRATA" na confirmação e cópia na
+    // vaga. Fora do formato, nenhum dos dois (a entrada segue sem eles).
+    String modelo, cor;
+    texto(veiculo, "fields/modelo/stringValue", modelo);
+    texto(veiculo, "fields/cor/stringValue", cor);
+    if (!paraai::descricaoVeiculoValida(modelo.c_str(), cor.c_str())) { modelo = ""; cor = ""; }
+    // Só a cor, sem modelo, não identifica o carro: a tela fica com a placa.
+    String carro = modelo;
+    if (!carro.isEmpty() && !cor.isEmpty()) { carro += ' '; carro += cor; }
+    carro.toUpperCase();
     const paraai::TipoVaga direito = paraai::direitoDeclarado(declarado.c_str());
     estado(ConexaoTotem::PRONTO, "Verificando disponibilidade...");
     MapaVagas mapa;
@@ -374,11 +392,11 @@ RespostaTotem executar(const Solicitacao& pedido) {
     alteracao.set("fields/horaEntrada/integerValue", String(static_cast<long long>(time(nullptr))));
     alteracao.set("fields/estacionamentoId/stringValue", ESTACIONAMENTO_ID);
     alteracao.set("fields/tarifaHoraEntrada/doubleValue", tarifa);
-    dadosVaga(vaga, placa);
+    dadosVaga(vaga, placa, modelo, cor);
     std::vector<firebase_firestore_document_write_t> lote;
     escrita(lote, caminho, alteracao, "vagaAtual,horaEntrada,estacionamentoId,tarifaHoraEntrada", revisao, true);
     escrita(lote, String(PATIO) + "/vagas/" + String(mapa.primeira), vaga,
-      "placa,ocupada,origemOcupacao,leituraValida", mapa.revisao, mapa.existe);
+      CAMPOS_VAGA, mapa.revisao, mapa.existe);
     // Mapa do app: vaga ocupada e reserva encerrada no mesmo commit.
     publica.set("fields/ocupada/booleanValue", true);
     publica.set("fields/reservadaAte/integerValue", "0");
@@ -393,7 +411,7 @@ RespostaTotem executar(const Solicitacao& pedido) {
     sincronizado = false;
     return resposta(TipoResposta::SUCESSO, "ENTRADA CONFIRMADA", placa,
       String(mapa.reservada ? "Vaga reservada " : "Vaga ") + String(mapa.primeira) +
-      " - R$ " + valorEmReais(tarifa) + "/h");
+      " - R$ " + valorEmReais(tarifa) + "/h", carro);
   }
   if (numeroVaga == 0) return resposta(TipoResposta::ALERTA, "SEM ENTRADA ABERTA", placa, "Nenhuma saida a registrar");
   if (local != ESTACIONAMENTO_ID) return resposta(TipoResposta::ALERTA, "USE O OUTRO TOTEM", placa, "A entrada foi em outro local");
@@ -428,7 +446,7 @@ RespostaTotem executar(const Solicitacao& pedido) {
   recibo.set("fields/estacionamentoId/stringValue", ESTACIONAMENTO_ID);
   std::vector<firebase_firestore_document_write_t> lote;
   escrita(lote, caminho, alteracao, "vagaAtual,horaEntrada,estacionamentoId,saldo,tarifaHoraEntrada", revisao, true);
-  escrita(lote, caminhoVaga, vaga, "placa,ocupada,origemOcupacao,leituraValida", revisaoVaga, true);
+  escrita(lote, caminhoVaga, vaga, CAMPOS_VAGA, revisaoVaga, true);
   escrita(lote, "historico/" + placa + "_" + String(static_cast<long long>(entrada)), recibo, "", "", false);
   publica.set("fields/ocupada/booleanValue", false);
   escrita(lote, String(VAGAS_PUBLICAS) + "/" + String(static_cast<int>(numeroVaga)), publica,

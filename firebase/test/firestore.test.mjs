@@ -606,3 +606,115 @@ test('REST do ESP: updateMask exclui leituraValida na saída', async () => {
   assert.equal(resultado.status, 200, JSON.stringify(resultado));
   assert.deepEqual((await getDoc(ref('totem-a', 'estacionamentos/EST-A/vagas/1'))).data(), vagaLogica(''));
 });
+
+// ---------------------------------------------------------------------------
+// Modelo e cor: o dono informa no Perfil; o totem mostra e copia para a vaga.
+// ---------------------------------------------------------------------------
+const descricao = { marca: 'Volkswagen', modelo: 'Gol', cor: 'prata' };
+const descrever = (uid, placa, dados) =>
+  updateDoc(ref(uid, `veiculos/${placa}`), { ...dados, atualizadoEm: Timestamp.now() });
+
+test('modelo e cor: só o dono informa, só nomes do documento do carro e cores conhecidas', async () => {
+  await assertSucceeds(descrever('motorista-b', 'XYZ1234', descricao));
+  await assertSucceeds(descrever('motorista-b', 'XYZ1234', { modelo: 'Up!', cor: 'vermelho' }));
+  await assertSucceeds(descrever('motorista-b', 'XYZ1234', { modelo: 'T-Cross 200 TSI' }));
+  await assertFails(descrever('motorista-a', 'XYZ1234', descricao));
+  for (const invalido of [{ cor: 'Prata' }, { cor: 'furta-cor' }, { cor: 3 }, { modelo: '' },
+    { modelo: ' Gol' }, { modelo: 'Gol<b>' }, { modelo: 'x'.repeat(21) }, { marca: 'Citroën' }, { marca: true }]) {
+    await assertFails(descrever('motorista-b', 'XYZ1234', invalido));
+  }
+  await assertSucceeds(descrever('motorista-b', 'XYZ1234',
+    { marca: deleteField(), modelo: deleteField(), cor: deleteField() }));
+  assert.ok(!('modelo' in (await getDoc(ref('motorista-b', 'veiculos/XYZ1234'))).data()));
+});
+
+test('modelo e cor no cadastro pelo painel e na reivindicação de placa do totem', async () => {
+  const novo = { ativo: true, vagaAtual: 0, horaEntrada: 0, saldo: 0, estacionamentoId: '',
+    tarifaHoraEntrada: 0, ownerUid: 'motorista-c', atualizadoEm: Timestamp.now() };
+  await assertSucceeds(setDoc(ref('motorista-c', 'veiculos/NOV1A23'), { ...novo, ...descricao }));
+  await assertFails(setDoc(ref('motorista-d', 'veiculos/NOV1B23'),
+    { ...novo, ownerUid: 'motorista-d', ...descricao, cor: 'neon' }));
+  const doTotem = { ativo: true, vagaAtual: 0, horaEntrada: 0, saldo: 0, estacionamentoId: '',
+    tarifaHoraEntrada: 0, cadastradoNoTotem: true };
+  await assertFails(setDoc(ref('totem-a', 'veiculos/NEW1234'), { ...doTotem, ...descricao }));
+  await assertSucceeds(setDoc(ref('totem-a', 'veiculos/NEW1234'), doTotem));
+  await assertSucceeds(updateDoc(ref('motorista-a', 'veiculos/NEW1234'),
+    { ownerUid: 'motorista-a', ...descricao, atualizadoEm: Timestamp.now() }));
+  assert.equal((await getDoc(ref('motorista-a', 'veiculos/NEW1234'))).data().modelo, 'Gol');
+});
+
+test('entrada copia modelo e cor do veículo para a vaga; o pátio vê, outro pátio não', async () => {
+  await assertSucceeds(descrever('motorista-b', 'XYZ1234', descricao));
+  const comDescricao = { ...vagaLogica('XYZ1234'), modelo: 'Gol', cor: 'prata' };
+  await assertSucceeds(loteEntrada(db('totem-a'), 2, comDescricao).commit());
+  assert.deepEqual((await getDoc(ref('operador-a', 'estacionamentos/EST-A/vagas/2'))).data(), comDescricao);
+  assert.equal((await getDoc(ref('admin', 'estacionamentos/EST-A/vagas/2'))).data().cor, 'prata');
+  await assertFails(getDoc(ref('operador-b', 'estacionamentos/EST-A/vagas/2')));
+  // Quem vê a vaga não ganha leitura do veículo (que tem o saldo).
+  await assertFails(getDoc(ref('operador-a', 'veiculos/XYZ1234')));
+  await assertFails(getDoc(ref('admin', 'veiculos/XYZ1234')));
+});
+
+test('entrada não aceita modelo ou cor diferente do que o dono informou', async () => {
+  await assertSucceeds(descrever('motorista-b', 'XYZ1234', descricao));
+  for (const errado of [{ modelo: 'Ferrari', cor: 'prata' }, { modelo: 'Gol', cor: 'preto' },
+    { modelo: 'Gol' }, { cor: 'prata' }, { modelo: 'Gol', cor: 'prata', marca: 'Volkswagen' }]) {
+    await assertFails(loteEntrada(db('totem-a'), 2, { ...vagaLogica('XYZ1234'), ...errado }).commit());
+  }
+  // Firmware anterior: entrada sem modelo e cor continua valendo.
+  await assertSucceeds(loteEntrada(db('totem-a')).commit());
+});
+
+test('carro sem modelo informado não ganha descrição na vaga', async () => {
+  await assertFails(loteEntrada(db('totem-a'), 2,
+    { ...vagaLogica('XYZ1234'), modelo: 'Gol', cor: 'prata' }).commit());
+  // Só a cor informada: a vaga leva só a cor.
+  await assertSucceeds(descrever('motorista-b', 'XYZ1234', { cor: 'azul' }));
+  await assertSucceeds(loteEntrada(db('totem-a'), 2, { ...vagaLogica('XYZ1234'), cor: 'azul' }).commit());
+});
+
+test('saída apaga modelo e cor da vaga junto com a placa', async () => {
+  await env.withSecurityRulesDisabled(async c => {
+    const batch = writeBatch(c.firestore());
+    batch.update(doc(c.firestore(), 'veiculos/ABC1D23'), { modelo: 'Onix', cor: 'preto' });
+    batch.update(doc(c.firestore(), 'estacionamentos/EST-A/vagas/1'),
+      { ...vagaLogica('ABC1D23'), modelo: 'Onix', cor: 'preto' });
+    await batch.commit();
+  });
+  // Vaga livre com o modelo do carro que saiu seria uma descrição falsa.
+  await assertFails(loteSaida(db('totem-a')).commit());
+  const d = db('totem-a'), batch = writeBatch(d);
+  batch.update(doc(d, 'veiculos/ABC1D23'), saida);
+  batch.update(doc(d, 'estacionamentos/EST-A/vagas/1'),
+    { ...vagaLogica(''), leituraValida: deleteField(), modelo: deleteField(), cor: deleteField() });
+  batch.set(doc(d, `historico/ABC1D23_${entrada}`), recibo);
+  await assertSucceeds(batch.commit());
+  assert.deepEqual((await getDoc(ref('totem-a', 'estacionamentos/EST-A/vagas/1'))).data(), vagaLogica(''));
+});
+
+test('REST do ESP: máscaras da entrada e da saída gravam e apagam modelo e cor', async () => {
+  await assertSucceeds(descrever('motorista-b', 'XYZ1234', descricao));
+  const mascara = ['leituraValida', 'modelo', 'cor'];
+  const veiculo = await rest('/veiculos/XYZ1234');
+  const vaga = await rest('/estacionamentos/EST-A/vagas/2');
+  const ocupar = escrita('estacionamentos/EST-A/vagas/2',
+    { ...vagaLogica('XYZ1234'), modelo: 'Gol', cor: 'prata' }, { updateTime: vaga.data.updateTime });
+  ocupar.updateMask.fieldPaths.push('leituraValida');
+  const entradaRest = await rest(':commit', { writes: [
+    escrita('veiculos/XYZ1234', { vagaAtual: 2, horaEntrada: agora, estacionamentoId: 'EST-A', tarifaHoraEntrada: 8.5 },
+      { updateTime: veiculo.data.updateTime }), ocupar
+  ] });
+  assert.equal(entradaRest.status, 200, JSON.stringify(entradaRest));
+  assert.equal((await getDoc(ref('operador-a', 'estacionamentos/EST-A/vagas/2'))).data().modelo, 'Gol');
+  // Carro sem descrição: a mesma máscara apaga o que houver e grava só a placa.
+  const semDescricao = await rest('/veiculos/ABC1D23');
+  const vaga1 = await rest('/estacionamentos/EST-A/vagas/1');
+  const liberar = escrita('estacionamentos/EST-A/vagas/1', vagaLogica(''), { updateTime: vaga1.data.updateTime });
+  liberar.updateMask.fieldPaths.push(...mascara);
+  const saidaRest = await rest(':commit', { writes: [
+    escrita('veiculos/ABC1D23', saida, { updateTime: semDescricao.data.updateTime }), liberar,
+    escrita(`historico/ABC1D23_${entrada}`, recibo, { exists: false })
+  ] });
+  assert.equal(saidaRest.status, 200, JSON.stringify(saidaRest));
+  assert.deepEqual((await getDoc(ref('totem-a', 'estacionamentos/EST-A/vagas/1'))).data(), vagaLogica(''));
+});

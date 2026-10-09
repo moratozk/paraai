@@ -18,6 +18,7 @@ import {
 } from "../utils/format";
 import { VALOR_POR_HORA } from "../utils/constants";
 import { cancelarReserva, reservaAtiva } from "../services/reservas";
+import { descreverVeiculo } from "../utils/veiculo";
 import "./Pages.css";
 
 export default function PainelMotorista() {
@@ -215,6 +216,16 @@ export default function PainelMotorista() {
                 <div className="info-row">
                   <span className="label">Placa</span>
                   <span className="placa-tag">{placa}</span>
+                </div>
+                <div className="info-row">
+                  <span className="label">Modelo e cor</span>
+                  {descreverVeiculo(veiculo) ? (
+                    <span>{descreverVeiculo(veiculo)}</span>
+                  ) : (
+                    <Link to="/perfil" className="field-link">
+                      Informar no Perfil
+                    </Link>
+                  )}
                 </div>
 
                 {estacionado ? (

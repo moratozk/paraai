@@ -82,6 +82,8 @@ estacionamentos/{EST-XXXXXX}
 
 estacionamentos/{id}/vagas/{1..N}
   ocupada, placa, origemOcupacao: "registro", tipo?
+  modelo?, cor?                           -- do carro estacionado, copiados do
+                                            veículo pelo totem na entrada
                                           -- ocupação lógica registrada pelo totem
 
 catalogoEstacionamentos/{EST-XXXXXX}
@@ -101,6 +103,8 @@ veiculos/{PLACA}                          -- GLOBAL: carteira única na rede
   estacionamentoId (onde está agora, "" se fora), tarifaHoraEntrada,
   ownerUid, atualizadoEm                  -- gravados pelo painel (o nome
                                             fica só em users/{uid})
+  marca?, modelo?, cor?                   -- informados pelo dono no Perfil;
+                                            o totem mostra "GOL PRATA"
 
 historico/{PLACA_horaEntrada}              -- novo firmware: ID da estadia
   placa, vaga, entrada, saida, duracaoMinutos, valorCobrado,

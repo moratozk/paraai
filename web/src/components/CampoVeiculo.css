@@ -1,0 +1,97 @@
+/* Marca, modelo e cor do carro (cadastro da placa e Perfil). */
+.campo-veiculo {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.campo-veiculo .field-row .field { min-width: 0; }
+/* Empilhados no celular, a margem de cada campo já separa os dois. */
+.campo-veiculo .field-row { row-gap: 0; }
+
+.campo-cor { margin-bottom: 1.1rem; }
+
+.campo-cor-rotulo {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0 0 0.45rem;
+  color: var(--text-secondary);
+  font-size: var(--t-apoio);
+  font-weight: 600;
+}
+.campo-cor-rotulo span {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* Amostras redondas de 30 px dentro de alvos de 44 px. */
+.campo-cor-opcoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+  margin: 0 -0.4rem;
+}
+
+.campo-cor-opcao {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.campo-cor-opcao input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.campo-cor-amostra {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.38), transparent 46%),
+    var(--amostra);
+  /* Contorno nos dois temas: o branco some no claro e o preto no escuro. */
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.28), 0 0 0 1px var(--border-strong);
+  transition: transform var(--dur-toque) ease-out;
+}
+
+.campo-cor-opcao input:checked + .campo-cor-amostra {
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.28),
+    0 0 0 3px var(--bg-solid),
+    0 0 0 5px var(--accent);
+}
+.campo-cor-opcao input:focus-visible + .campo-cor-amostra {
+  outline: 2px solid var(--accent);
+  outline-offset: 6px;
+}
+.campo-cor-opcao:active .campo-cor-amostra { transform: scale(0.92); }
+
+.campo-veiculo:disabled .campo-cor-opcao { cursor: default; opacity: 0.6; }
+
+/* No celular, 3 fileiras de 5, sem uma cor sobrando sozinha numa linha. */
+@media (max-width: 620px) {
+  .campo-cor-opcoes {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(44px, 1fr));
+    justify-items: center;
+    gap: 0.2rem 0;
+    margin: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .campo-cor-amostra { transition: none; }
+}

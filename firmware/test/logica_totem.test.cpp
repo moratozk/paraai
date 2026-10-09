@@ -34,6 +34,22 @@ int main() {
   assert(tipoDaVaga("comum", 1) == TipoVaga::COMUM);       // tipo gravado vence a tabela
   assert(tipoDaVaga("gestante", 3) == TipoVaga::GESTANTE);
   assert(tipoDaVaga("outro", 2) == TipoVaga::PCD && tipoDaVaga("outro", 4) == TipoVaga::COMUM);
+  // Modelo e cor informados no site: mesma regra das regras do Firestore
+  // (nomeDeVeiculoValido) e de web/src/utils/veiculo.js.
+  for (const char* nome : {"Gol", "Up!", "T-Cross 200 TSI", "HB20S", "Range Rover Evoque", "C4 Cactus",
+                           "500", "Classe C", "XXXXXXXXXXXXXXXXXXXX"})
+    assert(nomeVeiculoValido(nome));
+  for (const char* nome : {"", " Gol", "-Gol", "Gol<b>", "Citro\xC3\xABn", "Gol\nPrata", "Gol/Saveiro",
+                           "XXXXXXXXXXXXXXXXXXXXX"})
+    assert(!nomeVeiculoValido(nome));
+  assert(!nomeVeiculoValido(nullptr));
+  for (const char* cor : {"branco", "preto", "prata", "vinho", "roxo"}) assert(corVeiculoValida(cor));
+  for (const char* cor : {"", "Prata", "PRATA", "prata ", "furta-cor", "grena"}) assert(!corVeiculoValida(cor));
+  assert(!corVeiculoValida(nullptr));
+  assert(descricaoVeiculoValida("", "") && descricaoVeiculoValida(nullptr, nullptr));
+  assert(descricaoVeiculoValida("Gol", "prata") && descricaoVeiculoValida("Gol", "") && descricaoVeiculoValida("", "azul"));
+  // Um campo fora do formato invalida os dois: o totem não mostra nem copia nada.
+  assert(!descricaoVeiculoValida("Gol<b>", "prata") && !descricaoVeiculoValida("Gol", "neon"));
   // Direito declarado no veículo: ausente, vazio ou desconhecido = nenhum.
   assert(direitoDeclarado("pcd") == TipoVaga::PCD && direitoDeclarado("idoso") == TipoVaga::IDOSO);
   assert(direitoDeclarado(nullptr) == TipoVaga::COMUM && direitoDeclarado("") == TipoVaga::COMUM);
