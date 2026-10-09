@@ -13,7 +13,7 @@ export default function GerenciarTotens({
   carregando,
   erroLista = "",
   titulo = "Segurança do totem",
-  descricao = "Cada equipamento usa um acesso exclusivo e pode ser bloqueado sem afetar sua conta de operador.",
+  descricao = "Cada totem usa um acesso exclusivo e pode ser bloqueado sem afetar a sua conta.",
   Titulo = "h2",
 }) {
   const toast = useToast();
@@ -48,7 +48,7 @@ export default function GerenciarTotens({
       toast.sucesso(totem.ativo ? "Totem bloqueado." : "Totem reativado.");
     } catch (falha) {
       console.error("Falha ao alterar o totem:", falha);
-      setErro("Não foi possível alterar o equipamento.");
+      setErro("Não foi possível alterar o totem.");
     }
   }
 
@@ -88,11 +88,11 @@ export default function GerenciarTotens({
         <div className="totem-credential" role="status">
           <strong>Copie agora — a senha não será exibida novamente</strong>
           <div className="totem-credential-row">
-            <span>E-mail do dispositivo</span>
+            <span>E-mail do totem</span>
             <code>{credencial.email}</code>
           </div>
           <div className="totem-credential-row">
-            <span>Senha do dispositivo</span>
+            <span>Senha do totem</span>
             <code>{credencial.senha}</code>
           </div>
           <button type="button" className="btn btn-outline btn-sm" onClick={copiar}>
@@ -102,9 +102,9 @@ export default function GerenciarTotens({
       )}
 
       {carregando ? (
-        <p className="empty-state">Consultando equipamentos...</p>
+        <p className="empty-state">Consultando os totens…</p>
       ) : totens.length === 0 ? (
-        <p className="empty-state">Nenhum equipamento seguro foi vinculado ainda.</p>
+        <p className="empty-state">Nenhum totem tem acesso ainda.</p>
       ) : (
         <div className="totem-list">
           {totens.map((totem) => (
@@ -118,7 +118,7 @@ export default function GerenciarTotens({
               </div>
               <button
                 type="button"
-                className={`btn btn-sm ${totem.ativo ? "btn-ghost" : "btn-outline"}`}
+                className="btn btn-outline btn-sm"
                 onClick={() => alternar(totem)}
               >
                 {totem.ativo ? "Bloquear" : "Reativar"}

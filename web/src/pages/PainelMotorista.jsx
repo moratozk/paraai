@@ -90,8 +90,36 @@ export default function PainelMotorista() {
   const saldo = Number(veiculo?.saldo) || 0;
   // Saldo negativo: uma saída não foi coberta e o totem recusa nova entrada.
   const emPendencia = Boolean(placa) && saldoEmPendencia(saldo);
-  // Alerta se o saldo não cobre nem 1 hora na tarifa vigente
-  const saldoBaixo = Boolean(placa) && !emPendencia && saldo < tarifaAtual;
+
+  // Saldo baixo: não cobre uma hora na tarifa que a pessoa vai pagar de fato.
+  // Estacionado, a congelada na entrada, descontado o que a estadia já soma;
+  // com reserva, a do local reservado; senão, a do último local usado e, para
+  // quem nunca estacionou, a mais barata da rede. Sem tarifa, sem aviso.
+  const referenciaSaldo = useMemo(() => {
+    if (estacionado) return { tarifa: tarifaAtual, onde: "" };
+    const tarifaDe = (est) => Number(est?.tarifaHora) || 0;
+    if (reservaValida && tarifaDe(estReserva) > 0) {
+      return { tarifa: tarifaDe(estReserva), onde: "no estacionamento da sua reserva" };
+    }
+    const ultimo = estacionamentosPorId[historico[0]?.estacionamentoId];
+    if (tarifaDe(ultimo) > 0) {
+      return { tarifa: tarifaDe(ultimo), onde: "no último estacionamento que você usou" };
+    }
+    const tarifasDaRede = estacionamentos
+      .filter((est) => est.ativo !== false)
+      .map(tarifaDe)
+      .filter((tarifa) => tarifa > 0);
+    if (tarifasDaRede.length) {
+      return { tarifa: Math.min(...tarifasDaRede), onde: "no estacionamento mais barato da rede" };
+    }
+    return null;
+  }, [estacionado, tarifaAtual, reservaValida, estReserva, estacionamentosPorId, historico, estacionamentos]);
+  const saldoDisponivel = estacionado ? saldo - custoEstimado : saldo;
+  const saldoBaixo =
+    Boolean(placa) &&
+    !emPendencia &&
+    Boolean(referenciaSaldo) &&
+    saldoDisponivel < referenciaSaldo.tarifa;
 
   async function cancelarMinhaReserva() {
     setCancelandoReserva(true);
@@ -160,8 +188,16 @@ export default function PainelMotorista() {
       {saldoBaixo && (
         <div className="card destaque-aviso alerta-saldo">
           <div>
-            <strong>Saldo baixo.</strong> Você tem{" "}
-            {formatarMoeda(saldo)} — menos que uma hora de estacionamento.
+            <strong>Saldo baixo.</strong>{" "}
+            {!estacionado
+              ? `Você tem ${formatarMoeda(saldo)}, e uma hora custa ${formatarMoeda(
+                  referenciaSaldo.tarifa
+                )} ${referenciaSaldo.onde}.`
+              : saldoDisponivel >= 0
+                ? `Descontando esta estadia até agora, sobram ${formatarMoeda(
+                    saldoDisponivel
+                  )}, e cada hora aqui custa ${formatarMoeda(referenciaSaldo.tarifa)}.`
+                : `Esta estadia já passou do seu saldo em ${formatarMoeda(-saldoDisponivel)}.`}{" "}
             Recarregue para não sair com pendência.
           </div>
           <Link to="/perfil" className="btn btn-primary btn-sm">

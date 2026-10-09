@@ -10,6 +10,7 @@ import {
 import {
   useEstacionamento,
   useVagas,
+  useVagasPublicas,
   useHistoricoEstacionamento,
 } from "../hooks/useParkingData";
 import StatusTotem from "../components/StatusTotem";
@@ -30,7 +31,11 @@ import {
   calcularSerieDiaria,
   inicioDoPeriodo,
 } from "../utils/relatorios";
+import { combinarVagasDoPatio } from "../utils/mapaVagas";
 import "./Pages.css";
+
+const LINHAS_INICIAIS = 10;
+const LINHAS_POR_CLIQUE = 20;
 
 export default function PainelOperador() {
   const { userData } = useAuth();
@@ -63,11 +68,18 @@ export default function PainelOperador() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [estacionamento?.id, assinaturaCatalogo]);
 
-  const { vagas } = useVagas(estId, estacionamento?.numVagas);
+  // Ocupação pelo totem e reservas pelo app, juntas no mesmo mapa.
+  const { vagas: vagasOperacionais } = useVagas(estId, estacionamento?.numVagas);
+  const { vagas: vagasPublicas } = useVagasPublicas(estId, estacionamento?.numVagas);
+  const vagas = useMemo(
+    () => combinarVagasDoPatio(vagasOperacionais, vagasPublicas),
+    [vagasOperacionais, vagasPublicas]
+  );
   const { historico, loading } = useHistoricoEstacionamento(estId);
 
   const [periodo, setPeriodo] = useState("7d");
   const [busca, setBusca] = useState("");
+  const [linhasVisiveis, setLinhasVisiveis] = useState(LINHAS_INICIAIS);
 
   // edição dos dados operacionais direto no painel
   const [editando, setEditando] = useState(false);
@@ -141,6 +153,7 @@ export default function PainelOperador() {
     : 0;
 
   const ocupadas = vagas.filter((v) => v.ocupada).length;
+  const reservadas = vagas.filter((v) => v.reservada).length;
   const taxaOcupacao = vagas.length
     ? Math.round((ocupadas / vagas.length) * 100)
     : 0;
@@ -161,16 +174,15 @@ export default function PainelOperador() {
   // --- tabela filtrada pela busca ---
   const movimentacoes = useMemo(() => {
     const termo = busca.trim().toUpperCase();
-    const base = termo
+    return termo
       ? doPeriodo.filter((h) => (h.placa || "").includes(termo))
       : doPeriodo;
-    return base.slice(0, 25);
   }, [doPeriodo, busca]);
 
   if (!estId) {
     return (
       <div className="page container">
-        <div className="card empty-state setup-pendente">
+        <div className="card empty-state">
           <h2>Conclua o cadastro do estacionamento</h2>
           <p>
             Sua conta de operador está pronta, mas ainda falta informar os
@@ -291,8 +303,8 @@ export default function PainelOperador() {
             </div>
           </form>
           <p className="muted-note">
-            Painel e totem usam a mesma tarifa. O equipamento sincroniza as
-            alterações em até um minuto quando está conectado.
+            Painel e totem usam a mesma tarifa. O totem recebe as alterações
+            em até um minuto quando está conectado.
           </p>
         </div>
       )}
@@ -306,7 +318,10 @@ export default function PainelOperador() {
               role="tab"
               aria-selected={periodo === p.id}
               className={`segmented-op ${periodo === p.id ? "ativo" : ""}`}
-              onClick={() => setPeriodo(p.id)}
+              onClick={() => {
+                setPeriodo(p.id);
+                setLinhasVisiveis(LINHAS_INICIAIS);
+              }}
             >
               {p.rotulo}
             </button>
@@ -372,6 +387,8 @@ export default function PainelOperador() {
           </div>
           <span className="muted-note" style={{ marginTop: 0 }}>
             {ocupadas} de {vagas.length} vagas ocupadas
+            {reservadas > 0 &&
+              ` · ${reservadas} ${reservadas === 1 ? "reservada" : "reservadas"} no app`}
           </span>
         </div>
         <div className="card stat-card">
@@ -424,7 +441,10 @@ export default function PainelOperador() {
                 className="input-busca"
                 placeholder="Buscar placa..."
                 value={busca}
-                onChange={(e) => setBusca(e.target.value.toUpperCase())}
+                onChange={(e) => {
+                  setBusca(e.target.value.toUpperCase());
+                  setLinhasVisiveis(LINHAS_INICIAIS);
+                }}
                 aria-label="Buscar por placa"
               />
             </div>
@@ -442,55 +462,72 @@ export default function PainelOperador() {
                   : "Nenhuma movimentação neste período."}
               </p>
             ) : (
-              // Em telas médias a tabela rola de lado: com foco, o teclado
-              // também consegue rolar.
-              <div
-                className="tabela-wrap tabela-cards"
-                tabIndex={0}
-                role="region"
-                aria-label="Movimentações"
-              >
-                <table className="history-table responsive-table">
-                  <thead>
-                    <tr>
-                      <th>Placa</th>
-                      <th>Vaga</th>
-                      <th>Entrada</th>
-                      <th>Saída</th>
-                      <th>Duração</th>
-                      <th>Valor</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {movimentacoes.map((item) => (
-                      <tr key={item.id}>
-                        <td data-label="Placa">
-                          <span className="placa-tag placa-tag-sm">
-                            {item.placa}
-                          </span>
-                        </td>
-                        <td data-label="Vaga">{item.vaga}</td>
-                        <td data-label="Entrada">{formatarDataHora(item.entrada)}</td>
-                        <td data-label="Saída">{formatarDataHora(item.saida)}</td>
-                        <td data-label="Duração">{formatarDuracao(item.duracaoMinutos)}</td>
-                        <td data-label="Valor" className="money">
-                          <span className="valor-com-marca">
-                            {formatarMoeda(item.valorCobrado)}
-                            {valorPendente(item) > 0 && (
-                              <span
-                                className="status-pill warning pill-pendente"
-                                title={`${formatarMoeda(valorPendente(item))} não coberto pelo saldo`}
-                              >
-                                pendente
-                              </span>
-                            )}
-                          </span>
-                        </td>
+              <>
+                {/* Em telas médias a tabela rola de lado: com foco, o teclado
+                    também consegue rolar. */}
+                <div
+                  className="tabela-wrap tabela-cards"
+                  tabIndex={0}
+                  role="region"
+                  aria-label="Movimentações"
+                >
+                  <table className="history-table responsive-table">
+                    <thead>
+                      <tr>
+                        <th>Placa</th>
+                        <th>Vaga</th>
+                        <th>Entrada</th>
+                        <th>Saída</th>
+                        <th>Duração</th>
+                        <th>Valor</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {movimentacoes.slice(0, linhasVisiveis).map((item) => (
+                        <tr key={item.id}>
+                          <td data-label="Placa">
+                            <span className="placa-tag placa-tag-sm">
+                              {item.placa}
+                            </span>
+                          </td>
+                          <td data-label="Vaga">{item.vaga}</td>
+                          <td data-label="Entrada">{formatarDataHora(item.entrada)}</td>
+                          <td data-label="Saída">{formatarDataHora(item.saida)}</td>
+                          <td data-label="Duração">{formatarDuracao(item.duracaoMinutos)}</td>
+                          <td data-label="Valor" className="money">
+                            <span className="valor-com-marca">
+                              {formatarMoeda(item.valorCobrado)}
+                              {valorPendente(item) > 0 && (
+                                <span
+                                  className="status-pill warning pill-pendente"
+                                  title={`${formatarMoeda(valorPendente(item))} não coberto pelo saldo`}
+                                >
+                                  pendente
+                                </span>
+                              )}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {movimentacoes.length > linhasVisiveis && (
+                  <div className="tabela-mais">
+                    <p className="muted-note">
+                      Mostrando as {linhasVisiveis} mais recentes de {movimentacoes.length}. O CSV
+                      leva todas.
+                    </p>
+                    <button
+                      className="btn btn-outline btn-sm"
+                      type="button"
+                      onClick={() => setLinhasVisiveis((atual) => atual + LINHAS_POR_CLIQUE)}
+                    >
+                      Ver mais
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

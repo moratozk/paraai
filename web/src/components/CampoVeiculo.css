@@ -74,7 +74,7 @@
     0 0 0 5px var(--accent);
 }
 .campo-cor-opcao input:focus-visible + .campo-cor-amostra {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-text);
   outline-offset: 6px;
 }
 .campo-cor-opcao:active .campo-cor-amostra { transform: scale(0.92); }

@@ -94,6 +94,16 @@ export function formatarDataHora(timestampSegundos) {
   });
 }
 
+// Só a hora (14:05), para o fim de uma reserva.
+export function formatarHora(timestampSegundos) {
+  const ts = Number(timestampSegundos);
+  if (!ts) return "—";
+  return new Date(ts * 1000).toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function formatarDuracao(minutosTotais) {
   const m = Math.max(0, Math.round(Number(minutosTotais) || 0));
   const horas = Math.floor(m / 60);

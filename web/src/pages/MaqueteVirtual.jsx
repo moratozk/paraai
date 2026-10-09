@@ -3,7 +3,7 @@ import { Link, Navigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useEstacionamento, useVagas, useVagasPublicas } from "../hooks/useParkingData";
 import { useTelaCheia } from "../hooks/useTelaCheia";
-import { combinarVagasAdmin, resumirVagas } from "../utils/mapaVagas";
+import { combinarVagasDoPatio, resumirVagas } from "../utils/mapaVagas";
 import Maquete from "../components/maquete/Maquete";
 import "./Pages.css";
 import "./MaqueteVirtual.css";
@@ -39,7 +39,7 @@ export default function MaqueteVirtual() {
     erro: erroReservas,
   } = useVagasPublicas(estId, estacionamento?.numVagas);
 
-  const vagas = useMemo(() => combinarVagasAdmin(operacionais, publicas), [operacionais, publicas]);
+  const vagas = useMemo(() => combinarVagasDoPatio(operacionais, publicas), [operacionais, publicas]);
   const resumo = useMemo(() => resumirVagas(vagas), [vagas]);
   const [movimentos, setMovimentos] = useState([]);
   const palcoRef = useRef(null);
