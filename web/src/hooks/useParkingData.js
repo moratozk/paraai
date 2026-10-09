@@ -5,6 +5,7 @@
 //   catalogoEstacionamentos/{id}     dados seguros exibidos aos motoristas
 //   estacionamentos/{id}/vagas/{n}  ocupação vaga a vaga
 //   veiculos/{PLACA}                carteira única do motorista (global)
+//   veiculos/{PLACA}/recargas/{id}  recargas simuladas (extrato)
 //   historico/{id}                  movimentações (campo estacionamentoId)
 // =========================================================================
 
@@ -341,24 +342,41 @@ function useHistoricoPorCampo(campo, valor) {
   useEffect(() => {
     if (!valor) return undefined;
     const q = query(collection(db, "historico"), where(campo, "==", valor));
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        const itens = [];
-        snap.forEach((d) => itens.push({ id: d.id, ...d.data() }));
-        itens.sort(
-          (a, b) =>
-            (Number(b.saida) || Number(b.entrada) || 0) -
-            (Number(a.saida) || Number(a.entrada) || 0)
-        );
-        setSnapState({ chave: valor, itens });
-      },
-      (err) => {
-        console.error(`[historico:${campo}] erro no listener:`, err);
-        setSnapState({ chave: valor, itens: [] });
-      }
-    );
-    return unsub;
+    let unsub = () => {};
+    let timer = null;
+    let tentativas = 0;
+    // Logo depois de cadastrar a placa, a consulta pode chegar ao servidor
+    // antes do veículo, e as regras ainda não reconhecem o dono. Tentar de
+    // novo algumas vezes antes de desistir.
+    const ouvir = () => {
+      unsub = onSnapshot(
+        q,
+        (snap) => {
+          const itens = [];
+          snap.forEach((d) => itens.push({ id: d.id, ...d.data() }));
+          itens.sort(
+            (a, b) =>
+              (Number(b.saida) || Number(b.entrada) || 0) -
+              (Number(a.saida) || Number(a.entrada) || 0)
+          );
+          setSnapState({ chave: valor, itens });
+        },
+        (err) => {
+          if (err?.code === "permission-denied" && tentativas < 3) {
+            tentativas += 1;
+            timer = setTimeout(ouvir, 1000 * tentativas);
+            return;
+          }
+          console.error(`[historico:${campo}] erro no listener:`, err);
+          setSnapState({ chave: valor, itens: [] });
+        }
+      );
+    };
+    ouvir();
+    return () => {
+      unsub();
+      clearTimeout(timer);
+    };
   }, [campo, valor]);
 
   if (!valor) return { historico: [], loading: false };
@@ -375,4 +393,50 @@ export function useHistoricoPlaca(placa) {
 
 export function useHistoricoEstacionamento(estId) {
   return useHistoricoPorCampo("estacionamentoId", estId);
+}
+
+// ---------------------------------------------------------------------
+// Recargas simuladas da carteira, para o extrato. As regras só deixam ler
+// as recargas da própria conta, então a consulta filtra pelo uid. A ordem
+// vem do cliente, como no histórico; a data de uma recarga ainda pendente
+// de confirmação é a estimada pelo navegador.
+// ---------------------------------------------------------------------
+export function useRecargas(uid, placa) {
+  const chave = uid && placa ? `${uid}/${placa}` : null;
+  const [snapState, setSnapState] = useState({ chave: null, itens: [], erro: "" });
+
+  useEffect(() => {
+    if (!uid || !placa) return undefined;
+    const q = query(
+      collection(db, "veiculos", placa, "recargas"),
+      where("uid", "==", uid)
+    );
+    return onSnapshot(
+      q,
+      (snap) => {
+        const itens = snap.docs.map((d) => {
+          const dados = d.data({ serverTimestamps: "estimate" });
+          return { id: d.id, ...dados, quando: dados.criadaEm?.seconds || 0 };
+        });
+        itens.sort((a, b) => b.quando - a.quando);
+        setSnapState({ chave: `${uid}/${placa}`, itens, erro: "" });
+      },
+      (err) => {
+        console.error("[recargas] erro no listener:", err);
+        setSnapState({
+          chave: `${uid}/${placa}`,
+          itens: [],
+          erro: "Não foi possível carregar as recargas agora.",
+        });
+      }
+    );
+  }, [uid, placa]);
+
+  if (!chave) return { recargas: [], loading: false, erro: "" };
+  const atualizado = snapState.chave === chave;
+  return {
+    recargas: atualizado ? snapState.itens : [],
+    loading: !atualizado,
+    erro: atualizado ? snapState.erro : "",
+  };
 }

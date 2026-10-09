@@ -26,6 +26,7 @@ import {
 } from "../services/totems";
 import { buscarCep, cepCompleto, formatarCep } from "../services/cep";
 import ModalRecarga from "../components/ModalRecarga";
+import ExtratoCarteira from "../components/ExtratoCarteira";
 import { normalizarPlaca, placaValida, formatarMoeda } from "../utils/format";
 import "./Pages.css";
 
@@ -598,6 +599,8 @@ export default function Perfil() {
           )}
         </div>
 
+        {placa && <ExtratoCarteira uid={user?.uid} placa={placa} saldo={veiculo?.saldo} />}
+
         {placa && (
           <div className="card vehicle-card">
             <h2>Modelo e cor</h2>
@@ -820,6 +823,7 @@ export default function Perfil() {
 
       {recargaAberta && placa && (
         <ModalRecarga
+          uid={user?.uid}
           placa={placa}
           saldoAtual={veiculo?.saldo}
           aoFechar={() => setRecargaAberta(false)}
