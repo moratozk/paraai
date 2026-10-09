@@ -59,6 +59,19 @@ jobs:
       - name: Cadastro, recarga, reserva, totem e cobrança no navegador
         working-directory: e2e
         run: npm test
+      # Plano B da apresentação (docs/apresentacao.md): a demonstração sem
+      # internet precisa abrir, atender o totem pelo terminal e encerrar.
+      - name: Demonstração sem internet abre e atende o totem
+        working-directory: e2e
+        run: |
+          set -o pipefail
+          printf 'entrada TCC2E26\nentrada BRA2E19\nentrada GHI7J89\nsaida TCC2E26\nsair\n' \
+            | npm run apresentacao 2>&1 | tee apresentacao.log
+          grep -F 'Vaga 3 - R$ 8,50/h' apresentacao.log
+          grep -F 'Vaga 9 - R$ 8,50/h' apresentacao.log
+          grep -F 'SALDO PENDENTE' apresentacao.log
+          grep -F 'SAIDA CONFIRMADA' apresentacao.log
+          grep -F 'Demonstração encerrada.' apresentacao.log
       - name: Guardar o relatório e as gravações da falha
         if: failure()
         uses: actions/upload-artifact@v4
@@ -67,4 +80,5 @@ jobs:
           path: |
             e2e/playwright-report/
             e2e/test-results/
+            e2e/apresentacao.log
           retention-days: 7

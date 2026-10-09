@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "firebase emulators:exec --only auth,firestore --project demo-paraai --config firebase.e2e.json \"playwright test\""
+    "test": "firebase emulators:exec --only auth,firestore --project demo-paraai --config firebase.e2e.json \"playwright test\"",
+    "apresentacao": "firebase emulators:exec --only auth,firestore --project demo-paraai --config firebase.e2e.json \"node apresentacao.mjs\""
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "5.0.1",

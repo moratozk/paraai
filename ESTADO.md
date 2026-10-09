@@ -11,12 +11,14 @@ Sistema acadêmico de atendimento para estacionamentos:
 
 - **`firmware/`** — firmware do totem na placa CYD de 2,8" de duas portas
   (ESP32-2432S028R: ESP32 + tela ST7789 320×240 + touch XPT2046), sem sensores
-  ou servo/catraca física; gabinete 3D ainda a projetar
+  ou servo/catraca física; gabinete 3D impresso, ainda a montar
 - **`web/`** — painel React/Vite, com Firebase Auth e Firestore
 - **`firebase/`** — regras do Firestore e testes no emulador
 - **`contratos/`** — casos esperados que o site, o totem e as regras testam
   juntos (conta da estadia, vagas especiais e placas)
-- **`e2e/`** — teste do fluxo completo no navegador, com os emuladores
+- **`e2e/`** — teste do fluxo completo no navegador e demonstração sem
+  internet, com os emuladores e o totem simulado
+- **`docs/apresentacao.md`** — roteiro da banca, checklist do dia e plano B
 
 O motorista registra entrada/saída por placa. O Firebase associa vaga,
 estadia e cobrança simulada. O operador acompanha pelo painel. A ocupação é
@@ -29,6 +31,44 @@ revisão visual e nova tela inicial). **Regras do Firestore e site publicados
 em 06/10/2026** a partir da `main` (`26a97e5`); o site no ar é o build dessa
 versão. **O firmware da `main` foi gravado no totem no mesmo dia** e testado:
 uma placa sem direito declarado recebeu a primeira vaga comum livre.
+
+## Roteiro da apresentação e demonstração sem internet (09/10/2026)
+
+- **Roteiro (`docs/apresentacao.md`):** o que preparar antes (publicar,
+  gravar o totem, contas da demonstração no site publicado, "Não é spam",
+  vídeo do fluxo, hotspot em 2,4 GHz salvo no totem), o checklist do dia, a
+  ordem da demonstração (cadastro, placa, recarga, reserva, entrada no totem,
+  mapa ao vivo e maquete, saída, cobrança e painel da rede), o plano B para
+  cada falha e as perguntas que a banca costuma fazer, com as respostas
+  tiradas do código.
+- **Demonstração sem internet (`npm run apresentacao` em `e2e/`):** o site no
+  computador, ligado aos emuladores com as regras do repositório, com
+  administrador, dono, dois motoristas prontos (um deles com direito 60+),
+  estadias da última semana no painel da rede e uma placa em dívida
+  (`e2e/apresentacao.mjs`). O totem é simulado no terminal (`entrada PLACA`,
+  `saida PLACA`, `vagas`) e manda o sinal de vida a cada minuto. Cada execução
+  começa do zero, e nada vai para a produção. Precisa de Node 22, Java 21 e
+  `npm ci` em `web/` e `e2e/`, feitos uma vez com internet; a primeira
+  execução baixa os emuladores.
+- **Totem simulado (`e2e/patio.js`):** as mesmas leituras e gravações do
+  firmware (`firmware/totem/Atendimento.cpp`): placa nova cadastrada sem
+  dono, saldo pendente bloqueando a entrada, reserva do app, vaga do direito
+  declarado, modelo e cor copiados para a vaga, saída com a conta de
+  `web/src/utils/cobranca.js` e o sinal de vida. O teste do fluxo completo
+  passou a usar o mesmo módulo, e o CI roda a demonstração com comandos de
+  totem em cada PR.
+- **Simulador antigo removido:** saíram `web/public/totem.html` (o teclado
+  antigo, ainda publicado em `/totem.html`) e `web/public/icons.svg` (sobra do
+  modelo do Vite, sem uso). Depois da próxima publicação, `/totem.html` cai no
+  site, como qualquer endereço que não existe.
+- **Acesso de totem nos emuladores:** "Gerar novo acesso de totem" cria a
+  conta num app à parte (`services/totems.js`), que não seguia os emuladores
+  e falhava na demonstração. Agora segue (`ligarAuthAoEmulador`, em
+  `firebaseConfig.js`). O site publicado não muda.
+- **README:** a limitação sobre vagas especiais dizia que só quem reservou
+  podia usá-las. Agora segue a decisão de 02/10/2026: no totem, quem declarou
+  o direito recebe a primeira vaga livre do seu tipo.
+- Regras e firmware não mudam. Para publicar, só o site.
 
 ## Testes automáticos (09/10/2026)
 
@@ -620,8 +660,9 @@ não apagar dados para resolver inconsistências. Calibrar com o display montado
 
 Depois da validação do totem: evoluir o site e criar a maquete virtual para
 visualizar os registros, sem redefinir cobrança nem simular sensores como
-dados reais. Web/public/totem.html permanece legado, fora desta entrega; os
-textos de sensores do site foram removidos em 02/10/2026.
+dados reais. Web/public/totem.html permanece legado, fora desta entrega
+(removido em 09/10/2026); os textos de sensores do site foram removidos em
+02/10/2026.
 
 ---
 
@@ -677,7 +718,8 @@ flash criptografada nem proteção antiesmagamento no servo de demonstração.
 Não apresentar o protótipo como controlador certificado de barreira real.
 
 O simulador `Web/public/totem.html` permaneceu sem alterações e ainda reflete
-o teclado antigo. O checklist físico completo está em `Main/README.md`.
+o teclado antigo (removido em 09/10/2026). O checklist físico completo está
+em `Main/README.md`.
 
 ---
 
@@ -695,10 +737,11 @@ npm run dev               # http://localhost:5173
 Sem o `.env` o site abre mas login e dados não funcionam — ele não está no
 Git de propósito.
 
-Existe um simulador **legado** em `/totem.html`, com teclado antigo. Para
-inspecionar o firmware atual, usar firmware/test/ui_totem.test.cpp e preview.mjs,
-conforme firmware/README.md. Nenhum deles é a maquete virtual, que fica no
-painel do administrador.
+Para ver as telas do firmware atual no computador, usar
+firmware/test/ui_totem.test.cpp e preview.mjs, conforme firmware/README.md.
+Para o sistema inteiro sem internet, com o totem simulado no terminal, usar
+`npm run apresentacao` em `e2e/` (ver `docs/apresentacao.md`). Nenhum deles é
+a maquete virtual, que fica no painel do administrador.
 
 ### Firmware
 
@@ -734,8 +777,9 @@ npx playwright install chromium
 npm test                  # fluxo completo no computador e no celular (Java 21)
 ```
 
-Os testes do totem no PC estão em `firmware/README.md`. Nenhum usa o
-Firebase de produção.
+Os testes do totem no PC estão em `firmware/README.md`. O CI também abre a
+demonstração sem internet e passa alguns comandos pelo totem simulado. Nenhum
+usa o Firebase de produção.
 
 ---
 
@@ -896,6 +940,12 @@ Firebase de produção.
     PR. Para publicar, só o site, que leva a correção do aviso vermelho falso
     logo depois do cadastro. Regras e firmware não mudam.
 
+13. **Roteiro da apresentação (09/10/2026, PR próprio).** Seguir "Antes do
+    dia" em `docs/apresentacao.md`. Para publicar, só o site, que tira do ar
+    o simulador antigo em `/totem.html`. Preparar a demonstração sem internet
+    no notebook da apresentação (Node 22, Java 21 e `npm ci` em `web/` e
+    `e2e/`, com internet) e abri-la uma vez antes do dia.
+
 ---
 
 ## Decisões já tomadas (não refazer sem motivo)
@@ -1043,6 +1093,12 @@ de `contratos/` e as três implementações no mesmo PR.
 **O perfil pode chegar "inexistente" logo depois do cadastro.** Uma leitura
 atrasada do servidor ainda diz que `users/{uid}` não existe. Nada que grave
 o perfil pode confiar só nesse aviso: o auto-reparo confere numa transação.
+
+**O totem simulado repete o firmware.** O teste do fluxo completo e a
+demonstração sem internet usam `e2e/patio.js`, que faz as mesmas leituras e
+gravações de `firmware/totem/Atendimento.cpp`. Ao mudar o que o totem lê ou
+grava, mude o `patio.js` no mesmo PR: as regras recusam só parte das
+diferenças, e o resto passaria sem ninguém notar.
 
 **Estadias de uma placa se consultam com o limite.** Use
 `consultaHistoricoDaPlaca(placa, inicioDoHistorico(veiculo))`
