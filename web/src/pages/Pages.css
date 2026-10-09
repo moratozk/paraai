@@ -357,8 +357,11 @@
   border-bottom: 1px solid var(--border);   /* linha de base */
 }
 
+/* min-width 0: a coluna encolhe abaixo do rótulo. Sem isso as 14 colunas
+   do período de 30 dias passavam da largura do celular. */
 .chart-col {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -422,6 +425,11 @@
   white-space: nowrap;
   line-height: 1.3;
 }
+
+/* O valor do pico é mais largo que a coluna: inteiro, sem reticências, e
+   nas pontas cresce para dentro do gráfico em vez de vazar do cartão. */
+.chart-col:first-child .chart-bar-value { left: 0; }
+.chart-col:last-child .chart-bar-value { right: 0; }
 
 .chart-col-label {
   font-family: var(--font-mono);
@@ -503,6 +511,9 @@
 }
 .history-table tbody tr:last-child td { border-bottom: none; }
 .history-table-completa { min-width: 1040px; }
+/* Tabela de três colunas (melhores clientes): cabe na coluna estreita do
+   painel sem a largura mínima das tabelas de movimentação. */
+.history-table-compacta { min-width: 0; }
 .history-active-pill { margin-left: 0.45rem; vertical-align: middle; }
 .history-payment { display: grid; gap: 0.18rem; }
 .history-payment small {
@@ -979,12 +990,7 @@
   .destaque-aviso .btn { width: 100%; }
 
   .chart-bars { height: 165px; gap: 0.25rem; }
-  .chart-bar-value {
-    max-width: 58px;
-    padding-inline: 0.25rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+  .chart-bar-value { padding-inline: 0.25rem; }
 
   .vagas-grid,
   .vagas-grid.mini {

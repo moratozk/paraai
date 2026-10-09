@@ -51,10 +51,10 @@
 }
 
 .toast-sucesso { border-left-color: var(--success); }
-.toast-sucesso .toast-icon { background: var(--success); color: #fff; }
+.toast-sucesso .toast-icon { background: var(--success); color: var(--success-contrast); }
 
 .toast-erro { border-left-color: var(--danger); }
-.toast-erro .toast-icon { background: var(--danger); color: #fff; }
+.toast-erro .toast-icon { background: var(--danger); color: var(--danger-contrast); }
 
 .toast-texto {
   flex: 1;
@@ -63,14 +63,21 @@
   color: var(--text-primary);
 }
 
+/* Área de toque de 44 px sem aumentar o aviso: as margens negativas
+   devolvem o espaço extra, e o × fica onde sempre esteve. */
 .toast-fechar {
   flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: -12px -12px -12px -6px;
+  border-radius: var(--radius-sm);
   background: none;
   border: none;
   color: var(--text-muted);
   font-size: var(--t-subtitulo);
   line-height: 1;
-  padding: 0 2px;
 }
 
 @media (hover: hover) {

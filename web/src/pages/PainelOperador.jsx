@@ -39,16 +39,22 @@ function inicioDoDia(offsetDias = 0) {
   return Math.floor(d.getTime() / 1000);
 }
 
-// Série diária de receita/acessos para o gráfico
+// Série diária de receita/acessos para o gráfico. Em duas semanas o dia da
+// semana se repetiria (duas "qui"), então o rótulo passa a ser o dia do mês,
+// que também cabe na coluna estreita do celular.
 function calcularSerieDiaria(historico, numDias) {
   const dias = [];
   for (let i = numDias - 1; i >= 0; i--) {
     const inicio = inicioDoDia(i);
+    const data = new Date(inicio * 1000);
     dias.push({
       inicio,
       fim: inicio + 86400,
-      rotulo: DIAS_SEMANA[new Date(inicio * 1000).getDay()],
-      dataCurta: new Date(inicio * 1000).toLocaleDateString("pt-BR", {
+      rotulo:
+        numDias > 7
+          ? String(data.getDate()).padStart(2, "0")
+          : DIAS_SEMANA[data.getDay()],
+      dataCurta: data.toLocaleDateString("pt-BR", {
         day: "2-digit",
         month: "2-digit",
       }),
@@ -575,7 +581,14 @@ export default function PainelOperador() {
                   : "Nenhuma movimentação neste período."}
               </p>
             ) : (
-              <div className="tabela-wrap tabela-cards">
+              // Em telas médias a tabela rola de lado: com foco, o teclado
+              // também consegue rolar.
+              <div
+                className="tabela-wrap tabela-cards"
+                tabIndex={0}
+                role="region"
+                aria-label="Movimentações"
+              >
                 <table className="history-table responsive-table">
                   <thead>
                     <tr>
@@ -631,7 +644,7 @@ export default function PainelOperador() {
               </p>
             ) : (
               <div className="tabela-wrap tabela-cards">
-                <table className="history-table responsive-table">
+                <table className="history-table history-table-compacta responsive-table">
                   <thead>
                     <tr>
                       <th>Placa</th>

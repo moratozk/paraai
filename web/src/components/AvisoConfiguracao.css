@@ -17,7 +17,7 @@
   height: 24px;
   border-radius: 50%;
   background: var(--danger);
-  color: #fff;
+  color: var(--danger-contrast);
   display: flex;
   align-items: center;
   justify-content: center;

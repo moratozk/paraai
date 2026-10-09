@@ -47,6 +47,10 @@
   --success-soft: rgba(41, 208, 126, 0.12);
   --danger: #ff4d5e;
   --danger-soft: rgba(255, 77, 94, 0.12);
+  /* Texto sobre o verde e o vermelho cheios: no escuro esses tons são
+     claros e pedem tinta escura (branco ficaria em 2:1 e 3,2:1). */
+  --success-contrast: #0a0c11;
+  --danger-contrast: #0a0c11;
   --plate-blue: #0b3a9d;
 
   /* ---- Vagas especiais: uma só paleta nos três mapas (meio-tom, legível
@@ -137,7 +141,7 @@
 
   --text-primary: #22252b;
   --text-secondary: #525864;
-  --text-muted: #5a5f6b;    /* 4.6:1 até sobre --bg-elevated */
+  --text-muted: #575c68;    /* 4.5:1 até sobre --bg-asphalt */
 
   /* No claro o âmbar tem dois papéis distintos:
      --accent      preenche superfícies e leva texto escuro por cima
@@ -148,14 +152,19 @@
   --accent-deep: #a67400;
   --accent-soft: rgba(166, 116, 0, 0.14);
   --accent-contrast: #0a0c11;
-  --accent-text: #7d5800;   /* 5.2:1 sobre o fundo claro */
+  --accent-text: #735100;   /* 5.8:1 sobre o fundo claro */
 
+  /* Verde, vermelho e âmbar de texto passam em 4.5:1 também sobre os
+     próprios fundos suaves em cima de --bg-elevated (selos em linhas de
+     tabela, avisos) e sobre --bg-asphalt (corredor do mapa). */
   --cyan: #0b687e;
   --cyan-soft: rgba(11, 104, 126, 0.1);
-  --success: #0c6d42;
-  --success-soft: rgba(12, 109, 66, 0.12);
-  --danger: #ba1d31;
-  --danger-soft: rgba(186, 29, 49, 0.1);
+  --success: #0b613b;
+  --success-soft: rgba(11, 97, 59, 0.12);
+  --success-contrast: #fff;
+  --danger: #a81a2c;
+  --danger-soft: rgba(168, 26, 44, 0.1);
+  --danger-contrast: #fff;
 
   --border: #d5d0c9;
   --border-strong: #b9b3aa;
@@ -358,7 +367,7 @@ p { text-wrap: pretty; }
 
 .btn-danger { --btn-bg: transparent; --btn-borda: var(--danger); --btn-cor: var(--danger); }
 @media (hover: hover) {
-  .btn-danger:hover:not(:disabled) { --btn-bg: var(--danger); --btn-cor: #fff; }
+  .btn-danger:hover:not(:disabled) { --btn-bg: var(--danger); --btn-cor: var(--danger-contrast); }
 }
 
 .btn-sm { min-height: 40px; padding: 0.5rem 1rem; font-size: var(--t-apoio); }

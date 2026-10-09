@@ -749,6 +749,11 @@ borda da tela, e um texto mais largo que ela parecia caber.
 leva texto escuro por cima; `--accent-text` pinta texto sobre fundo claro.
 Usar o mesmo tom nos dois reprova em um dos casos.
 
+**Texto sobre verde e vermelho cheios** usa `--success-contrast` e
+`--danger-contrast`, nunca `#fff` fixo: no tema escuro esses tons são claros e
+o branco fica em 2:1 e 3,2:1. No claro, verde, vermelho e âmbar de texto
+passam em 4,5:1 também sobre os próprios fundos suaves.
+
 **Firebase App Check** precisa continuar em "Monitorando" (não forçado), senão
 bloqueia tanto o site quanto o ESP32.
 
