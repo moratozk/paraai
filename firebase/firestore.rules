@@ -114,7 +114,8 @@ service cloud.firestore {
         && dados.ativo == true
         && dados.vagaAtual == 0
         && dados.horaEntrada == 0
-        && dados.saldo is number && dados.saldo >= 0
+        // Todo veículo nasce com a carteira vazia: saldo só entra por recarga.
+        && dados.saldo == 0
         // Os dois campos abaixo foram acrescentados depois da primeira
         // versão do painel. Aceitamos a ausência apenas para não interromper
         // uma página antiga que ainda esteja em cache durante a atualização.
@@ -139,7 +140,7 @@ service cloud.firestore {
         && dados.ativo == true
         && dados.vagaAtual == 0
         && dados.horaEntrada == 0
-        && dados.saldo is number && dados.saldo >= 0
+        && dados.saldo == 0
         && dados.estacionamentoId == ''
         // Também aceita o firmware já gravado antes de tarifaHoraEntrada
         // existir. O próximo firmware passa a criar o campo explicitamente.
@@ -375,6 +376,36 @@ service cloud.firestore {
           && math.abs(dados.valorPendente - dados.valorCobrado) < 0.000001)
         || (saldoDepois < 0 && saldoDepois + dados.valorCobrado > 0
           && math.abs(dados.valorPendente + saldoDepois) < 0.000001);
+    }
+
+    // Recarga simulada do dono: o saldo só sobe junto com o registro da
+    // recarga (veiculos/{placa}/recargas/{id}), criado no mesmo lote. Um
+    // confere o outro: o registro existe, é novo, e a diferença do saldo é
+    // exatamente o valor dele. Assim o navegador não grava saldo arbitrário e
+    // o extrato do motorista não ganha recarga sem crédito.
+    function recargaDoDonoValida(placa) {
+      let id = request.resource.data.get('ultimaRecarga', '');
+      let caminho = /databases/$(database)/documents/veiculos/$(placa)/recargas/$(id);
+      return signedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'saldo', 'ultimaRecarga', 'ownerNome', 'atualizadoEm'
+        ])
+        && resource.data.saldo is number
+        && request.resource.data.saldo is number
+        && id is string && id != ''
+        && !exists(caminho)
+        && existsAfter(caminho)
+        && math.abs(request.resource.data.saldo - resource.data.saldo
+          - getAfter(caminho).data.valor) < 0.000001;
+    }
+
+    // Mesmo limite da tela de recarga: de R$ 0,01 a R$ 1.000, em centavos.
+    function valorDeRecargaValido(valor) {
+      return valor is number
+        && valor >= 0.01 && valor <= 1000
+        && math.abs(valor * 100 - math.round(valor * 100)) < 0.000001;
     }
 
     function placaDeMotoristaValida() {
@@ -648,12 +679,13 @@ service cloud.firestore {
           && veiculoInicialDoPainelValido(request.resource.data));
       allow update: if totemPodeRegistrarEntrada(placa)
         || totemPodeRegistrarSaida(placa)
+        || recargaDoDonoValida(placa)
         || (signedIn()
           && resource.data.ownerUid == request.auth.uid
           && request.resource.data.ownerUid == request.auth.uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'ownerNome', 'saldo', 'atualizadoEm', 'vagaEspecial', 'marca',
-            'modelo', 'cor'
+            'ownerNome', 'atualizadoEm', 'vagaEspecial', 'marca', 'modelo',
+            'cor'
           ])
           && direitoVagaValido(request.resource.data)
           && descricaoVeiculoValida(request.resource.data))
@@ -667,6 +699,27 @@ service cloud.firestore {
           && direitoVagaValido(request.resource.data)
           && descricaoVeiculoValida(request.resource.data));
       allow delete: if false;
+
+      // Extrato das recargas simuladas. Só quem recarregou lê (a consulta
+      // filtra por uid); ninguém altera ou apaga.
+      match /recargas/{recarga} {
+        allow read: if signedIn() && resource.data.uid == request.auth.uid;
+        allow create: if signedIn()
+          && request.resource.data.keys().hasOnly(['valor', 'forma', 'uid', 'criadaEm'])
+          && request.resource.data.keys().hasAll(['valor', 'forma', 'uid', 'criadaEm'])
+          && request.resource.data.uid == request.auth.uid
+          && valorDeRecargaValido(request.resource.data.valor)
+          && request.resource.data.forma in ['pix', 'cartao']
+          && request.resource.data.criadaEm == request.time
+          && get(/databases/$(database)/documents/veiculos/$(placa)).data.ownerUid
+            == request.auth.uid
+          && getAfter(/databases/$(database)/documents/veiculos/$(placa)).data.get('ultimaRecarga', '')
+            == recarga
+          && math.abs(getAfter(/databases/$(database)/documents/veiculos/$(placa)).data.saldo
+            - get(/databases/$(database)/documents/veiculos/$(placa)).data.saldo
+            - request.resource.data.valor) < 0.000001;
+        allow update, delete: if false;
+      }
     }
 
     match /historico/{registro} {
