@@ -27,6 +27,60 @@ em 06/10/2026** a partir da `main` (`26a97e5`); o site no ar é o build dessa
 versão. **O firmware da `main` foi gravado no totem no mesmo dia** e testado:
 uma placa sem direito declarado recebeu a primeira vaga comum livre.
 
+## Privacidade e LGPD (09/10/2026)
+
+- **Política de privacidade (`/privacidade`, `pages/Privacidade.jsx`):** aberta
+  a todos, com link no rodapé da Home, no cadastro, nas Configurações e no
+  Perfil. Uma tabela diz, para cada dado, para que serve e quem vê. O "quem vê"
+  segue as regras do Firestore: se uma regra mudar quem lê um dado, mude a
+  tabela também. Os controladores são os autores do TCC. A página não traz
+  nomes completos, instituição nem e-mail de contato, que ainda não foram
+  definidos; quando forem, entram na seção "Quem cuida dos seus dados".
+- **Aceite no cadastro:** caixa obrigatória na última etapa. O perfil grava
+  `privacidadeAceitaEm` (hora do servidor, conferida pelas regras) e
+  `versaoPrivacidade` (`VERSAO_PRIVACIDADE` em `services/conta.js`, que é
+  também a data mostrada na página; troque quando a política mudar). Contas
+  anteriores a esta versão não têm esse registro, e não há tela pedindo o
+  aceite de novo. A declaração da vaga especial passou a valer também como o
+  consentimento do dado sensível (`components/CampoDireitoVaga.jsx`).
+- **Baixar meus dados (Configurações, aba Privacidade):** um arquivo JSON com
+  conta, perfil, veículo, recargas, estadias (com o nome do estacionamento) e
+  reserva, com as datas legíveis. Dono de estacionamento e administrador
+  baixam o próprio perfil; o dono leva também o cadastro do pátio, sem o
+  código de pareamento do totem.
+- **Excluir minha conta (só motorista):** pede a senha, cancela a reserva
+  ativa e, num lote só, libera a placa (`ownerUid` vazio, saldo 0, sem modelo,
+  cor nem vaga especial, `historicoDesde` com a hora do servidor) e apaga o
+  extrato, a reserva e o perfil. Por último apaga o acesso no Authentication e
+  leva ao início. Com o carro no pátio ou com pendência de saldo, a exclusão
+  é recusada e a tela diz o que fazer. As estadias ficam no histórico só com a
+  placa, para o estacionamento e a rede, e o saldo positivo (simulado) não é
+  devolvido. Se o acesso não for apagado depois dos dados, a tela pede a senha
+  de novo, e a segunda tentativa só apaga o acesso.
+- **Placa liberada:** quem cadastra a placa depois não vê as estadias do dono
+  anterior. As regras só deixam o motorista ler estadias com `entrada` a
+  partir de `historicoDesde`, e o site faz a consulta com esse limite
+  (`services/historico.js`). Essa consulta (placa + entrada) usa o índice
+  composto de `firebase/firestore.indexes.json`, que o `firebase.json` agora
+  publica junto com as regras. Placas sem `historicoDesde` (todas as de hoje)
+  seguem com a consulta simples, sem índice.
+- **Regras:** as permissões novas valem só para a exclusão. O motorista apaga
+  o próprio perfil apenas junto com a liberação da placa e sem reserva; apaga a
+  reserva vencida ou cancelada apenas junto com o perfil; apaga as próprias
+  recargas apenas com a placa já liberada; e só libera a placa sem estadia
+  aberta e sem dívida. Dono de estacionamento e administrador não se excluem
+  pelo site. São 9 testes novos no emulador (74 no total).
+- **Firmware:** não muda. A placa liberada entra pelo totem como placa sem
+  dono, e o firmware preserva `historicoDesde` porque grava só os campos que
+  altera.
+
+**Publicação: regras e índice primeiro, depois o site.** `firebase deploy
+--only firestore` publica os dois; se o Firebase perguntar se deve apagar
+índices que não estão no arquivo, responda que não. O índice leva alguns
+minutos para ficar pronto, e só a consulta de placa liberada depende dele.
+Com as regras antigas, o site novo funciona, menos a exclusão da conta, que é
+recusada sem apagar nada.
+
 ## Reservas no mapa do dono e acertos de tela (09/10/2026)
 
 - **Mapa do dono (`components/MapaVagas.jsx`):** passou a juntar a vaga do
@@ -765,6 +819,12 @@ na Arduino IDE e gravar.
     ver a página sem internet. O pedido de instalação do navegador só foi
     simulado nos testes locais.
 
+11. **Privacidade e LGPD (09/10/2026, PR próprio).** Publicar as regras e o
+    índice (`firebase deploy --only firestore`) e depois o site. Para conferir:
+    criar uma conta de teste, cadastrar uma placa, baixar os dados, excluir a
+    conta e cadastrar a mesma placa com outra conta, que não deve ver as
+    estadias anteriores.
+
 ---
 
 ## Decisões já tomadas (não refazer sem motivo)
@@ -859,6 +919,12 @@ minuto (R$ 0,22) e cobra o restante ao encerrar; “Pagar depois” não descont
 início e cobra o total no fim. Todo minuto iniciado é cobrado, sem o motorista
 informar previamente a duração. Não apresentar esse fluxo como pagamento real.
 
+**Excluir a conta não apaga as estadias (09/10/2026).** Elas são o registro
+de entradas, saídas e faturamento do estacionamento e ficam só com a placa,
+sem nome, e-mail ou celular. O que é só da pessoa (perfil, extrato, reserva,
+modelo, cor e vaga especial) é apagado. Só o motorista se exclui pelo site;
+dono de estacionamento e administrador são encerrados pela administração.
+
 **Modelo e cor vêm do cadastro do motorista, não de consulta pela placa
 (08/10/2026).** Não há consulta oficial gratuita (a do SINESP saiu do ar e a
 Senatran só mostra os veículos da própria conta); as APIs pagas cobram de R$ 4
@@ -897,6 +963,11 @@ passam em 4,5:1 também sobre os próprios fundos suaves.
 **Saldo não se grava direto.** Qualquer crédito novo precisa do registro em
 `veiculos/{placa}/recargas` no mesmo lote, como faz `adicionarSaldo`
 (`services/veiculos.js`); um `updateDoc` com `saldo` é recusado pelas regras.
+
+**Estadias de uma placa se consultam com o limite.** Use
+`consultaHistoricoDaPlaca(placa, inicioDoHistorico(veiculo))`
+(`services/historico.js`). Uma consulta só pela placa é recusada pelas regras
+quando a placa foi liberada por uma exclusão de conta.
 
 **Firebase App Check** precisa continuar em "Monitorando" (não forçado), senão
 bloqueia tanto o site quanto o ESP32.

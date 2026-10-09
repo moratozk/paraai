@@ -370,6 +370,8 @@ p { text-wrap: pretty; }
 @media (hover: hover) {
   .btn-danger:hover:not(:disabled) { --btn-bg: var(--danger); --btn-cor: var(--danger-contrast); }
 }
+/* Confirmação final de uma ação que não se desfaz (ex.: excluir a conta). */
+.btn-danger-solido { --btn-bg: var(--danger); --btn-borda: var(--danger); --btn-cor: var(--danger-contrast); }
 
 .btn-sm { min-height: 40px; padding: 0.5rem 1rem; font-size: var(--t-apoio); }
 .btn-lg { min-height: 52px; padding: 0.95rem 2rem; font-size: var(--t-destaque); }
@@ -484,6 +486,21 @@ input:focus, select:focus, textarea:focus {
   margin-top: 2px;
   padding: 0;
   accent-color: var(--accent);
+}
+/* Declaração de uma linha (ex.: aceite da política): no toque, a linha
+   inteira é um alvo de 44 px, com a caixa no meio do texto. */
+@media (pointer: coarse) {
+  .declaracao-curta { min-height: 44px; align-items: center; }
+  .declaracao-curta input[type="checkbox"] { margin-top: 0; }
+}
+/* Link no meio de uma frase (ex.: a política de privacidade no cadastro):
+   âmbar e sublinhado, para não depender só da cor. */
+.link-texto,
+.declaracao a {
+  color: var(--accent-text);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
 }
 .field-link { font-size: var(--t-apoio); color: var(--accent-text); font-weight: 600; }
 @media (hover: hover) {

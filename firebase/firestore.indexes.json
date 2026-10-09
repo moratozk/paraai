@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "historico",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "placa", "order": "ASCENDING" },
+        { "fieldPath": "entrada", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

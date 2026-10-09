@@ -1,7 +1,9 @@
 import { DIREITOS_VAGA } from "../utils/mapaVagas";
 
 // Pergunta do direito a vaga especial, usada no cadastro e no Perfil. Quem
-// escolhe um tipo precisa confirmar a autodeclaração antes de salvar.
+// escolhe um tipo precisa confirmar a autodeclaração antes de salvar. A mesma
+// caixa é o consentimento destacado que a LGPD pede para dado sensível
+// (deficiência e gestação são dados de saúde; ver pages/Privacidade.jsx).
 export default function CampoDireitoVaga({ id, valor, onValor, declarado, onDeclarado }) {
   return (
     <div className="field">
@@ -33,7 +35,8 @@ export default function CampoDireitoVaga({ id, valor, onValor, declarado, onDecl
           />
           <span>
             Declaro que tenho direito a essa vaga e apresento a credencial quando
-            for exigida.
+            for exigida. Autorizo o ParaAí a guardar essa informação só para
+            indicar a vaga; posso removê-la no Perfil quando quiser.
           </span>
         </label>
       )}
