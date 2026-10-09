@@ -1,7 +1,7 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **07/10/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **09/10/2026**.
 
 ---
 
@@ -89,9 +89,11 @@ movimento" ligado no sistema, nada se anima sozinho.
 
 ## Maquete virtual (08/10/2026)
 
-Protótipo pedido pelo dono do projeto, para avaliar com o outro autor. Fica no
-painel do administrador, ao lado do mapa de vagas ("Ver maquete"), em
-`/admin/estacionamentos/:id/maquete`.
+Pedida pelo dono do projeto, que a uniu à `main` em 09/10/2026, antes da
+revisão do outro autor. Fica no painel do administrador, ao lado do mapa de
+vagas ("Ver maquete"), em `/admin/estacionamentos/:id/maquete`. O `AGENTS.md`
+deixou de dizer que a maquete fica para uma etapa posterior e passou a exigir
+que ela só mostre os registros, sem simular nada.
 
 - **Só leitura, com os dados de verdade.** Usa as mesmas vagas do mapa do
   administrador: ocupação do totem e reservas do app, combinadas em
@@ -469,7 +471,8 @@ Git de propósito.
 
 Existe um simulador **legado** em `/totem.html`, com teclado antigo. Para
 inspecionar o firmware atual, usar firmware/test/ui_totem.test.cpp e preview.mjs,
-conforme firmware/README.md. Nenhum deles é a futura maquete virtual.
+conforme firmware/README.md. Nenhum deles é a maquete virtual, que fica no
+painel do administrador.
 
 ### Firmware
 
@@ -601,9 +604,8 @@ na Arduino IDE e gravar.
 
 5. **Gabinete 3D:** já desenhado e impresso pelo dono do projeto (06/10/2026),
    ainda não retirado. Falta guardar o modelo em `hardware/gabinete/`, montar a
-   placa e conferir janela da tela, USB e toque com a tampa fechada. Depois,
-   evoluir o site e criar a maquete virtual, sem reintroduzir sensores ou
-   catraca no ESP.
+   placa e conferir janela da tela, USB e toque com a tampa fechada, sem
+   reintroduzir sensores ou catraca no ESP.
 
 6. ~~Foto do fundo do login servida pelo próprio site.~~ Feito em 06/10/2026:
    o login e o cadastro trocaram a foto do Unsplash por um fundo desenhado em
