@@ -344,7 +344,15 @@ export default function MonitoramentoVagasAdmin() {
               <span><i className="idoso" />60+</span>
               <span><i className="gestante" />Gestante</span>
             </div>
-            <div className="monitor-mapa-scroll">
+            {/* Com filtro, as vagas de fora ficam desativadas e o mapa pode
+                ficar sem nada focável: o próprio mapa recebe o foco para o
+                teclado conseguir rolá-lo no celular. */}
+            <div
+              className="monitor-mapa-scroll"
+              tabIndex={0}
+              role="region"
+              aria-label="Mapa das vagas"
+            >
               <div className="monitor-patio">
                 <div className="monitor-fileira">
                   {vagasComVisibilidade.slice(0, metade).map(renderizarVaga)}
@@ -458,7 +466,8 @@ export default function MonitoramentoVagasAdmin() {
                 <span className="monitor-detalhes-icone" aria-hidden="true">P</span>
                 <h2>Detalhes da vaga</h2>
                 <p>Toque ou clique em uma vaga do mapa para ver placa, origem e tempo de permanência.</p>
-                <div className="monitor-ocupacao-barra" aria-label={`${resumo.ocupacao}% das vagas em uso`}>
+                {/* A frase logo abaixo já diz o número; a barra é só desenho. */}
+                <div className="monitor-ocupacao-barra" aria-hidden="true">
                   <span style={{ width: `${resumo.ocupacao}%` }} />
                 </div>
                 <strong>{resumo.ocupacao}% em uso agora</strong>
