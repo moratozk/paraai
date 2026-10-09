@@ -26,6 +26,31 @@ em 06/10/2026** a partir da `main` (`26a97e5`); o site no ar é o build dessa
 versão. **O firmware da `main` foi gravado no totem no mesmo dia** e testado:
 uma placa sem direito declarado recebeu a primeira vaga comum livre.
 
+## Wi-Fi na tela do totem (07/10/2026)
+
+Pedido do dono do projeto: trocar a rede sem editar código nem depender do
+celular, com acesso para quem cuida do totem e não para o motorista.
+
+- **TROCAR WIFI** (menu de manutenção, atrás do PIN) abre
+  `totem/AssistenteWiFi.h`: lista as redes 2,4 GHz com senha (mais forte
+  primeiro, quatro por página, a rede em uso marcada como ATUAL), teclado
+  completo (maiúsculas, ?123 e #+=, cobrindo os 95 caracteres ASCII
+  imprimíveis) e OUTRA REDE para rede oculta. A senha aparece como foi
+  digitada, sem opção de ocultar (decisão do dono do projeto).
+- Só salva depois de conectar de verdade (até 20 s). Senha errada, rede fora
+  de alcance ou cancelamento voltam ao teclado com a senha e um aviso, e a
+  rede anterior é retomada. O aviso vem do motivo da desconexão informado pelo
+  ESP-IDF (`classificarFalhaWifi` em `LogicaTotem.h`).
+- O portal pelo celular continua no menu como **WIFI PELO CELULAR** e no
+  Serial `W`: é o caminho quando o toque está ruim ou a senha tem acento.
+- Sem rede alguma configurada, a lista abre sozinha no primeiro uso (sem PIN,
+  como o portal antes). Sem toque por 3 min, fecha sem alterar nada.
+- SSID e senha usam a fonte mono da Adafruit, porque as fontes próprias não
+  têm `_ " [ ] { } | ~`. Acentos do SSID somem só na tela; a conexão usa os
+  bytes originais.
+- Testes no PC cobrem cada tecla, as larguras dos textos e o fluxo inteiro com
+  um rádio simulado. **Ainda não gravado nem testado no totem.**
+
 ## Nova tela inicial (06/10/2026)
 
 A Home foi refeita tendo como referência o site de um amigo do dono do
@@ -507,8 +532,10 @@ na Arduino IDE e gravar.
    Confirmar no Serial que o Firestore conecta com o certificado validado.
 
 2. **Testar o fluxo completo do novo totem no hardware** — entrada/saída,
-   reinicialização com estadia aberta, troca/perda de Wi-Fi, responsividade
-   durante Firebase, calibração com gabinete e estabilidade prolongada.
+   reinicialização com estadia aberta, troca/perda de Wi-Fi (incluindo a nova
+   tela de Wi-Fi: lista, senha errada, rede oculta e persistência após
+   reiniciar), responsividade durante Firebase, calibração com gabinete e
+   estabilidade prolongada.
    As validações físicas anteriores referem-se ao firmware antigo.
 
 3. **E-mails de conta (recuperação de senha).** Em 07/10/2026 o dono do
