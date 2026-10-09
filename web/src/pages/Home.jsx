@@ -453,6 +453,7 @@ export default function Home() {
           <div className="rodape-coluna">
             <h2>Projeto</h2>
             <p>Trabalho de conclusão de curso. Pagamentos e recargas são simulados.</p>
+            <Link to="/privacidade">Política de privacidade</Link>
             <Link to="/login?perfil=admin">Acesso administrativo</Link>
           </div>
         </div>

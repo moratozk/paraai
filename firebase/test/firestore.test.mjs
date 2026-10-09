@@ -836,3 +836,188 @@ test('REST do ESP: máscaras da entrada e da saída gravam e apagam modelo e cor
   assert.equal(saidaRest.status, 200, JSON.stringify(saidaRest));
   assert.deepEqual((await getDoc(ref('totem-a', 'estacionamentos/EST-A/vagas/1'))).data(), vagaLogica(''));
 });
+
+// ---------------------------------------------------------------------------
+// Privacidade (LGPD): aceite no cadastro e exclusão da conta pelo motorista.
+// A placa fica livre para outra pessoa, sem nada do dono anterior.
+// ---------------------------------------------------------------------------
+test('aceite da política de privacidade no cadastro usa a hora do servidor', async () => {
+  const perfil = { role: 'motorista', name: 'Nina', versaoPrivacidade: '2026-10-09' };
+  await assertFails(setDoc(ref('nina', 'users/nina'),
+    { ...perfil, privacidadeAceitaEm: Timestamp.fromMillis(Date.now() - 86400000) }));
+  await assertFails(setDoc(ref('nina', 'users/nina'),
+    { ...perfil, privacidadeAceitaEm: serverTimestamp(), versaoPrivacidade: 1 }));
+  await assertSucceeds(setDoc(ref('nina', 'users/nina'), { ...perfil, privacidadeAceitaEm: serverTimestamp() }));
+  // Depois do cadastro, ninguém troca a data nem a versão aceitas.
+  await assertFails(updateDoc(ref('nina', 'users/nina'), { privacidadeAceitaEm: serverTimestamp() }));
+  await assertFails(updateDoc(ref('nina', 'users/nina'), { versaoPrivacidade: '2030-01-01' }));
+});
+
+const liberacao = (extra = {}) => ({ ownerUid: '', saldo: 0, historicoDesde: serverTimestamp(),
+  atualizadoEm: serverTimestamp(), ownerNome: deleteField(), marca: deleteField(), modelo: deleteField(),
+  cor: deleteField(), vagaEspecial: deleteField(), ultimaRecarga: deleteField(), ...extra });
+// Lote que o site manda ao excluir a conta: libera a placa, apaga o extrato,
+// a reserva encerrada e o perfil.
+function loteExclusao(uid, { placa = 'XYZ1234', veiculo = liberacao(), comVeiculo = true,
+  comPerfil = true, comReserva = false, recargas = [] } = {}) {
+  const d = db(uid), batch = writeBatch(d);
+  if (comVeiculo) batch.update(doc(d, `veiculos/${placa}`), veiculo);
+  for (const id of recargas) batch.delete(doc(d, `veiculos/${placa}/recargas/${id}`));
+  if (comReserva) batch.delete(doc(d, `reservas/${uid}`));
+  if (comPerfil) batch.delete(doc(d, `users/${uid}`));
+  return batch;
+}
+async function lerSemRegras(path) {
+  let snap;
+  await env.withSecurityRulesDisabled(async c => { snap = await getDoc(doc(c.firestore(), path)); });
+  return snap;
+}
+
+test('exclusão da conta: perfil, extrato e dados do carro saem num lote só', async () => {
+  await assertSucceeds(descrever('motorista-b', 'XYZ1234', { ...descricao, vagaEspecial: 'pcd' }));
+  await assertSucceeds(loteRecarga('motorista-b', { placa: 'XYZ1234', valor: 15, id: 'b1' }).commit());
+  await assertSucceeds(loteRecarga('motorista-b', { placa: 'XYZ1234', valor: 5, id: 'b2' }).commit());
+  await assertSucceeds(loteExclusao('motorista-b', { recargas: ['b1', 'b2'] }).commit());
+  assert.equal((await lerSemRegras('users/motorista-b')).exists(), false);
+  assert.equal((await lerSemRegras('veiculos/XYZ1234/recargas/b1')).exists(), false);
+  const veiculo = (await lerSemRegras('veiculos/XYZ1234')).data();
+  assert.equal(veiculo.ownerUid, '');
+  assert.equal(veiculo.saldo, 0);
+  assert.ok(veiculo.historicoDesde instanceof Timestamp);
+  for (const campo of ['ownerNome', 'marca', 'modelo', 'cor', 'vagaEspecial', 'ultimaRecarga']) {
+    assert.ok(!(campo in veiculo), `${campo} ficou no veículo`);
+  }
+  // O que o totem precisa continua lá: a placa segue funcionando como placa sem dono.
+  assert.equal(veiculo.ativo, true);
+  assert.equal(veiculo.vagaAtual, 0);
+});
+
+test('exclusão da conta: um extrato grande cabe num lote só', async () => {
+  await env.withSecurityRulesDisabled(async c => {
+    const batch = writeBatch(c.firestore());
+    for (let i = 0; i < 60; i++) {
+      batch.set(doc(c.firestore(), `veiculos/XYZ1234/recargas/m${i}`),
+        { valor: 1, forma: 'pix', uid: 'motorista-b', criadaEm: Timestamp.now() });
+    }
+    await batch.commit();
+  });
+  const ids = Array.from({ length: 60 }, (_, i) => `m${i}`);
+  await assertSucceeds(loteExclusao('motorista-b', { recargas: ids }).commit());
+  assert.equal((await lerSemRegras('veiculos/XYZ1234/recargas/m59')).exists(), false);
+});
+
+test('exclusão da conta: só o próprio motorista, e só junto com a placa', async () => {
+  // Perfil sem liberar a placa, ou placa liberada sem apagar o perfil.
+  await assertFails(loteExclusao('motorista-b', { comVeiculo: false }).commit());
+  await assertFails(loteExclusao('motorista-b', { comPerfil: false }).commit());
+  // Ninguém exclui a conta de outra pessoa nem libera a placa dela.
+  await assertFails(deleteDoc(ref('motorista-a', 'users/motorista-b')));
+  await env.withSecurityRulesDisabled(c => setDoc(doc(c.firestore(), 'users/motorista-c'), { role: 'motorista' }));
+  await assertFails(loteExclusao('motorista-c').commit());
+  await assertSucceeds(deleteDoc(ref('motorista-c', 'users/motorista-c')));
+  // Estacionamento e administração não se excluem pelo site.
+  await assertFails(deleteDoc(ref('operador-a', 'users/operador-a')));
+  await assertFails(deleteDoc(ref('admin', 'users/admin')));
+  await env.withSecurityRulesDisabled(c => setDoc(doc(c.firestore(), 'users/legado'),
+    { role: 'motorista', estacionamentoId: 'EST-A' }));
+  await assertFails(deleteDoc(ref('legado', 'users/legado')));
+  assert.equal(await saldoDe('XYZ1234'), 100);
+});
+
+test('exclusão da conta: carro no pátio e dívida ficam; a placa sai limpa', async () => {
+  // Estadia aberta: registrar a saída antes.
+  await assertFails(loteExclusao('motorista-a', { placa: 'ABC1D23' }).commit());
+  // Pendência não some com a conta.
+  await env.withSecurityRulesDisabled(c => updateDoc(doc(c.firestore(), 'veiculos/XYZ1234'), { saldo: -6.3 }));
+  await assertFails(loteExclusao('motorista-b').commit());
+  await env.withSecurityRulesDisabled(c => updateDoc(doc(c.firestore(), 'veiculos/XYZ1234'),
+    { saldo: 40, ...descricao, vagaEspecial: 'gestante' }));
+  for (const parcial of [
+    { saldo: 40 }, { saldo: 5 }, { ownerUid: 'motorista-a' }, { ownerUid: deleteField() },
+    { historicoDesde: Timestamp.fromMillis(Date.now() - 86400000) }, { historicoDesde: deleteField() },
+    { marca: 'Fiat' }, { cor: 'azul' }, { vagaEspecial: 'pcd' }, { ativo: false }, { vagaAtual: 3 },
+    { cadastradoNoTotem: true }
+  ]) await assertFails(loteExclusao('motorista-b', { veiculo: liberacao(parcial) }).commit());
+  // Sem apagar a descrição do carro também não vale.
+  await assertFails(loteExclusao('motorista-b',
+    { veiculo: { ownerUid: '', saldo: 0, historicoDesde: serverTimestamp() } }).commit());
+  assert.equal(await saldoDe('XYZ1234'), 40);
+  await assertSucceeds(loteExclusao('motorista-b').commit());
+});
+
+test('exclusão da conta: a reserva ativa é cancelada antes e sai junto', async () => {
+  const d = db('motorista-b');
+  await assertSucceeds(loteReserva(d, 'motorista-b').batch.commit());
+  // Ativa: segura a vaga no mapa, então não pode simplesmente sumir.
+  await assertFails(loteExclusao('motorista-b', { comReserva: true }).commit());
+  // Nem a conta sai deixando a reserva para trás.
+  await assertFails(loteExclusao('motorista-b').commit());
+  const cancelar = writeBatch(d);
+  cancelar.update(doc(d, 'reservas/motorista-b'), { status: 'cancelada' });
+  cancelar.update(doc(d, 'catalogoEstacionamentos/EST-A/vagas/2'), { reservadaAte: 0 });
+  await assertSucceeds(cancelar.commit());
+  // Fora da exclusão da conta a reserva não é apagada, nem a de outra pessoa.
+  await assertFails(deleteDoc(ref('motorista-b', 'reservas/motorista-b')));
+  await assertFails(deleteDoc(ref('motorista-a', 'reservas/motorista-b')));
+  await assertSucceeds(loteExclusao('motorista-b', { comReserva: true }).commit());
+  assert.equal((await lerSemRegras('reservas/motorista-b')).exists(), false);
+});
+
+test('exclusão da conta: o extrato só sai com a placa liberada e só o de quem recarregou', async () => {
+  await assertSucceeds(loteRecarga('motorista-b', { placa: 'XYZ1234', valor: 15, id: 'b1' }).commit());
+  const registro = ref('motorista-b', 'veiculos/XYZ1234/recargas/b1');
+  // Placa ainda da conta: o extrato não some de uma carteira em uso.
+  await assertFails(deleteDoc(registro));
+  await assertFails(deleteDoc(ref('motorista-a', 'veiculos/XYZ1234/recargas/b1')));
+  await assertFails(deleteDoc(ref('totem-a', 'veiculos/XYZ1234/recargas/b1')));
+  // Um extrato grande pode terminar de sair depois do lote que libera a placa.
+  await assertSucceeds(loteExclusao('motorista-b').commit());
+  await assertFails(deleteDoc(ref('motorista-a', 'veiculos/XYZ1234/recargas/b1')));
+  await assertSucceeds(deleteDoc(registro));
+});
+
+test('placa liberada: quem cadastra depois não vê as estadias do dono anterior', async () => {
+  const antiga = { ...recibo, placa: 'XYZ1234', entrada: entrada - 7200, saida: entrada - 3600 };
+  const idAntiga = `historico/XYZ1234_${antiga.entrada}`;
+  await env.withSecurityRulesDisabled(c => setDoc(doc(c.firestore(), idAntiga), antiga));
+  const porPlaca = (uid, ...filtros) =>
+    getDocs(query(collection(db(uid), 'historico'), where('placa', '==', 'XYZ1234'), ...filtros));
+  // Enquanto a placa é dele, o dono lê tudo, como antes.
+  assert.equal((await assertSucceeds(porPlaca('motorista-b'))).size, 1);
+  await assertSucceeds(loteExclusao('motorista-b').commit());
+  await assertFails(porPlaca('motorista-b'));
+
+  // Outra pessoa cadastra a placa (reivindicação de placa sem dono).
+  await env.withSecurityRulesDisabled(c => setDoc(doc(c.firestore(), 'users/motorista-c'), { role: 'motorista' }));
+  const d = db('motorista-c'), reivindicar = writeBatch(d);
+  reivindicar.update(doc(d, 'veiculos/XYZ1234'), { ownerUid: 'motorista-c', atualizadoEm: serverTimestamp() });
+  reivindicar.set(doc(d, 'users/motorista-c'), { placa: 'XYZ1234' }, { merge: true });
+  await assertSucceeds(reivindicar.commit());
+  // O limite não pode ser apagado nem recuado por quem reivindicou.
+  for (const historicoDesde of [deleteField(), Timestamp.fromMillis(0)]) {
+    await assertFails(updateDoc(doc(d, 'veiculos/XYZ1234'), { historicoDesde, atualizadoEm: Timestamp.now() }));
+  }
+  const limite = (await getDoc(doc(d, 'veiculos/XYZ1234'))).data().historicoDesde;
+  const desde = limite.seconds + (limite.nanoseconds > 0 ? 1 : 0);
+  const nova = { ...recibo, placa: 'XYZ1234', entrada: desde + 60, saida: desde + 3660 };
+  await env.withSecurityRulesDisabled(c => setDoc(doc(c.firestore(), `historico/XYZ1234_${nova.entrada}`), nova));
+
+  await assertFails(getDoc(ref('motorista-c', idAntiga)));
+  await assertSucceeds(getDoc(ref('motorista-c', `historico/XYZ1234_${nova.entrada}`)));
+  // A consulta precisa trazer o limite; sem ele, ou com um limite anterior, é recusada.
+  await assertFails(porPlaca('motorista-c'));
+  await assertFails(porPlaca('motorista-c', where('entrada', '>=', desde - 7200)));
+  const lidas = await assertSucceeds(porPlaca('motorista-c', where('entrada', '>=', desde)));
+  assert.deepEqual(lidas.docs.map(item => item.data().entrada), [nova.entrada]);
+  // O estacionamento e a administração continuam com os registros de antes.
+  await assertSucceeds(getDoc(ref('operador-a', idAntiga)));
+  await assertSucceeds(getDoc(ref('admin', idAntiga)));
+});
+
+test('placa liberada continua entrando pelo totem, como placa sem dono', async () => {
+  await assertSucceeds(loteExclusao('motorista-b').commit());
+  const d = db('totem-a'), batch = writeBatch(d);
+  batch.update(doc(d, 'veiculos/XYZ1234'), { vagaAtual: 2, horaEntrada: agora, estacionamentoId: 'EST-A', tarifaHoraEntrada: 8.5 });
+  batch.update(doc(d, 'estacionamentos/EST-A/vagas/2'), vagaLogica('XYZ1234'));
+  await assertSucceeds(batch.commit());
+});

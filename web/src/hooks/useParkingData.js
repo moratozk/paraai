@@ -18,6 +18,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "../firebase/firebaseConfig";
+import { consultaHistoricoDaPlaca, inicioDoHistorico } from "../services/historico";
 import { TOTAL_VAGAS, TOTEM_OFFLINE_APOS_SEGUNDOS } from "../utils/constants";
 
 // ---------------------------------------------------------------------
@@ -335,13 +336,19 @@ export function useVeiculo(placa) {
 // ---------------------------------------------------------------------
 // Histórico - filtrado por placa (motorista) ou estacionamento (operador).
 // Ordenado no cliente (mais recente primeiro) pra dispensar índice composto.
+// A exceção é a placa reivindicada depois que o dono anterior excluiu a
+// conta: ela traz o limite "desde" (services/historico.js).
 // ---------------------------------------------------------------------
-function useHistoricoPorCampo(campo, valor) {
+function useHistoricoPorCampo(campo, valor, desde = 0) {
   const [snapState, setSnapState] = useState({ chave: null, itens: [] });
+  const chave = valor ? `${valor}|${desde}` : null;
 
   useEffect(() => {
     if (!valor) return undefined;
-    const q = query(collection(db, "historico"), where(campo, "==", valor));
+    const q =
+      campo === "placa"
+        ? consultaHistoricoDaPlaca(valor, desde)
+        : query(collection(db, "historico"), where(campo, "==", valor));
     let unsub = () => {};
     let timer = null;
     let tentativas = 0;
@@ -359,7 +366,7 @@ function useHistoricoPorCampo(campo, valor) {
               (Number(b.saida) || Number(b.entrada) || 0) -
               (Number(a.saida) || Number(a.entrada) || 0)
           );
-          setSnapState({ chave: valor, itens });
+          setSnapState({ chave: `${valor}|${desde}`, itens });
         },
         (err) => {
           if (err?.code === "permission-denied" && tentativas < 3) {
@@ -368,7 +375,7 @@ function useHistoricoPorCampo(campo, valor) {
             return;
           }
           console.error(`[historico:${campo}] erro no listener:`, err);
-          setSnapState({ chave: valor, itens: [] });
+          setSnapState({ chave: `${valor}|${desde}`, itens: [] });
         }
       );
     };
@@ -377,18 +384,27 @@ function useHistoricoPorCampo(campo, valor) {
       unsub();
       clearTimeout(timer);
     };
-  }, [campo, valor]);
+  }, [campo, valor, desde]);
 
   if (!valor) return { historico: [], loading: false };
-  const atualizado = snapState.chave === valor;
+  const atualizado = snapState.chave === chave;
   return {
     historico: atualizado ? snapState.itens : [],
     loading: !atualizado,
   };
 }
 
+// O limite vem do veículo: a consulta espera ele carregar, para não pedir
+// uma que as regras recusariam numa placa reivindicada.
 export function useHistoricoPlaca(placa) {
-  return useHistoricoPorCampo("placa", placa);
+  const { veiculo, loading: carregandoVeiculo } = useVeiculo(placa);
+  const resultado = useHistoricoPorCampo(
+    "placa",
+    carregandoVeiculo ? null : placa,
+    inicioDoHistorico(veiculo)
+  );
+  if (placa && carregandoVeiculo) return { historico: [], loading: true };
+  return resultado;
 }
 
 export function useHistoricoEstacionamento(estId) {

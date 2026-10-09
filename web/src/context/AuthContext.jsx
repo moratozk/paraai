@@ -18,6 +18,7 @@ import {
 } from "firebase/auth";
 import { doc, setDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
+import { apagarDadosDoMotorista, VERSAO_PRIVACIDADE } from "../services/conta";
 
 const AuthContext = createContext();
 
@@ -41,6 +42,9 @@ export function AuthProvider({ children }) {
   // cadastro o documento AINDA não existe, e o reparo competiria com as
   // escritas do próprio cadastro (ver comentário no auto-reparo abaixo).
   const cadastroEmAndamento = useRef(false);
+  // Conta excluída agora há pouco: as páginas privadas mandam para o início,
+  // e não para o login, quando o acesso acaba (ver PrivateRoute).
+  const [contaExcluida, setContaExcluida] = useState(false);
 
   // O cadastro público cria apenas motoristas. Papéis privilegiados são
   // provisionados fora do cliente e nunca aceitos neste método.
@@ -70,6 +74,9 @@ export function AuthProvider({ children }) {
           // Direito a vaga especial (autodeclarado); vai para o veículo quando
           // a placa for cadastrada. Só é gravado quando a pessoa declara.
           ...(vagaEspecial && { vagaEspecial }),
+          // A tela de cadastro só envia com a política de privacidade aceita.
+          privacidadeAceitaEm: serverTimestamp(),
+          versaoPrivacidade: VERSAO_PRIVACIDADE,
           createdAt: serverTimestamp(),
         });
       } catch (err) {
@@ -196,11 +203,35 @@ export function AuthProvider({ children }) {
     await verifyBeforeUpdateEmail(auth.currentUser, novoEmail);
   }
 
+  // Exclusão da conta pelo motorista (LGPD): confere a senha, apaga os dados
+  // (services/conta.js) e por último o acesso. O auto-reparo fica desligado
+  // para esta conta: sem isso, o listener abaixo recriaria na hora o perfil
+  // que acabou de ser apagado.
+  async function excluirConta(senhaAtual) {
+    const u = auth.currentUser;
+    if (!u) throw new Error("Sessão inválida. Entre novamente.");
+    await reautenticar(senhaAtual);
+    reparoTentado.current.add(u.uid);
+    await apagarDadosDoMotorista(u.uid);
+    setContaExcluida(true);
+    try {
+      await deleteUser(u);
+    } catch (err) {
+      setContaExcluida(false);
+      console.error("Dados apagados, mas o acesso não foi excluído:", err);
+      throw new Error(
+        "Seus dados foram apagados, mas o acesso não foi encerrado. Confirme a senha e tente de novo.",
+        { cause: err }
+      );
+    }
+  }
+
   useEffect(() => {
     let unsubDoc = null;
 
     const unsubAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      if (currentUser) setContaExcluida(false);
 
       if (unsubDoc) {
         unsubDoc();
@@ -289,6 +320,8 @@ export function AuthProvider({ children }) {
     alterarPerfil,
     alterarSenha,
     alterarEmail,
+    excluirConta,
+    contaExcluida,
     erroPermissao,
   };
 

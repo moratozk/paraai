@@ -1,14 +1,34 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
-import { formatarTelefone, telefoneValido } from "../utils/format";
+import { useReserva, useVeiculo } from "../hooks/useParkingData";
+import {
+  baixarJson,
+  copiaDosDados,
+  impedimentoParaExcluir,
+  nomeDoArquivoDosDados,
+} from "../services/conta";
+import { reservaAtiva } from "../services/reservas";
+import { formatarMoeda, formatarTelefone, telefoneValido } from "../utils/format";
 import "./Pages.css";
 
-export default function Configuracoes() {
-  const { user, userData, alterarPerfil, alterarSenha, alterarEmail } = useAuth();
-  const toast = useToast();
+const ABAS = [
+  { id: "perfil", rotulo: "Perfil", icone: "👤" },
+  { id: "email", rotulo: "E-mail", icone: "✉️" },
+  { id: "senha", rotulo: "Senha", icone: "🔒" },
+  { id: "privacidade", rotulo: "Privacidade", icone: "🛡️" },
+];
 
-  const [aba, setAba] = useState("perfil");
+export default function Configuracoes() {
+  const { user, userData, alterarPerfil, alterarSenha, alterarEmail, excluirConta } = useAuth();
+  const toast = useToast();
+  const [params] = useSearchParams();
+
+  // ?aba=privacidade abre direto na aba (links do Perfil e da política).
+  const [aba, setAba] = useState(() =>
+    ABAS.some((a) => a.id === params.get("aba")) ? params.get("aba") : "perfil"
+  );
 
   // --- perfil (nome + telefone) ---
   const [nome, setNome] = useState(userData?.name || user?.displayName || "");
@@ -30,6 +50,23 @@ export default function Configuracoes() {
   const [salvandoSenha, setSalvandoSenha] = useState(false);
 
   const [erro, setErro] = useState("");
+
+  // --- privacidade (cópia dos dados e exclusão da conta) ---
+  const role = userData?.role || "motorista";
+  const motorista = role === "motorista";
+  const placa = motorista ? userData?.placa || null : null;
+  const naPrivacidade = aba === "privacidade";
+  const { veiculo } = useVeiculo(naPrivacidade ? placa : null);
+  const { reserva } = useReserva(naPrivacidade && motorista ? user?.uid : null);
+  const veiculoDaConta = veiculo?.ownerUid === user?.uid ? veiculo : null;
+  const impedimento = impedimentoParaExcluir(veiculoDaConta);
+  const saldo = Number(veiculoDaConta?.saldo) || 0;
+  const [baixando, setBaixando] = useState(false);
+  const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
+  const [senhaExclusao, setSenhaExclusao] = useState("");
+  const [erroExclusao, setErroExclusao] = useState("");
+  const [excluindo, setExcluindo] = useState(false);
+  const campoSenhaExclusao = useRef(null);
 
   async function salvarNome(e) {
     e.preventDefault();
@@ -102,19 +139,54 @@ export default function Configuracoes() {
     }
   }
 
-  const tipoConta = TIPOS_DE_CONTA[userData?.role] || TIPOS_DE_CONTA.motorista;
+  async function baixarDados() {
+    setBaixando(true);
+    try {
+      const copia = await copiaDosDados(user);
+      baixarJson(nomeDoArquivoDosDados(), copia);
+      toast.sucesso("Arquivo com os seus dados baixado.");
+    } catch (err) {
+      console.error("Falha ao montar a cópia dos dados:", err);
+      toast.erro("Não foi possível preparar o arquivo agora. Tente novamente.");
+    } finally {
+      setBaixando(false);
+    }
+  }
 
-  const ABAS = [
-    { id: "perfil", rotulo: "Perfil", icone: "👤" },
-    { id: "email", rotulo: "E-mail", icone: "✉️" },
-    { id: "senha", rotulo: "Senha", icone: "🔒" },
-  ];
+  function mostrarErroExclusao(texto) {
+    setErroExclusao(texto);
+    campoSenhaExclusao.current?.focus();
+  }
+
+  async function excluir(e) {
+    e.preventDefault();
+    setErroExclusao("");
+    if (!senhaExclusao) {
+      mostrarErroExclusao("Digite a sua senha para confirmar.");
+      return;
+    }
+    setExcluindo(true);
+    try {
+      await excluirConta(senhaExclusao);
+      // Sem navigate: com o acesso encerrado, PrivateRoute leva ao início.
+      toast.sucesso("Conta excluída. Seus dados foram apagados do ParaAí.");
+    } catch (err) {
+      setExcluindo(false);
+      mostrarErroExclusao(
+        ["auth/wrong-password", "auth/invalid-credential"].includes(err?.code)
+          ? "Senha incorreta."
+          : traduzErro(err)
+      );
+    }
+  }
+
+  const tipoConta = TIPOS_DE_CONTA[userData?.role] || TIPOS_DE_CONTA.motorista;
 
   return (
     <div className="page container">
       <div className="page-header">
         <h1>Configurações</h1>
-        <p>Gerencie os dados de acesso da sua conta ParaAí.</p>
+        <p>Gerencie o acesso e a privacidade da sua conta ParaAí.</p>
       </div>
 
       <div className="config-layout">
@@ -307,6 +379,146 @@ export default function Configuracoes() {
                 </button>
               </form>
             </div>
+          )}
+
+          {/* ---------- PRIVACIDADE ---------- */}
+          {aba === "privacidade" && (
+            <>
+              <div className="card config-privacidade">
+                <h2>Seus dados</h2>
+                <p className="config-texto">
+                  {motorista
+                    ? "Baixe uma cópia de tudo o que o ParaAí guarda sobre você: perfil, carro, carteira, extrato, estadias e reserva."
+                    : role === "operador"
+                      ? "Baixe uma cópia do seu perfil e do cadastro do seu estacionamento."
+                      : "Baixe uma cópia do seu perfil."}
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={baixarDados}
+                  disabled={baixando}
+                >
+                  {baixando ? "Preparando o arquivo..." : "Baixar meus dados"}
+                </button>
+                <p className="muted-note">
+                  O arquivo vem em JSON, um formato aberto que outros serviços
+                  conseguem ler. O que cada dado faz está na{" "}
+                  <Link to="/privacidade" className="link-texto">
+                    política de privacidade
+                  </Link>
+                  .
+                </p>
+              </div>
+
+              <div className="card config-privacidade">
+                <h2>Excluir conta</h2>
+                {!motorista ? (
+                  <p className="config-texto">
+                    {role === "operador"
+                      ? "A conta de um estacionamento é encerrada pela administração da rede, porque o pátio, os totens e as movimentações dependem dela."
+                      : "Contas de administração são encerradas pela própria administração da rede, fora do site."}
+                  </p>
+                ) : (
+                  <>
+                    <p className="config-texto">
+                      Apaga o seu perfil, a carteira, o extrato e a reserva, e
+                      encerra o acesso ao ParaAí. Não dá para desfazer.
+                    </p>
+                    <ul className="config-lista">
+                      {placa && (
+                        <li>
+                          A placa {placa} fica livre para outra pessoa cadastrar,
+                          sem as suas estadias.
+                        </li>
+                      )}
+                      <li>
+                        As estadias continuam com os estacionamentos, só com a
+                        placa: sem nome, e-mail ou celular.
+                      </li>
+                      {saldo > 0 && (
+                        <li>O saldo simulado de {formatarMoeda(saldo)} não é devolvido.</li>
+                      )}
+                    </ul>
+
+                    {impedimento === "estacionado" ? (
+                      <p className="destaque-aviso">
+                        Seu carro está estacionado. Registre a saída no totem
+                        antes de excluir a conta.
+                      </p>
+                    ) : impedimento === "pendencia" ? (
+                      <p className="destaque-aviso">
+                        <span>
+                          Há uma pendência de {formatarMoeda(-saldo)} de uma
+                          estadia. <Link to="/perfil" className="link-texto">Regularize com uma recarga</Link>{" "}
+                          antes de excluir a conta.
+                        </span>
+                      </p>
+                    ) : !confirmandoExclusao ? (
+                      <button
+                        type="button"
+                        className="btn btn-danger"
+                        onClick={() => setConfirmandoExclusao(true)}
+                      >
+                        Excluir minha conta
+                      </button>
+                    ) : (
+                      <form onSubmit={excluir} className="config-exclusao">
+                        {reservaAtiva(reserva) && (
+                          <p className="config-texto">
+                            A sua reserva da vaga {reserva.vaga} também será cancelada.
+                          </p>
+                        )}
+                        <div className="field">
+                          <label htmlFor="senhaExclusao">Sua senha</label>
+                          <input
+                            id="senhaExclusao"
+                            ref={campoSenhaExclusao}
+                            type="password"
+                            autoComplete="current-password"
+                            autoFocus
+                            value={senhaExclusao}
+                            onChange={(e) => {
+                              setSenhaExclusao(e.target.value);
+                              setErroExclusao("");
+                            }}
+                            aria-invalid={erroExclusao ? "true" : undefined}
+                            aria-describedby="exclusao-ajuda"
+                          />
+                          <span
+                            className={`field-hint${erroExclusao ? " erro" : ""}`}
+                            id="exclusao-ajuda"
+                          >
+                            {erroExclusao || "Pedimos a senha para confirmar que é você."}
+                          </span>
+                        </div>
+                        <div className="acoes-form">
+                          <button
+                            type="submit"
+                            className="btn btn-danger-solido"
+                            disabled={excluindo}
+                          >
+                            {excluindo ? "Excluindo..." : "Excluir definitivamente"}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-outline"
+                            disabled={excluindo}
+                            onClick={() => {
+                              setConfirmandoExclusao(false);
+                              setSenhaExclusao("");
+                              setErroExclusao("");
+                            }}
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                  </>
+                )}
+              </div>
+            </>
           )}
         </div>
       </div>

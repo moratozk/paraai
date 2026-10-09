@@ -315,6 +315,12 @@ export default function Perfil() {
                   : "Motorista"}
             </span>
           </div>
+          <div className="info-row">
+            <span className="label">Privacidade</span>
+            <Link to="/configuracoes?aba=privacidade" className="field-link">
+              {role === "motorista" ? "Baixar ou excluir dados" : "Baixar seus dados"}
+            </Link>
+          </div>
         </div>
       </div>
 

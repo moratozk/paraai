@@ -17,6 +17,7 @@ const Cadastro = lazy(() => import("./pages/Cadastro"));
 const RecuperarSenha = lazy(() => import("./pages/RecuperarSenha"));
 const RedefinirSenha = lazy(() => import("./pages/RedefinirSenha"));
 const AcaoConta = lazy(() => import("./pages/AcaoConta"));
+const Privacidade = lazy(() => import("./pages/Privacidade"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const MarketplaceEstacionamentos = lazy(() => import("./pages/MarketplaceEstacionamentos"));
 const Historico = lazy(() => import("./pages/Historico"));
@@ -52,6 +53,8 @@ export default function App() {
                 <Route path="/redefinir-senha" element={<PublicRoute><RedefinirSenha /></PublicRoute>} />
                 {/* Links dos e-mails do Firebase; vale logado ou não (ver AcaoConta). */}
                 <Route path="/acao" element={<AcaoConta />} />
+                {/* Política de privacidade: o cadastro aponta para cá antes de a conta existir. */}
+                <Route path="/privacidade" element={<Privacidade />} />
 
                 <Route
                   path="/dashboard"
