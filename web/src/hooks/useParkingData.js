@@ -281,12 +281,16 @@ export function useVagas(estId, numVagas = TOTAL_VAGAS) {
       Array.from({ length: total }, (_, i) => {
         const id = String(i + 1);
         const data = (atualizado && snapState.docs[id]) || {};
+        const placa = data.placa || "";
         return {
           id,
           numero: i + 1,
           ocupada: Boolean(data.ocupada),
-          placa: data.placa || "",
+          placa,
           tipo: data.tipo || "",
+          // Copiados do veículo pelo totem na entrada (vazios no firmware antigo).
+          modelo: placa ? data.modelo || "" : "",
+          cor: placa ? data.cor || "" : "",
         };
       }),
     [snapState, atualizado, total]

@@ -137,6 +137,7 @@ estacionamentos/{id}/vagas/{1..200}
   placa: "ABC1D23" ou ""
   ocupada: true ou false                     # equivale a placa não vazia
   origemOcupacao: "registro"
+  modelo?, cor?                              # cópia do veículo; apagados na saída
 
 veiculos/{PLACA}
   ativo, saldo, ownerUid?, atualizadoEm?   # ownerNome legado é apagado na recarga
@@ -144,6 +145,7 @@ veiculos/{PLACA}
   horaEntrada: segundos Unix ou 0
   estacionamentoId: id ou ""
   tarifaHoraEntrada: preço congelado ou 0
+  marca?, modelo?, cor?                    # informados pelo dono no site
 
 historico/{PLACA_horaEntrada}
   placa, vaga, entrada, saida, duracaoMinutos, valorCobrado,
@@ -167,6 +169,12 @@ uma fotografia periódica, não uma medição física em tempo real.
   recebe vaga especial. O tipo de cada vaga vem do campo `tipo` do mapa
   público ou, sem ele, da tabela padrão (1-2 PCD, 9 e 11 60+, 10 gestante),
   igual ao site e às regras (`tipoDaVaga` em `totem/LogicaTotem.h`).
+- **Modelo e cor:** se o dono informou no site, a confirmação da entrada
+  mostra o carro ("GOL PRATA") e a placa desce para junto da vaga quando cabe.
+  O totem copia `modelo` e `cor` para a vaga no mesmo commit da entrada, e a
+  saída apaga os dois junto com a placa; as regras conferem que a cópia é
+  igual ao veículo. Fora do formato (`nomeVeiculoValido` e `corVeiculoValida`
+  em `totem/LogicaTotem.h`), nenhum dos dois é mostrado ou copiado.
 - **Mapa público:** a entrada grava `ocupada: true, reservadaAte: 0` e a saída
   `ocupada: false` em `catalogoEstacionamentos/{id}/vagas/{n}`, no mesmo commit.
 - **Saída:** débito, vaga livre e recibo exclusivo no mesmo commit. Usa a

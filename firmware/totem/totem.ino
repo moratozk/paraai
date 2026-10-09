@@ -51,7 +51,9 @@ void exibirResposta(const RespostaTotem& r) {
   }
   TipoResultado tipo = r.tipo == TipoResposta::SUCESSO ? RESULTADO_SUCESSO
     : r.tipo == TipoResposta::ALERTA ? RESULTADO_ALERTA : RESULTADO_ERRO;
-  desenharTelaResultado(tipo, r.titulo, r.detalhe, r.ajuda);
+  String detalhe = r.detalhe, ajuda = r.ajuda;
+  linhasComCarro(r.carro, detalhe, ajuda);
+  desenharTelaResultado(tipo, r.titulo, detalhe, ajuda);
   desenharBotaoConcluir();
   resultadoDesde = millis();
   tela = Tela::RESULTADO;

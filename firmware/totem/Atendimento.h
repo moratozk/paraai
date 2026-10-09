@@ -13,6 +13,7 @@ struct RespostaTotem {
   char titulo[40];
   char detalhe[64];
   char ajuda[64];
+  char carro[32]; // "GOL PRATA": modelo e cor informados no site; vazio = não informado.
 };
 struct StatusTotem { ConexaoTotem conexao; char etapa[40]; };
 
