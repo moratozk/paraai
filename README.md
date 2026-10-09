@@ -32,8 +32,10 @@ paraai/
 │   └── tools/               gerador das fontes da tela
 ├── web/                     Site: React + Vite + Firebase
 ├── firebase/                Regras do Firestore e testes no emulador
+├── contratos/               Casos que o site, o totem e as regras testam juntos
+├── e2e/                     Teste do fluxo completo no navegador
 ├── docs/brand/              Logos da marca em alta resolução
-├── .github/                 CI (firmware, Firebase e site) e modelo de PR
+├── .github/                 CI (firmware, Firebase, site e fluxo completo) e modelo de PR
 ├── firebase.json            Publicação das regras e do site (Hosting)
 ├── AGENTS.md                Acordos técnicos para os assistentes
 ├── CONTRIBUTING.md          Como colaborar: máquina nova, branches e PRs
@@ -45,6 +47,8 @@ paraai/
 | [`firmware/`](firmware/) | Firmware do totem (ESP32 + Arduino): tela touch, entrada/saída por placa, vagas lógicas, cobrança por tempo | [firmware/README.md](firmware/README.md) |
 | [`web/`](web/) | Painel web (React + Vite + Firebase): landing B2B, conta de operador (dono) e de motorista, faturamento, histórico, carteira | [web/README.md](web/README.md) |
 | [`firebase/`](firebase/) | Regras de segurança do Firestore, com comentários e testes no emulador | [firebase/firestore.rules](firebase/firestore.rules) |
+| [`contratos/`](contratos/) | Conta da estadia, vagas especiais e placas: os casos esperados, testados no site, no totem e nas regras | [contratos/README.md](contratos/README.md) |
+| [`e2e/`](e2e/) | Fluxo completo no navegador, com os emuladores do Firebase | [Testes automáticos](#testes-automáticos) |
 
 ## Trabalho em equipe
 
@@ -150,6 +154,29 @@ em manutenção: a saída exige débito, vaga e recibo no mesmo commit. Consulte
 [o checklist de instalação e testes](firmware/README.md#verificação-e-instalação-controlada)
 antes de autorizar publicação/gravação.
 
+## Testes automáticos
+
+Cada pull request roda estes testes no GitHub (`.github/workflows/`). Nenhum
+deles usa o Firebase de produção.
+
+| O que confere | Onde | Como rodar |
+|---|---|---|
+| Contas e validações do site, e os contratos com o totem e as regras | `web/test/` | `npm test` em `web/` |
+| Regras do Firestore no emulador: isolamento entre contas, entrada, saída, cobrança, reserva e privacidade | `firebase/test/` | `npm ci` e `npm test` em `firebase/test/` (Java 21) |
+| Lógica do totem no PC (cobrança, vagas, placas, PIN e Wi-Fi) e prévia das telas | `firmware/test/` | [firmware/README.md](firmware/README.md#verificação-e-instalação-controlada) |
+| Fluxo completo no navegador, no computador e no celular | `e2e/` | `npm ci` em `web/`; em `e2e/`, `npm ci`, `npx playwright install chromium` e `npm test` (Java 21) |
+
+A conta da estadia, a tabela das vagas especiais e o formato da placa existem
+no site, no totem e nas regras. Os casos esperados ficam em
+[`contratos/`](contratos/README.md), e as três partes são testadas contra os
+mesmos arquivos: se uma delas mudar sozinha, o CI falha.
+
+O fluxo completo segue a ordem da apresentação: cadastro com o aceite da
+política, placa, recarga simulada, reserva no mapa, entrada no totem, mapa do
+dono ao vivo, saída e a cobrança no painel, no comprovante e no extrato. O
+totem é simulado com as mesmas gravações do firmware, que passam pelas regras
+de verdade.
+
 ## Limitações conhecidas (transparência acadêmica)
 
 - Cada totem possui uma conta própria no Firebase Authentication. As regras
@@ -166,3 +193,5 @@ antes de autorizar publicação/gravação.
   firmware atual.
 - O novo firmware exige internet para confirmar operações. Compilação e
   testes em computador não substituem a calibração e o teste físico do touch.
+- O teste do fluxo completo simula o totem no computador: confere as
+  gravações e as regras, não a tela, o toque nem o Wi-Fi do equipamento.

@@ -1,4 +1,5 @@
 // Formatação e validação compartilhadas pelas páginas.
+import { TOLERANCIA_SALDO } from "./cobranca.js";
 
 // Placas no padrão do totem: só letras/números, maiúsculas, até 7 caracteres
 export function normalizarPlaca(valor) {
@@ -69,7 +70,6 @@ export function lerValorEmReais(texto) {
 
 // Parte da cobrança que o saldo não cobriu. Recibos antigos não têm o campo e
 // contam como pagos. Meio centavo é a mesma tolerância do totem e das regras.
-const TOLERANCIA_SALDO = 0.005;
 export function valorPendente(recibo) {
   const pendente = Number(recibo?.valorPendente) || 0;
   return pendente >= TOLERANCIA_SALDO ? pendente : 0;

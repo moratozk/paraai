@@ -16,11 +16,25 @@ import {
   checkActionCode,
   applyActionCode,
 } from "firebase/auth";
-import { doc, setDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
+import { doc, onSnapshot, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
 import { apagarDadosDoMotorista, VERSAO_PRIVACIDADE } from "../services/conta";
 
 const AuthContext = createContext();
+
+// Dados da conta para as telas: o perfil do Firestore, com nome, e-mail e
+// foto do Authentication, que tem a versão mais nova deles.
+function dadosDaConta(usuario, perfil) {
+  return {
+    ...perfil,
+    name: usuario.displayName || perfil.name || null,
+    email: usuario.email || perfil.email || null,
+    photoURL: usuario.photoURL || perfil.photoURL || null,
+    // Papel derivado: quem tem estacionamento é operador, mesmo que o campo
+    // role tenha se perdido num cadastro com erro.
+    role: perfil.role || (perfil.estacionamentoId ? "operador" : "motorista"),
+  };
+}
 
 // Padrão consagrado de Context + hook no mesmo arquivo; o aviso do
 // react-refresh só afeta o hot-reload em desenvolvimento, não a aplicação.
@@ -254,39 +268,44 @@ export function AuthProvider({ children }) {
           // AUTO-REPARO: contas antigas que ficaram sem documento recebem o
           // perfil mínimo de motorista. O reparo só roda depois que o fluxo
           // de cadastro termina, por isso não concorre com a escolha de papel
-          // feita na criação de uma conta nova.
+          // feita na criação de uma conta nova. Logo depois do cadastro, uma
+          // leitura atrasada do servidor ainda pode dizer que o perfil não
+          // existe: a transação confere de novo e só cria o que falta, sem
+          // tocar num perfil que já está lá (e sem o aviso de erro na tela).
           if (
             !snap.exists() &&
             !cadastroEmAndamento.current &&
             !reparoTentado.current.has(currentUser.uid)
           ) {
             reparoTentado.current.add(currentUser.uid);
-            setDoc(
-              doc(db, "users", currentUser.uid),
-              {
+            const perfilRef = doc(db, "users", currentUser.uid);
+            runTransaction(db, async (transacao) => {
+              const atual = await transacao.get(perfilRef);
+              if (atual.exists()) return atual.data();
+              transacao.set(perfilRef, {
                 name: currentUser.displayName || null,
                 email: currentUser.email || null,
                 role: "motorista",
                 createdAt: serverTimestamp(),
-              },
-              { merge: true }
-            ).catch((err) => {
-              console.error("Auto-reparo do perfil falhou:", err);
-              if (`${err?.code || ""}`.includes("permission")) {
-                setErroPermissao(true);
-              }
-            });
+              });
+              return null;
+            })
+              // O perfil já existia: as telas passam a usar o que o servidor
+              // devolveu, em vez da leitura atrasada.
+              .then((perfil) => {
+                if (perfil && auth.currentUser?.uid === currentUser.uid) {
+                  setUserData(dadosDaConta(currentUser, perfil));
+                }
+              })
+              .catch((err) => {
+                console.error("Auto-reparo do perfil falhou:", err);
+                if (`${err?.code || ""}`.includes("permission")) {
+                  setErroPermissao(true);
+                }
+              });
           }
 
-          setUserData({
-            ...data,
-            name: currentUser.displayName || data.name || null,
-            email: currentUser.email || data.email || null,
-            photoURL: currentUser.photoURL || data.photoURL || null,
-            // Papel derivado: quem tem estacionamento é operador, mesmo que
-            // o campo role tenha se perdido num cadastro com erro.
-            role: data.role || (data.estacionamentoId ? "operador" : "motorista"),
-          });
+          setUserData(dadosDaConta(currentUser, data));
           setLoading(false);
         },
         (err) => {

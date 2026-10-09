@@ -1,0 +1,16 @@
+# Tipo das vagas sem o campo "tipo" gravado no mapa público (tabela da
+# demonstração FATEC). Vagas que não estão aqui são comuns. O campo "tipo",
+# quando existe, vale mais que esta tabela.
+vaga,tipo
+1,pcd
+2,pcd
+3,comum
+4,comum
+5,comum
+6,comum
+7,comum
+8,comum
+9,idoso
+10,gestante
+11,idoso
+12,comum

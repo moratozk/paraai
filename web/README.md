@@ -46,6 +46,9 @@ claro/escuro).
    **Firestore**; publique as regras de [`../firebase/firestore.rules`](../firebase/firestore.rules).
 4. `npm run dev`
 
+Antes de abrir um PR: `npm run lint`, `npm run build` e `npm test` (as contas
+do site e os contratos com o totem e as regras, em `test/`).
+
 ### Recuperação de senha dentro do site
 
 Para o botão do e-mail abrir a tela personalizada do ParaAí:
@@ -76,6 +79,7 @@ src/
 ├── services/         veiculos.js (placa, recarga),
 │                     estacionamentos.js (cadastro do estacionamento)
 ├── utils/            constants.js (valores compartilhados com o firmware),
+│                     cobranca.js (conta da estadia, a mesma do totem),
 │                     format.js (moeda, datas, validação de placa)
 └── pages/            Home, Login, Cadastro (2 papéis), Dashboard (roteia por
                       papel), PainelOperador, PainelMotorista, Marketplace,

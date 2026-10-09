@@ -4,7 +4,7 @@ import {
   formatarDataHora,
   valorPendente,
   valorRecebido,
-} from "./format";
+} from "./format.js";
 
 const DIAS_SEMANA = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 

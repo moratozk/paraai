@@ -14,6 +14,9 @@ Sistema acadêmico de atendimento para estacionamentos:
   ou servo/catraca física; gabinete 3D ainda a projetar
 - **`web/`** — painel React/Vite, com Firebase Auth e Firestore
 - **`firebase/`** — regras do Firestore e testes no emulador
+- **`contratos/`** — casos esperados que o site, o totem e as regras testam
+  juntos (conta da estadia, vagas especiais e placas)
+- **`e2e/`** — teste do fluxo completo no navegador, com os emuladores
 
 O motorista registra entrada/saída por placa. O Firebase associa vaga,
 estadia e cobrança simulada. O operador acompanha pelo painel. A ocupação é
@@ -26,6 +29,45 @@ revisão visual e nova tela inicial). **Regras do Firestore e site publicados
 em 06/10/2026** a partir da `main` (`26a97e5`); o site no ar é o build dessa
 versão. **O firmware da `main` foi gravado no totem no mesmo dia** e testado:
 uma placa sem direito declarado recebeu a primeira vaga comum livre.
+
+## Testes automáticos (09/10/2026)
+
+Antes, o site só passava por lint e build no CI. Agora cada PR também roda:
+
+- **Contas do site (`web/test/`, `npm test` em `web/`):** cobrança, placa,
+  celular, dinheiro, valor digitado na recarga, vagas especiais, modelo e cor
+  e os relatórios. A conta da estadia saiu do painel do motorista para
+  `web/src/utils/cobranca.js`, com a mesma ordem de contas do totem e das
+  regras.
+- **Contratos (`contratos/`):** a conta da estadia, a tabela das vagas sem
+  tipo gravado e as placas aceitas existem no site, no totem e nas regras. Os
+  casos esperados ficam em CSV, num lugar só, e as três partes são testadas
+  contra eles: o site em `web/test/contratos.test.js`, o totem em
+  `firmware/test/logica_totem.test.cpp` e as regras no emulador, onde cada
+  cobrança é aceita com o centavo certo e recusada com um centavo a mais ou a
+  menos. O teste do site também compara, no texto do firmware e das regras,
+  as cores, o tamanho do nome do carro, a tolerância de meio centavo e os
+  limites da recarga. Um caso pega a ordem das contas: 9 minutos a R$ 8,50
+  dão R$ 1,27 nas três partes (R$ 1,275 na conta exata).
+- **Fluxo completo (`e2e/`, Playwright):** o site no navegador, ligado aos
+  emuladores com as regras de verdade, no tamanho de computador e de celular.
+  Cadastro com o aceite da política, placa, recarga, reserva (a vaga PCD é
+  recusada sem o direito declarado), entrada no totem na vaga reservada, mapa
+  do dono ao vivo, saída e a cobrança no painel, no comprovante e no extrato.
+  O totem é simulado com as mesmas gravações do firmware. Qualquer erro no
+  console faz o teste falhar.
+- **Defeito que o teste achou:** logo depois de criar a conta, às vezes
+  aparecia a faixa vermelha "Não conseguimos carregar os dados da sua conta".
+  Uma leitura atrasada do perfil disparava o auto-reparo
+  (`web/src/context/AuthContext.jsx`), que tentava regravar um perfil que já existia
+  e era recusado pelas regras. O reparo agora confere numa transação e só cria
+  o perfil que realmente falta. Conta antiga sem perfil continua sendo
+  reparada.
+- **Emuladores só para projeto de demonstração:** o site liga os emuladores
+  apenas com `VITE_EMULADOR_AUTH`, `VITE_EMULADOR_FIRESTORE` e projeto
+  `demo-...` (`web/src/firebase/firebaseConfig.js`). O site publicado não tem nenhuma
+  delas, e o build de produção descarta esse trecho.
+- **Regras e firmware:** não mudam. Só os testes deles leem os casos novos.
 
 ## Privacidade e LGPD (09/10/2026)
 
@@ -670,6 +712,31 @@ em branco: sem rede alguma, o totem abre a configuração na própria tela.
 Precisa de Wi-Fi **2,4 GHz** — o ESP32 não enxerga 5 GHz. Abrir `firmware/totem/totem.ino`
 na Arduino IDE e gravar.
 
+### Testes
+
+Cada bloco parte da raiz do repositório.
+
+```bash
+cd web
+npm test                  # contas do site e contratos
+```
+
+```bash
+cd firebase/test
+npm ci
+npm test                  # regras no emulador (precisa do Java 21)
+```
+
+```bash
+cd e2e                    # depois do npm install em web/
+npm ci
+npx playwright install chromium
+npm test                  # fluxo completo no computador e no celular (Java 21)
+```
+
+Os testes do totem no PC estão em `firmware/README.md`. Nenhum usa o
+Firebase de produção.
+
 ---
 
 ## Histórico do que já estava pronto antes da revisão atual
@@ -825,6 +892,10 @@ na Arduino IDE e gravar.
     conta e cadastrar a mesma placa com outra conta, que não deve ver as
     estadias anteriores.
 
+12. **Testes automáticos (09/10/2026, PR próprio).** Rodam sozinhos em cada
+    PR. Para publicar, só o site, que leva a correção do aviso vermelho falso
+    logo depois do cadastro. Regras e firmware não mudam.
+
 ---
 
 ## Decisões já tomadas (não refazer sem motivo)
@@ -963,6 +1034,15 @@ passam em 4,5:1 também sobre os próprios fundos suaves.
 **Saldo não se grava direto.** Qualquer crédito novo precisa do registro em
 `veiculos/{placa}/recargas` no mesmo lote, como faz `adicionarSaldo`
 (`services/veiculos.js`); um `updateDoc` com `saldo` é recusado pelas regras.
+
+**Regra que existe em três lugares muda nos três, e em `contratos/`.** A
+conta da estadia, a tabela das vagas especiais e o formato da placa estão no
+site, no firmware e nas regras. Mudar só um deles faz o CI falhar; mude o CSV
+de `contratos/` e as três implementações no mesmo PR.
+
+**O perfil pode chegar "inexistente" logo depois do cadastro.** Uma leitura
+atrasada do servidor ainda diz que `users/{uid}` não existe. Nada que grave
+o perfil pode confiar só nesse aviso: o auto-reparo confere numa transação.
 
 **Estadias de uma placa se consultam com o limite.** Use
 `consultaHistoricoDaPlaca(placa, inicioDoHistorico(veiculo))`

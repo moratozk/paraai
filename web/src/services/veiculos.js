@@ -14,6 +14,7 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { db } from "../firebase/firebaseConfig";
+import { RECARGA_MAXIMA, RECARGA_MINIMA } from "../utils/constants";
 import { direitoVagaValido } from "../utils/mapaVagas";
 import { prepararDescricao } from "../utils/veiculo";
 
@@ -99,9 +100,8 @@ export async function atualizarDescricaoVeiculo({ placa, descricao }) {
   });
 }
 
-// Limites da recarga, os mesmos das regras do Firestore.
-export const RECARGA_MINIMA = 0.01;
-export const RECARGA_MAXIMA = 1000;
+// Limites da recarga (utils/constants.js), os mesmos das regras do Firestore.
+export { RECARGA_MAXIMA, RECARGA_MINIMA };
 
 // Recarga de saldo (simulada - não há gateway de pagamento; o valor é
 // creditado diretamente, para fins de demonstração do TCC). O crédito e o

@@ -17,6 +17,7 @@ import {
   valorPendente,
 } from "../utils/format";
 import { VALOR_POR_HORA } from "../utils/constants";
+import { valorDaEstadia } from "../utils/cobranca";
 import { cancelarReserva, reservaAtiva } from "../services/reservas";
 import { descreverVeiculo } from "../utils/veiculo";
 import ComprovanteEstadia from "../components/ComprovanteEstadia";
@@ -73,7 +74,8 @@ export default function PainelMotorista() {
 
   const segundosEstacionado =
     estacionado && horaEntrada > 0 ? Math.max(0, agora - horaEntrada) : 0;
-  const custoEstimado = (segundosEstacionado / 3600) * tarifaAtual;
+  // A mesma conta do totem na saída, arredondada ao centavo.
+  const custoEstimado = valorDaEstadia(segundosEstacionado, tarifaAtual);
 
   const ultimosAcessos = historico.slice(0, 5);
   // O motorista vê o nome do estacionamento, nunca o identificador interno.

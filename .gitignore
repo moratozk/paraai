@@ -16,6 +16,9 @@ firmware/**/.codex-build/
 *.map
 firmware/test/.runtime/
 firebase/test/*debug.log
+e2e/*debug.log
+e2e/test-results/
+e2e/playwright-report/
 
 # Pasta de bibliotecas da Arduino IDE neste PC (~200 MB, com libs de outros
 # projetos). As que o firmware usa estão listadas em firmware/README.md.
