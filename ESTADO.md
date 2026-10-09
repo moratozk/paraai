@@ -27,6 +27,44 @@ em 06/10/2026** a partir da `main` (`26a97e5`); o site no ar é o build dessa
 versão. **O firmware da `main` foi gravado no totem no mesmo dia** e testado:
 uma placa sem direito declarado recebeu a primeira vaga comum livre.
 
+## Reservas no mapa do dono e acertos de tela (09/10/2026)
+
+- **Mapa do dono (`components/MapaVagas.jsx`):** passou a juntar a vaga do
+  totem com a projeção pública, como o mapa do administrador
+  (`combinarVagasDoPatio` em `utils/mapaVagas.js`). A vaga reservada pelo app
+  aparece em âmbar ("Reserva", "até 14:05"), em vez de "Livre", e o tipo
+  definido pela administração vale também aqui. O tipo vem primeiro da
+  projeção pública, que é de onde o totem lê; o campo `tipo` da vaga
+  operacional só existe em vagas antigas. "Ocupação agora" conta as reservas
+  à parte. Os selos não repetem mais o rótulo ("60+ 60+", "G GESTANTE") e
+  "Gestante" desce para baixo do número em vez de vazar da vaga.
+- **Movimentações do dono:** 10 linhas e "Ver mais" (+20), como no painel da
+  rede; o CSV continua levando o período inteiro. A página do dono no celular
+  tinha mais de 10 mil pixels de altura com 25 linhas.
+- **Vagas ao vivo do administrador:** cada estado mostra só o que tem (vaga
+  livre não tem placa nem origem; a reservada mostra até quando vale e quanto
+  falta, em linhas separadas). O painel lateral não é mais `aria-live`: a
+  contagem da reserva muda a cada segundo e o leitor de tela anunciava sem
+  parar. Na lista, a reserva aparece como "Reservada", e não como uma placa
+  "SEM PLACA".
+- **Saldo baixo (`pages/PainelMotorista.jsx`):** o aviso usava uma tarifa fixa
+  de R$ 5. Agora compara com a tarifa que a pessoa vai pagar: a congelada na
+  entrada, descontado o que a estadia já soma; a do local reservado; a do
+  último local usado; ou a mais barata da rede, para quem nunca estacionou.
+- **Perfil:** o erro da placa aparece embaixo do campo, com o foco nele (no
+  topo do cartão ficava fora da tela do celular), e campo com erro fica com a
+  borda vermelha. A nota do dono não fala mais em `Credenciais.h`, e a lista
+  de acessos chama o equipamento de totem. "Bloquear" virou um botão de
+  verdade no celular.
+- **Gerais:** o anel de foco usa o âmbar de texto (no tema claro o âmbar dos
+  botões ficava em 1,8:1 e o anel quase sumia), o select tem a mesma altura do
+  campo de texto ao lado, a logo da barra tem 44 px de largura a 320 px, e os
+  avisos vazios ("Estacionamento não encontrado") ficaram centralizados, com
+  respiro e título no tamanho de seção.
+
+Sem mudança nas regras do Firestore: o dono já podia ler a projeção pública.
+Só o site precisa ser publicado.
+
 ## App instalável no celular (09/10/2026)
 
 O site virou um app que se instala pelo navegador (PWA), sem loja:
