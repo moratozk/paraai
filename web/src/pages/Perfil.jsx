@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useVeiculo, useEstacionamento } from "../hooks/useParkingData";
@@ -68,6 +68,10 @@ export default function Perfil() {
   const [declarouDireito, setDeclarouDireito] = useState(false);
   const [salvandoDireito, setSalvandoDireito] = useState(false);
   const [mensagem, setMensagem] = useState(null); // { tipo: "erro"|"ok", texto }
+  // Erro da placa embaixo do campo: no topo do cartão ficava fora da tela no
+  // celular, e a pessoa não via por que o cadastro não andou.
+  const [erroPlaca, setErroPlaca] = useState("");
+  const campoPlacaRef = useRef(null);
   const [processando, setProcessando] = useState(false);
 
   // Modal de recarga (fluxo PIX/cartão simulado)
@@ -101,7 +105,7 @@ export default function Perfil() {
       },
       (erro) => {
         console.error("Falha ao carregar totens:", erro);
-        setErroTotem("Não foi possível consultar os equipamentos vinculados.");
+        setErroTotem("Não foi possível consultar os totens.");
         setTotemState({ estId, itens: [] });
       }
     );
@@ -200,17 +204,21 @@ export default function Perfil() {
     }
   }
 
+  function mostrarErroPlaca(texto) {
+    setErroPlaca(texto);
+    campoPlacaRef.current?.focus();
+  }
+
   async function handleCadastrarPlaca(e) {
     e.preventDefault();
     setMensagem(null);
+    setErroPlaca("");
 
     const placaNova = normalizarPlaca(placaInput);
     if (!placaValida(placaNova)) {
-      setMensagem({
-        tipo: "erro",
-        texto:
-          "Placa inválida. Aceitamos o padrão antigo (ABC1234) e o Mercosul (ABC1D23).",
-      });
+      mostrarErroPlaca(
+        "Placa inválida. Aceitamos o padrão antigo (ABC1234) e o Mercosul (ABC1D23)."
+      );
       return;
     }
 
@@ -236,10 +244,7 @@ export default function Perfil() {
       }
       setDescricaoNova(DESCRICAO_VAZIA);
     } catch (err) {
-      setMensagem({
-        tipo: "erro",
-        texto: err.message || "Erro ao cadastrar o veículo. Tente novamente.",
-      });
+      mostrarErroPlaca(err.message || "Erro ao cadastrar o veículo. Tente novamente.");
     } finally {
       setProcessando(false);
     }
@@ -381,10 +386,9 @@ export default function Perfil() {
                 <code className="est-id">{estId}</code>
               </div>
               <p className="muted-note">
-                Este ID identifica o pátio. Gere abaixo um acesso seguro para
-                cada equipamento e copie e-mail, senha e ID para o arquivo{" "}
-                <code>Credenciais.h</code>. Tarifa e vagas são sincronizadas
-                automaticamente com o painel.
+                Este ID identifica o estacionamento. Gere abaixo um acesso para
+                cada totem e entregue o e-mail, a senha e o ID a quem for
+                instalá-lo. Tarifa e vagas chegam ao totem automaticamente.
               </p>
             </>
           )}
@@ -422,14 +426,25 @@ export default function Perfil() {
                   <label htmlFor="placa">Placa do veículo</label>
                   <input
                     id="placa"
+                    ref={campoPlacaRef}
                     className="campo-placa"
                     type="text"
                     value={placaInput}
-                    onChange={(e) => setPlacaInput(normalizarPlaca(e.target.value))}
+                    onChange={(e) => {
+                      setPlacaInput(normalizarPlaca(e.target.value));
+                      setErroPlaca("");
+                    }}
                     placeholder="ABC1234 ou ABC1D23"
                     maxLength={7}
                     autoComplete="off"
+                    aria-invalid={erroPlaca ? "true" : undefined}
+                    aria-describedby={erroPlaca ? "placa-erro" : undefined}
                   />
+                  {erroPlaca && (
+                    <span className="field-hint erro" id="placa-erro">
+                      {erroPlaca}
+                    </span>
+                  )}
                 </div>
                 <p className="placa-form-extra">
                   Modelo e cor são opcionais. Com eles, o totem mostra o seu

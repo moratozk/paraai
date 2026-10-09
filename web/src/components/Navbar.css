@@ -91,7 +91,7 @@
   height: 64px;
 }
 
-.navbar-logo { display: flex; align-items: center; flex: none; min-height: 44px; }
+.navbar-logo { display: flex; align-items: center; flex: none; min-width: 44px; min-height: 44px; }
 
 .logo-lockup { display: inline-flex; align-items: center; gap: 0.55rem; }
 

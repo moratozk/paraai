@@ -228,8 +228,10 @@ a, button, [role="button"], label, summary, input, select, textarea {
 input, select, textarea { min-width: 0; max-width: 100%; }
 a { color: inherit; text-decoration: none; }
 
+/* Âmbar de texto: no tema claro o âmbar dos botões fica em 1,8:1 sobre o
+   fundo e o anel de foco quase sumia. No escuro as duas cores são iguais. */
 :focus-visible {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--accent-text);
   outline-offset: 3px;
   border-radius: 3px;
 }
@@ -263,7 +265,6 @@ h2 { font-size: var(--t-h2); line-height: 1.14; letter-spacing: -0.016em; }
 h3 { font-size: var(--t-h3); line-height: 1.24; letter-spacing: -0.01em; }
 h4 { font-size: var(--t-corpo); line-height: 1.35; letter-spacing: -0.004em; }
 
-/* Manchete: condensada, caixa alta, bem grande. Só em hero e afins. */
 /* Manchete: condensada, caixa alta, bem grande. Só em hero e afins. */
 .display {
   font-family: var(--font-display);
@@ -447,6 +448,10 @@ select, textarea {
     box-shadow var(--dur-rapida);
 }
 
+/* O select ignora o line-height e ficava com 48px ao lado de um campo de
+   texto de 54px. */
+.field select, select { min-height: 3.375rem; }
+
 input::placeholder, textarea::placeholder { color: var(--text-muted); }
 
 .field input:focus, .field select:focus, .field textarea:focus,
@@ -455,6 +460,10 @@ input:focus, select:focus, textarea:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 4px var(--accent-soft);
 }
+/* Campo com erro (o texto do erro fica logo abaixo): vermelho, com ou sem foco. */
+:is(input, select, textarea)[aria-invalid="true"],
+:is(input, select, textarea)[aria-invalid="true"]:focus { border-color: var(--danger); }
+:is(input, select, textarea)[aria-invalid="true"]:focus { box-shadow: 0 0 0 4px var(--danger-soft); }
 
 .field-hint { font-size: var(--t-apoio); color: var(--text-muted); }
 /* Autodeclaração (ex.: direito a vaga especial): caixa e texto alinhados.
@@ -615,6 +624,20 @@ input:focus, select:focus, textarea:focus {
   padding: clamp(2rem, 6vw, 4rem) 1rem;
   color: var(--text-secondary);
 }
+/* Aviso com título, texto e botão: tudo centralizado e com respiro, e o
+   título no tamanho de seção, não no de abertura de página. */
+div.empty-state {
+  display: grid;
+  justify-items: center;
+  gap: var(--esp-3);
+}
+div.empty-state > :is(h1, h2) {
+  color: var(--text-primary);
+  font-size: var(--t-titulo);
+  line-height: 1.25;
+}
+div.empty-state > p { max-width: 52ch; }
+div.empty-state > .btn { margin-top: var(--esp-2); }
 
 /* Tela que não abriu (ver ErroDeTela). Fica no pacote principal, então não
    conta com o CSS das páginas. */
