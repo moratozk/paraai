@@ -1,7 +1,7 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **07/10/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **09/10/2026**.
 
 ---
 
@@ -17,7 +17,8 @@ Sistema acadêmico de atendimento para estacionamentos:
 
 O motorista registra entrada/saída por placa. O Firebase associa vaga,
 estadia e cobrança simulada. O operador acompanha pelo painel. A ocupação é
-lógica; a maquete virtual online é uma etapa futura, não implementada.
+lógica; a maquete virtual do administrador mostra os mesmos registros com
+carros andando num pátio desenhado (ver "Maquete virtual", abaixo).
 
 Projeto acadêmico (TCC). A `main` tem tudo: a integração (PR #9) e, desde
 06/10/2026, os PRs #10 a #15 (pinos e tela da CYD, pastas, vagas especiais,
@@ -85,6 +86,46 @@ Da referência ficaram de fora, de propósito: rolagem suave artificial (Lenis),
 tela de carregamento, botões "magnéticos" e o letreiro que anda sozinho.
 Todos atrasam a resposta ou tiram o controle de quem navega. Com "reduzir
 movimento" ligado no sistema, nada se anima sozinho.
+
+## Maquete virtual (08/10/2026)
+
+Pedida pelo dono do projeto, que a uniu à `main` em 09/10/2026, antes da
+revisão do outro autor. Fica no painel do administrador, ao lado do mapa de
+vagas ("Ver maquete"), em `/admin/estacionamentos/:id/maquete`. O `AGENTS.md`
+deixou de dizer que a maquete fica para uma etapa posterior e passou a exigir
+que ela só mostre os registros, sem simular nada.
+
+- **Só leitura, com os dados de verdade.** Usa as mesmas vagas do mapa do
+  administrador: ocupação do totem e reservas do app, combinadas em
+  `combinarVagasAdmin` (`utils/mapaVagas.js`), agora usada pelas duas telas.
+  Cada mudança entre duas leituras vira um carro andando: entra pela
+  esquerda, para no totem, segue até a vaga e estaciona de frente; na saída,
+  sai de ré e deixa o pátio pela direita. Nada é gravado e nada é simulado:
+  sem registro do totem, nada se mexe. Não há sensor, cancela nem catraca.
+- **Pátio gerado do número de vagas** (`components/maquete/geometria.js`):
+  fileiras a 90°, duas por corredor, circulação de mão única. O formato
+  acompanha a tela (largo no computador e no projetor, alto no celular), e
+  os números das vagas nunca ficam abaixo de 12 px: pátio grande ganha mais
+  corredores em vez de encolher. Trajetos conferidos de 1 a 400 vagas. Mudar
+  o número de vagas no painel redesenha a maquete na hora, sem recarregar; o
+  carro que estiver andando chega de uma vez na vaga.
+- **Mesma linguagem do pátio da Home:** asfalto escuro nos dois temas, faixa
+  âmbar, carros vistos de cima, vagas especiais nas cores `--vaga-*` e
+  reserva tracejada em âmbar. O carro tem a cor que o dono informou no
+  Perfil (campo `cor` que o totem copia para a vaga, PR #22), em tons
+  ajustados ao asfalto; sem ela, uma cor fixa por placa. Canteiros com gramado
+  aparado e árvores vistas de cima. O totem fica numa ilha com meio-fio
+  zebrado em âmbar, mostra os dois botões da tela inicial (ENTRADA e SAÍDA)
+  e a luz de status, e ilumina a pista quando um carro para nele.
+- **Projetor:** "Tela cheia" mostra só a maquete e os últimos movimentos; Esc
+  sai. Com "reduzir movimento" ligado no sistema, o carro aparece direto na
+  vaga, que acende.
+- Um carro por vez na pista do totem: entradas seguidas esperam a vez. A
+  lista de movimentos começa vazia ao abrir a página (mostra o que acontece
+  dali em diante, não o histórico).
+- Conferido só com dados simulados, no navegador (temas, celular, projetor,
+  menos movimento e pátios de 20, 50 e 200 vagas). **Ainda não visto com o
+  totem de verdade nem publicado.**
 
 ## Revisão visual de 04/10/2026 (diretrizes da Apple)
 
@@ -430,7 +471,8 @@ Git de propósito.
 
 Existe um simulador **legado** em `/totem.html`, com teclado antigo. Para
 inspecionar o firmware atual, usar firmware/test/ui_totem.test.cpp e preview.mjs,
-conforme firmware/README.md. Nenhum deles é a futura maquete virtual.
+conforme firmware/README.md. Nenhum deles é a maquete virtual, que fica no
+painel do administrador.
 
 ### Firmware
 
@@ -562,9 +604,8 @@ na Arduino IDE e gravar.
 
 5. **Gabinete 3D:** já desenhado e impresso pelo dono do projeto (06/10/2026),
    ainda não retirado. Falta guardar o modelo em `hardware/gabinete/`, montar a
-   placa e conferir janela da tela, USB e toque com a tampa fechada. Depois,
-   evoluir o site e criar a maquete virtual, sem reintroduzir sensores ou
-   catraca no ESP.
+   placa e conferir janela da tela, USB e toque com a tampa fechada, sem
+   reintroduzir sensores ou catraca no ESP.
 
 6. ~~Foto do fundo do login servida pelo próprio site.~~ Feito em 06/10/2026:
    o login e o cadastro trocaram a foto do Unsplash por um fundo desenhado em

@@ -22,6 +22,7 @@ const Historico = lazy(() => import("./pages/Historico"));
 const Perfil = lazy(() => import("./pages/Perfil"));
 const Configuracoes = lazy(() => import("./pages/Configuracoes"));
 const MonitoramentoVagasAdmin = lazy(() => import("./pages/MonitoramentoVagasAdmin"));
+const MaqueteVirtual = lazy(() => import("./pages/MaqueteVirtual"));
 
 export default function App() {
   return (
@@ -95,6 +96,14 @@ export default function App() {
                   element={
                     <PrivateRoute>
                       <MonitoramentoVagasAdmin />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/admin/estacionamentos/:estId/maquete"
+                  element={
+                    <PrivateRoute>
+                      <MaqueteVirtual />
                     </PrivateRoute>
                   }
                 />

@@ -32,6 +32,37 @@ export function obterTipoVaga(tipo, numero) {
   return VAGAS_ESPECIAIS[Number(numero)] || TIPOS_VAGA.comum;
 }
 
+// Visão do administrador (mapa e maquete): ocupação vem do totem (vaga
+// operacional); reserva, do app (projeção pública).
+export function combinarVagasAdmin(vagasOperacionais, vagasPublicas) {
+  return vagasOperacionais.map((operacional, indice) => {
+    const publica = vagasPublicas[indice] || {};
+    const ocupada = Boolean(operacional.ocupada || publica.ocupadaFisica);
+    const classificacao = obterTipoVaga(operacional.tipo || publica.tipo, operacional.numero);
+    return {
+      ...operacional,
+      ocupada,
+      reservada: !ocupada && Boolean(publica.reservada),
+      reservadaAte: Number(publica.reservadaAte) || 0,
+      placa: operacional.placa || "",
+      tipo: classificacao.tipo,
+      especial: classificacao.tipo === "comum" ? null : classificacao,
+    };
+  });
+}
+
+export function resumirVagas(vagas) {
+  const ocupadas = vagas.filter((vaga) => vaga.ocupada).length;
+  const reservadas = vagas.filter((vaga) => vaga.reservada).length;
+  return {
+    total: vagas.length,
+    ocupadas,
+    reservadas,
+    livres: Math.max(0, vagas.length - ocupadas - reservadas),
+    ocupacao: vagas.length ? Math.round(((ocupadas + reservadas) / vagas.length) * 100) : 0,
+  };
+}
+
 // Direito a vaga especial que o motorista declara no cadastro ou no Perfil
 // (autodeclaração). Vai para a conta e para o veículo, que é o que o totem
 // lê para escolher a vaga. "" = não precisa de vaga especial.

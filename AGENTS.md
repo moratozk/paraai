@@ -72,8 +72,10 @@ hardware.
 - A tela inicial do totem mostra somente `ENTRADA` e `SAÍDA`, sem contagem de
   vagas.
 - Decisão de 09/09/2026: o ESP terá gabinete impresso em 3D. Ocupação é lógica,
-  vinculada à estadia no Firebase. A maquete virtual web fica para uma etapa
-  posterior; não reintroduzir sensores ou atuadores.
+  vinculada à estadia no Firebase; não reintroduzir sensores ou atuadores.
+- A maquete virtual (no painel do administrador desde 09/10/2026) só mostra as
+  entradas e saídas registradas pelo totem: não simula ocupação nem grava
+  dados.
 - A recarga é simulada para fins acadêmicos e não deve ser apresentada como
   pagamento real.
 
