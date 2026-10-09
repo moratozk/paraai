@@ -396,6 +396,101 @@ export function useHistoricoEstacionamento(estId) {
 }
 
 // ---------------------------------------------------------------------
+// Painel da rede (administrador): todas as estadias, todos os totens e a
+// ocupação de cada estacionamento. As regras só liberam a coleção inteira
+// para a conta admin; para as outras, ativo fica falso e nada é consultado.
+// ---------------------------------------------------------------------
+export function useHistoricoRede(ativo) {
+  const [estado, setEstado] = useState({ itens: [], loading: true, erro: "" });
+
+  useEffect(() => {
+    if (!ativo) return undefined;
+    return onSnapshot(
+      collection(db, "historico"),
+      (snap) => {
+        const itens = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        itens.sort((a, b) => (Number(b.saida) || 0) - (Number(a.saida) || 0));
+        setEstado({ itens, loading: false, erro: "" });
+      },
+      (err) => {
+        console.error("[historico-rede] erro no listener:", err);
+        setEstado({
+          itens: [],
+          loading: false,
+          erro: "Não foi possível carregar as movimentações da rede.",
+        });
+      }
+    );
+  }, [ativo]);
+
+  if (!ativo) return { historico: [], loading: false, erro: "" };
+  return { historico: estado.itens, loading: estado.loading, erro: estado.erro };
+}
+
+export function useTotensRede(ativo) {
+  const [estado, setEstado] = useState({ itens: [], loading: true, erro: "" });
+
+  useEffect(() => {
+    if (!ativo) return undefined;
+    return onSnapshot(
+      collection(db, "totems"),
+      (snap) => {
+        const itens = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        itens.sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || "")));
+        setEstado({ itens, loading: false, erro: "" });
+      },
+      (err) => {
+        console.error("[totens-rede] erro no listener:", err);
+        setEstado({
+          itens: [],
+          loading: false,
+          erro: "Não foi possível consultar os totens da rede.",
+        });
+      }
+    );
+  }, [ativo]);
+
+  if (!ativo) return { totens: [], loading: false, erro: "" };
+  return { totens: estado.itens, loading: estado.loading, erro: estado.erro };
+}
+
+// Vagas ocupadas agora em cada estacionamento, contando só as vagas dentro
+// da capacidade atual (como useVagas). Uma escuta por estacionamento.
+export function useOcupacaoRede(estacionamentos) {
+  const chave = estacionamentos
+    .map((item) => `${item.id}:${Math.max(1, Number(item.numVagas) || TOTAL_VAGAS)}`)
+    .join("|");
+  const [ocupadas, setOcupadas] = useState({});
+
+  useEffect(() => {
+    if (!chave) return undefined;
+    const cancelar = chave.split("|").map((parte) => {
+      const separador = parte.lastIndexOf(":");
+      const estId = parte.slice(0, separador);
+      const total = Number(parte.slice(separador + 1));
+      return onSnapshot(
+        collection(db, "estacionamentos", estId, "vagas"),
+        (snap) => {
+          let quantas = 0;
+          snap.forEach((d) => {
+            const numero = Number(d.id);
+            if (d.data().ocupada && numero >= 1 && numero <= total) quantas += 1;
+          });
+          setOcupadas((atual) => ({ ...atual, [estId]: quantas }));
+        },
+        (err) => {
+          console.error(`[ocupacao-rede:${estId}] erro no listener:`, err);
+          setOcupadas((atual) => ({ ...atual, [estId]: null }));
+        }
+      );
+    });
+    return () => cancelar.forEach((fn) => fn());
+  }, [chave]);
+
+  return ocupadas;
+}
+
+// ---------------------------------------------------------------------
 // Recargas simuladas da carteira, para o extrato. As regras só deixam ler
 // as recargas da própria conta, então a consulta filtra pelo uid. A ordem
 // vem do cliente, como no histórico; a data de uma recarga ainda pendente

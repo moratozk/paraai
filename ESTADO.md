@@ -27,6 +27,27 @@ em 06/10/2026** a partir da `main` (`26a97e5`); o site no ar é o build dessa
 versão. **O firmware da `main` foi gravado no totem no mesmo dia** e testado:
 uma placa sem direito declarado recebeu a primeira vaga comum livre.
 
+## Painel da rede do administrador (09/10/2026)
+
+A conta `admin` deixou de ver só a lista de estacionamentos e passou a ter o
+painel da rede inteira, no mesmo `/dashboard`:
+
+- **Período** (hoje, 7 dias, 30 dias, tudo) para o recebido na rede, o que
+  ficou a receber, estadias, ticket médio e permanência média; ao lado, a
+  ocupação agora, quantos totens estão online, quantos estacionamentos estão
+  publicados e o horário de pico. O gráfico mostra a receita por dia.
+- **Cada estacionamento** mostra recebido e estadias do período, ocupação
+  agora, tarifa e a situação do totem pelo último sinal gravado no
+  estacionamento (online, offline, nunca conectou ou sem totem). "Gerenciar
+  totens" abre ali mesmo a lista do Perfil do dono: bloquear, reativar e gerar
+  acesso novo (`components/GerenciarTotens.jsx`, usado nos dois lugares).
+- **Movimentações da rede:** filtro por estacionamento e por placa, dez linhas
+  e "Ver mais"; o CSV leva todas as do filtro, com a coluna do estacionamento.
+- Os cálculos do período ficaram em `utils/relatorios.js` e o gráfico em
+  `components/GraficoReceita.jsx`, compartilhados com o painel do operador.
+- **Sem mudança nas regras:** o administrador já lia `historico`, `totems` e
+  as vagas de todos os estacionamentos. Basta publicar o site.
+
 ## Saldo protegido e extrato da carteira (09/10/2026)
 
 Achado na revisão geral de 08/10/2026: a regra do Firestore deixava o dono da

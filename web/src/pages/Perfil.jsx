@@ -19,11 +19,8 @@ import {
   marcaEModelo,
 } from "../utils/veiculo";
 import { criarEstacionamento } from "../services/estacionamentos";
-import {
-  criarCredencialTotem,
-  definirTotemAtivo,
-  observarTotems,
-} from "../services/totems";
+import { observarTotems } from "../services/totems";
+import GerenciarTotens from "../components/GerenciarTotens";
 import { buscarCep, cepCompleto, formatarCep } from "../services/cep";
 import ModalRecarga from "../components/ModalRecarga";
 import ExtratoCarteira from "../components/ExtratoCarteira";
@@ -87,11 +84,9 @@ export default function Perfil() {
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [erroCep, setErroCep] = useState("");
 
-  // Equipamentos vinculados ao estacionamento. A senha de uma credencial
-  // nova fica apenas em memória e é mostrada uma única vez ao operador.
+  // Equipamentos vinculados ao estacionamento (a gestão fica em
+  // GerenciarTotens, que o painel da rede também usa).
   const [totemState, setTotemState] = useState({ estId: null, itens: [] });
-  const [gerandoTotem, setGerandoTotem] = useState(false);
-  const [credencialTotem, setCredencialTotem] = useState(null);
   const [erroTotem, setErroTotem] = useState("");
 
   useEffect(() => {
@@ -114,48 +109,6 @@ export default function Perfil() {
 
   const totems = totemState.estId === estId ? totemState.itens : [];
   const carregandoTotems = Boolean(estId) && totemState.estId !== estId;
-
-  async function handleGerarTotem() {
-    setErroTotem("");
-    setCredencialTotem(null);
-    setGerandoTotem(true);
-    try {
-      const credencial = await criarCredencialTotem({ estId });
-      setCredencialTotem(credencial);
-      toast.sucesso("Acesso seguro do totem criado.");
-    } catch (erro) {
-      console.error("Falha ao criar credencial do totem:", erro);
-      setErroTotem(
-        erro?.code === "auth/operation-not-allowed"
-          ? "Ative o provedor E-mail/senha no Firebase Authentication."
-          : "Não foi possível criar o acesso do totem. Tente novamente."
-      );
-    } finally {
-      setGerandoTotem(false);
-    }
-  }
-
-  async function handleAlternarTotem(totem) {
-    setErroTotem("");
-    try {
-      await definirTotemAtivo(totem.id, !totem.ativo);
-      toast.sucesso(totem.ativo ? "Totem bloqueado." : "Totem reativado.");
-    } catch (erro) {
-      console.error("Falha ao alterar o totem:", erro);
-      setErroTotem("Não foi possível alterar o equipamento.");
-    }
-  }
-
-  async function copiarCredencialTotem() {
-    if (!credencialTotem) return;
-    const texto = [
-      `#define TOTEM_EMAIL "${credencialTotem.email}"`,
-      `#define TOTEM_PASSWORD "${credencialTotem.senha}"`,
-      `#define ESTACIONAMENTO_ID "${estId}"`,
-    ].join("\n");
-    await navigator.clipboard.writeText(texto);
-    toast.sucesso("Credenciais copiadas.");
-  }
 
   async function handleCepChange(valor) {
     setEstCep(formatarCep(valor));
@@ -437,72 +390,12 @@ export default function Perfil() {
           )}
         </div>
         <div className="card totem-security-card">
-          <div className="card-head-row">
-            <div>
-              <h2>Segurança do totem</h2>
-              <p className="muted-note" style={{ margin: 0 }}>
-                Cada equipamento usa um acesso exclusivo e pode ser bloqueado
-                sem afetar sua conta de operador.
-              </p>
-            </div>
-            <span className={`status-pill ${totems.some((item) => item.ativo) ? "success" : "warning"}`}>
-              {totems.filter((item) => item.ativo).length} ativo(s)
-            </span>
-          </div>
-
-          {erroTotem && <p className="error-text">{erroTotem}</p>}
-
-          {credencialTotem && (
-            <div className="totem-credential" role="status">
-              <strong>Copie agora — a senha não será exibida novamente</strong>
-              <div className="totem-credential-row">
-                <span>E-mail do dispositivo</span>
-                <code>{credencialTotem.email}</code>
-              </div>
-              <div className="totem-credential-row">
-                <span>Senha do dispositivo</span>
-                <code>{credencialTotem.senha}</code>
-              </div>
-              <button type="button" className="btn btn-outline btn-sm" onClick={copiarCredencialTotem}>
-                Copiar configuração
-              </button>
-            </div>
-          )}
-
-          {carregandoTotems ? (
-            <p className="empty-state">Consultando equipamentos...</p>
-          ) : totems.length === 0 ? (
-            <p className="empty-state">
-              Nenhum equipamento seguro foi vinculado ainda.
-            </p>
-          ) : (
-            <div className="totem-list">
-              {totems.map((totem) => (
-                <div className="totem-list-item" key={totem.id}>
-                  <div>
-                    <strong>{totem.nome || "Totem"}</strong>
-                    <span>{totem.email}</span>
-                  </div>
-                  <button
-                    type="button"
-                    className={`btn btn-sm ${totem.ativo ? "btn-ghost" : "btn-outline"}`}
-                    onClick={() => handleAlternarTotem(totem)}
-                  >
-                    {totem.ativo ? "Bloquear" : "Reativar"}
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={handleGerarTotem}
-            disabled={gerandoTotem}
-          >
-            {gerandoTotem ? "Gerando acesso..." : "Gerar novo acesso de totem"}
-          </button>
+          <GerenciarTotens
+            estId={estId}
+            totens={totems}
+            carregando={carregandoTotems}
+            erroLista={erroTotem}
+          />
         </div>
         </>
         ) : null
