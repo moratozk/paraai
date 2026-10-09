@@ -7,11 +7,11 @@ import {
   useVagas,
   useVagasPublicas,
 } from "../hooks/useParkingData";
-import { formatarDataHora, formatarDuracaoAoVivo } from "../utils/format";
+import { formatarDataHora, formatarDuracaoAoVivo, formatarHora } from "../utils/format";
 import { dadosDaCor, descreverVeiculo } from "../utils/veiculo";
 import { atualizarTipoVagaAdmin } from "../services/estacionamentos";
 import {
-  combinarVagasAdmin,
+  combinarVagasDoPatio,
   obterTipoVaga,
   resumirVagas,
   TIPOS_VAGA_EDITAVEIS,
@@ -36,13 +36,6 @@ function rotuloStatus(status) {
   if (status === "ocupada") return "Ocupada";
   if (status === "reservada") return "Reservada";
   return "Livre";
-}
-
-function horaCurta(segundos) {
-  return new Date(segundos * 1000).toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 export default function MonitoramentoVagasAdmin() {
@@ -104,7 +97,7 @@ export default function MonitoramentoVagasAdmin() {
   }, [telaCheiaAlternativa]);
 
   const vagas = useMemo(
-    () => combinarVagasAdmin(vagasOperacionais, vagasPublicas),
+    () => combinarVagasDoPatio(vagasOperacionais, vagasPublicas),
     [vagasOperacionais, vagasPublicas]
   );
   const resumo = useMemo(() => resumirVagas(vagas), [vagas]);
@@ -189,11 +182,12 @@ export default function MonitoramentoVagasAdmin() {
         } ${vaga.visivel ? "" : "fora-do-filtro"}`}
         onClick={() => vaga.visivel && selecionarVaga(vaga)}
         disabled={!vaga.visivel}
+        aria-pressed={vaga.id === vagaSelecionada}
         aria-label={`Vaga ${vaga.numero}, ${rotuloStatus(status)}${
-          vaga.placa ? `, placa ${vaga.placa}` : ""
-        }${descreverVeiculo(vaga) ? `, ${descreverVeiculo(vaga)}` : ""}${
-          vaga.especial ? `, destinada a ${vaga.especial.rotulo}` : ""
-        }`}
+          status === "reservada" ? ` até ${formatarHora(vaga.reservadaAte)}` : ""
+        }${vaga.placa ? `, placa ${vaga.placa}` : ""}${
+          descreverVeiculo(vaga) ? `, ${descreverVeiculo(vaga)}` : ""
+        }${vaga.especial ? `, destinada a ${vaga.especial.rotulo}` : ""}`}
       >
         <span className="monitor-vaga-topo">
           <strong>{String(vaga.numero).padStart(2, "0")}</strong>
@@ -369,7 +363,10 @@ export default function MonitoramentoVagasAdmin() {
             </div>
           </section>
 
-          <aside className="card monitor-detalhes" aria-live="polite">
+          {/* Sem aria-live: a contagem da reserva muda a cada segundo e o
+              leitor de tela anunciaria sem parar. A vaga tocada já diz o
+              próprio estado. */}
+          <aside className="card monitor-detalhes">
             {selecionada ? (
               <>
                 <div className="monitor-detalhes-topo">
@@ -379,45 +376,43 @@ export default function MonitoramentoVagasAdmin() {
                 <span className={`monitor-estado-destaque ${statusDaVaga(selecionada)}`}>
                   {rotuloStatus(statusDaVaga(selecionada))}
                 </span>
+                {/* Só o que existe em cada estado: vaga livre não tem placa nem
+                    origem, e a reservada ainda não tem carro. */}
                 <dl>
-                  <div><dt>Placa</dt><dd>{selecionada.placa || "Não informada"}</dd></div>
                   {selecionada.ocupada && (
-                    <div>
-                      <dt>Veículo</dt>
-                      <dd>
-                        {dadosDaCor(selecionada.cor) ? (
-                          <span className="cor-do-veiculo">
-                            <i style={{ "--amostra": dadosDaCor(selecionada.cor).amostra }} aria-hidden="true" />
-                            {descreverVeiculo(selecionada)}
-                          </span>
-                        ) : (
-                          descreverVeiculo(selecionada) || "Não informado"
-                        )}
-                      </dd>
-                    </div>
+                    <>
+                      <div><dt>Placa</dt><dd>{selecionada.placa || "Não informada"}</dd></div>
+                      <div>
+                        <dt>Veículo</dt>
+                        <dd>
+                          {dadosDaCor(selecionada.cor) ? (
+                            <span className="cor-do-veiculo">
+                              <i style={{ "--amostra": dadosDaCor(selecionada.cor).amostra }} aria-hidden="true" />
+                              {descreverVeiculo(selecionada)}
+                            </span>
+                          ) : (
+                            descreverVeiculo(selecionada) || "Não informado"
+                          )}
+                        </dd>
+                      </div>
+                    </>
                   )}
                   <div>
                     <dt>Tipo</dt>
                     <dd>{selecionada.especial?.rotulo || "Comum"}</dd>
                   </div>
-                  <div>
-                    <dt>Origem</dt>
-                    <dd>
-                      {selecionada.ocupada
-                        ? "Entrada registrada no totem"
-                        : selecionada.reservada
-                          ? "Reserva pelo aplicativo"
-                          : "—"}
-                    </dd>
-                  </div>
+                  {selecionada.ocupada && (
+                    <div><dt>Origem</dt><dd>Entrada registrada no totem</dd></div>
+                  )}
                   {selecionada.reservada && (
-                    <div>
-                      <dt>Reserva</dt>
-                      <dd>
-                        até {horaCurta(selecionada.reservadaAte)} (faltam{" "}
-                        {formatarDuracaoAoVivo(Math.max(0, selecionada.reservadaAte - agora))})
-                      </dd>
-                    </div>
+                    <>
+                      <div><dt>Origem</dt><dd>Reserva pelo aplicativo</dd></div>
+                      <div><dt>Reserva até</dt><dd>{formatarHora(selecionada.reservadaAte)}</dd></div>
+                      <div>
+                        <dt>Faltam</dt>
+                        <dd>{formatarDuracaoAoVivo(Math.max(0, selecionada.reservadaAte - agora))}</dd>
+                      </div>
+                    </>
                   )}
                 </dl>
                 <form className="monitor-tipo-editor" onSubmit={salvarTipoVaga}>
@@ -441,7 +436,6 @@ export default function MonitoramentoVagasAdmin() {
                               setErroTipo("");
                             }}
                           />
-                          <span aria-hidden="true">{tipo.icone}</span>
                           <strong>{tipo.rotulo}</strong>
                         </label>
                       ))}
@@ -465,7 +459,7 @@ export default function MonitoramentoVagasAdmin() {
               <div className="monitor-detalhes-vazio">
                 <span className="monitor-detalhes-icone" aria-hidden="true">P</span>
                 <h2>Detalhes da vaga</h2>
-                <p>Toque ou clique em uma vaga do mapa para ver placa, origem e tempo de permanência.</p>
+                <p>Toque ou clique em uma vaga do mapa para ver placa, carro, tipo e origem.</p>
                 {/* A frase logo abaixo já diz o número; a barra é só desenho. */}
                 <div className="monitor-ocupacao-barra" aria-hidden="true">
                   <span style={{ width: `${resumo.ocupacao}%` }} />
@@ -495,7 +489,12 @@ export default function MonitoramentoVagasAdmin() {
                 .map((vaga) => (
                   <button type="button" key={vaga.id} onClick={() => selecionarVaga(vaga)}>
                     <strong>Vaga {String(vaga.numero).padStart(2, "0")}</strong>
-                    <span className="placa-tag placa-tag-sm">{vaga.placa || "SEM PLACA"}</span>
+                    {/* A reserva ainda não tem carro: no lugar da placa, o estado. */}
+                    {vaga.placa ? (
+                      <span className="placa-tag placa-tag-sm">{vaga.placa}</span>
+                    ) : (
+                      <span className="status-pill warning monitor-sem-placa">Reservada</span>
+                    )}
                     {/* Vaga ocupada sempre veio do totem: no lugar disso, o carro. */}
                     <span>
                       {vaga.reservada
@@ -504,7 +503,7 @@ export default function MonitoramentoVagasAdmin() {
                     </span>
                     <b>
                       {vaga.reservada
-                        ? `até ${horaCurta(vaga.reservadaAte)}`
+                        ? `até ${formatarHora(vaga.reservadaAte)}`
                         : "Ver detalhes"}
                     </b>
                   </button>

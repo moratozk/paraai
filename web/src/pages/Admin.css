@@ -138,9 +138,6 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0 0.8rem;
 }
-/* O select ignora line-height e ficaria mais baixo que a busca ao lado. */
-.admin-filtros select,
-.admin-filtros input { min-height: 3.5rem; }
 .admin-filtros .field > span {
   color: var(--text-secondary);
   font-family: var(--font-mono);
@@ -149,15 +146,6 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
-.admin-mais {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem 1rem;
-  margin-top: 1rem;
-}
-.admin-mais .muted-note { margin: 0; }
 
 @media (max-width: 850px) {
   .admin-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -168,5 +156,4 @@
   .admin-form-grid,
   .admin-filtros { grid-template-columns: 1fr; }
   .admin-span-2 { grid-column: span 1; }
-  .admin-mais .btn { flex: 1 1 100%; }
 }

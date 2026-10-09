@@ -120,13 +120,6 @@
 .mini { font-size: var(--t-legenda); color: var(--text-muted); }
 .muted-note { font-size: var(--t-apoio); color: var(--text-muted); }
 
-.setup-pendente {
-  display: grid;
-  justify-items: center;
-  gap: 0.9rem;
-}
-.setup-pendente p { max-width: 52ch; }
-
 .marketplace-chamada-painel { justify-content: space-between; }
 .marketplace-chamada-painel > div { color: var(--text-secondary); line-height: 1.5; }
 .marketplace-chamada-painel strong { color: var(--text-primary); }
@@ -478,6 +471,18 @@
   border: 1px solid var(--border);
 }
 
+/* "Ver mais" embaixo de uma tabela longa: a página não vira um rolo de
+   dezenas de linhas, e o CSV continua levando tudo. */
+.tabela-mais {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem 1rem;
+  margin-top: 1rem;
+}
+.tabela-mais .muted-note { margin: 0; }
+
 .history-table {
   width: 100%;
   border-collapse: collapse;
@@ -710,7 +715,8 @@
   gap: 1rem;
 }
 
-.totem-security-card .card-head-row { align-items: flex-start; }
+/* O espaço entre as partes já vem do gap do cartão. */
+.totem-security-card .card-head-row { align-items: flex-start; margin-bottom: 0; }
 
 .totem-credential {
   display: grid;
@@ -983,6 +989,7 @@
 
   .card-head-row { align-items: flex-start; }
   .card-head-row .input-busca { flex-basis: 100%; width: 100%; }
+  .tabela-mais .btn { flex: 1 1 100%; }
 
   .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stat-card { padding: 1rem; }

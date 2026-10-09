@@ -699,7 +699,7 @@ export default function PainelAdmin() {
               </table>
             </div>
             {movimentacoes.length > linhasVisiveis && (
-              <div className="admin-mais">
+              <div className="tabela-mais">
                 <p className="muted-note">
                   Mostrando as {linhasVisiveis} mais recentes de {movimentacoes.length}. O CSV
                   leva todas.

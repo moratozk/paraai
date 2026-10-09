@@ -32,13 +32,21 @@ export function obterTipoVaga(tipo, numero) {
   return VAGAS_ESPECIAIS[Number(numero)] || TIPOS_VAGA.comum;
 }
 
-// Visão do administrador (mapa e maquete): ocupação vem do totem (vaga
-// operacional); reserva, do app (projeção pública).
-export function combinarVagasAdmin(vagasOperacionais, vagasPublicas) {
+// Selo com o rótulo por extenso: o ícone entra só quando diz algo a mais.
+// "♿ PCD" fica; "60+" já é o próprio rótulo e "G" é só a inicial de Gestante.
+export function iconeAoLadoDoRotulo({ icone, rotulo }) {
+  return icone === rotulo || rotulo.startsWith(icone) ? "" : icone;
+}
+
+// Visão do pátio para o administrador (mapa e maquete) e para o dono: a
+// ocupação vem do totem (vaga operacional); a reserva e o tipo, da projeção
+// pública, que é onde a administração classifica e de onde o totem lê. O tipo
+// da vaga operacional só sobrou em vagas antigas.
+export function combinarVagasDoPatio(vagasOperacionais, vagasPublicas) {
   return vagasOperacionais.map((operacional, indice) => {
     const publica = vagasPublicas[indice] || {};
     const ocupada = Boolean(operacional.ocupada || publica.ocupadaFisica);
-    const classificacao = obterTipoVaga(operacional.tipo || publica.tipo, operacional.numero);
+    const classificacao = obterTipoVaga(publica.tipo || operacional.tipo, operacional.numero);
     return {
       ...operacional,
       ocupada,

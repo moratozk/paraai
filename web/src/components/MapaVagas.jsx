@@ -1,48 +1,72 @@
 import { useState } from "react";
-import { obterTipoVaga } from "../utils/mapaVagas";
+import { iconeAoLadoDoRotulo, obterTipoVaga } from "../utils/mapaVagas";
 import { descreverVeiculo } from "../utils/veiculo";
+import { formatarHora } from "../utils/format";
 import "./MapaVagas.css";
+
+function situacaoDaVaga(vaga) {
+  if (vaga.ocupada) return "ocupada";
+  if (vaga.reservada) return "reservada";
+  return "livre";
+}
 
 function Vaga({ vaga, selecionada, onSelecionar }) {
   const classificacao = obterTipoVaga(vaga.tipo, vaga.numero);
   const especial = classificacao.tipo === "comum" ? null : classificacao;
+  const icone = especial ? iconeAoLadoDoRotulo(especial) : "";
+  const situacao = situacaoDaVaga(vaga);
   const carro = descreverVeiculo(vaga);
-  const descricao = vaga.ocupada
-    ? `Vaga ${vaga.numero} ocupada${vaga.placa ? ` pela placa ${vaga.placa}` : ""}${carro ? `, ${carro}` : ""}`
-    : `Vaga ${vaga.numero} livre`;
+  const descricao =
+    situacao === "ocupada"
+      ? `Vaga ${vaga.numero} ocupada${vaga.placa ? ` pela placa ${vaga.placa}` : ""}${carro ? `, ${carro}` : ""}`
+      : situacao === "reservada"
+        ? `Vaga ${vaga.numero} reservada pelo app até ${formatarHora(vaga.reservadaAte)}`
+        : `Vaga ${vaga.numero} livre`;
 
   return (
     <button
       type="button"
-      className={`mapa-vaga ${vaga.ocupada ? "ocupada" : "livre"} ${
-        especial ? `especial ${especial.tipo}` : ""
-      } ${selecionada ? "selecionada" : ""}`}
+      className={`mapa-vaga ${situacao} ${especial ? `especial ${especial.tipo}` : ""} ${
+        selecionada ? "selecionada" : ""
+      }`}
       onClick={() => onSelecionar(vaga)}
-      aria-label={`${descricao}${especial ? `, reservada para ${especial.rotulo}` : ""}`}
+      aria-label={`${descricao}${especial ? `, destinada a ${especial.rotulo}` : ""}`}
       aria-pressed={selecionada}
     >
       <span className="mapa-vaga-topo">
         <strong>{String(vaga.numero).padStart(2, "0")}</strong>
         {especial && (
           <span className="mapa-vaga-tipo" title={`Vaga para ${especial.rotulo}`}>
-            <span aria-hidden="true">{especial.icone}</span>
+            {icone && <span aria-hidden="true">{icone}</span>}
             {especial.rotulo}
           </span>
         )}
       </span>
       <span className="mapa-vaga-corpo" aria-hidden="true">
-        {vaga.ocupada ? <span className="mapa-carro">CARRO</span> : <span className="mapa-livre">LIVRE</span>}
+        {situacao === "ocupada" ? (
+          <span className="mapa-carro">CARRO</span>
+        ) : situacao === "reservada" ? (
+          <span className="mapa-reservada">Reserva</span>
+        ) : (
+          <span className="mapa-livre">Livre</span>
+        )}
       </span>
-      <span className="mapa-vaga-rodape">
-        {vaga.ocupada ? vaga.placa || "OCUPADA" : "Disponível"}
+      {/* Só o que o estado não diz: a placa, ou até quando vale a reserva. */}
+      <span className="mapa-vaga-rodape" aria-hidden="true">
+        {situacao === "ocupada"
+          ? vaga.placa || "OCUPADA"
+          : situacao === "reservada"
+            ? `até ${formatarHora(vaga.reservadaAte)}`
+            : ""}
       </span>
     </button>
   );
 }
 
 // Mapa do operador. Só leitura: a ocupação é registrada pelo totem na
-// entrada e na saída da placa. Marcar uma vaga à mão deixaria vaga e estadia
-// incoerentes (liberar uma vaga com carro dentro travaria a saída).
+// entrada e na saída da placa, e a reserva, pelo app do motorista. Marcar uma
+// vaga à mão deixaria vaga e estadia incoerentes (liberar uma vaga com carro
+// dentro travaria a saída).
 export default function MapaVagas({ vagas, nomeEstacionamento }) {
   const [vagaSelecionada, setVagaSelecionada] = useState(null);
 
@@ -50,6 +74,7 @@ export default function MapaVagas({ vagas, nomeEstacionamento }) {
     ? vagas.find((vaga) => vaga.id === vagaSelecionada) || null
     : null;
   const tipoAtual = vagaAtual ? obterTipoVaga(vagaAtual.tipo, vagaAtual.numero) : null;
+  const situacaoAtual = vagaAtual ? situacaoDaVaga(vagaAtual) : null;
   const metade = Math.ceil(vagas.length / 2);
   const fileiraSuperior = vagas.slice(0, metade);
   const fileiraInferior = vagas.slice(metade);
@@ -73,6 +98,7 @@ export default function MapaVagas({ vagas, nomeEstacionamento }) {
       <div className="mapa-legenda" aria-label="Legenda do mapa">
         <span><i className="legenda-cor livre" />Livre</span>
         <span><i className="legenda-cor ocupada" />Ocupada</span>
+        <span><i className="legenda-cor reservada" />Reservada no app</span>
         <span><i className="legenda-cor pcd" />PCD</span>
         <span><i className="legenda-cor idoso" />60+</span>
         <span><i className="legenda-cor gestante" />Gestante</span>
@@ -105,16 +131,22 @@ export default function MapaVagas({ vagas, nomeEstacionamento }) {
           <div className="mapa-editor-resumo">
             <span className="stat-label">Vaga selecionada</span>
             <strong>Vaga {String(vagaAtual.numero).padStart(2, "0")}</strong>
-            <span className={`status-pill ${vagaAtual.ocupada ? "danger" : "success"}`}>
-              {vagaAtual.ocupada ? "Ocupada" : "Livre"}
+            <span
+              className={`status-pill ${
+                { ocupada: "danger", reservada: "warning", livre: "success" }[situacaoAtual]
+              }`}
+            >
+              {{ ocupada: "Ocupada", reservada: "Reservada", livre: "Livre" }[situacaoAtual]}
             </span>
           </div>
           <p className="mapa-editor-nota">
-            {vagaAtual.ocupada
+            {situacaoAtual === "ocupada"
               ? `Placa ${vagaAtual.placa || "não informada"}${
                   descreverVeiculo(vagaAtual) ? ` · ${descreverVeiculo(vagaAtual)}` : ""
                 }.`
-              : "Sem veículo registrado."}
+              : situacaoAtual === "reservada"
+                ? `Reservada pelo app até ${formatarHora(vagaAtual.reservadaAte)}: o totem guarda a vaga para a placa de quem reservou.`
+                : "Sem veículo registrado."}
             {tipoAtual && tipoAtual.tipo !== "comum" && ` Vaga para ${tipoAtual.rotulo}.`}
           </p>
           <p className="muted-note mapa-editor-nota">
