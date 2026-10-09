@@ -660,13 +660,38 @@
   font-size: var(--t-apoio);
 }
 .activity-item:last-child { border-bottom: none; }
+/* O texto ocupa a sobra da linha: o valor fica alinhado à direita. */
+.activity-texto {
+  display: block;
+  flex: 1;
+  min-width: 0;
+}
 
 .activity-time {
+  display: block;
   font-family: var(--font-mono);
   font-size: var(--t-legenda);
   color: var(--text-muted);
   white-space: nowrap;
-  margin-left: auto;
+}
+
+/* Estadia encerrada: a linha inteira é um botão que abre o comprovante. */
+.activity-item-botao {
+  width: 100%;
+  min-height: 44px;
+  text-align: left;
+}
+.activity-item-botao > svg {
+  flex: none;
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--text-muted);
+  transition: color var(--dur-rapida), transform var(--dur-rapida);
+}
+@media (hover: hover) {
+  .activity-item-botao:hover strong,
+  .activity-item-botao:hover > svg { color: var(--accent-text); }
+  .activity-item-botao:hover > svg { transform: translateX(2px); }
 }
 
 /* ==========================================================================
@@ -1002,7 +1027,9 @@
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: start;
   }
-  .activity-item > div { min-width: 0; overflow-wrap: anywhere; }
+  .activity-item-botao { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .activity-item-botao > svg { align-self: center; }
+  .activity-texto { overflow-wrap: anywhere; }
 
   .tabela-wrap.tabela-cards {
     overflow: visible;

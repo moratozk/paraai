@@ -480,6 +480,11 @@ input:focus, select:focus, textarea:focus {
 @media (hover: hover) {
   .field-link:hover { text-decoration: underline; }
 }
+/* Link solto numa linha de dados (ex.: "Informar no Perfil"): no toque, a
+   área chega a 44 px sem mudar o texto. */
+@media (pointer: coarse) {
+  .info-row .field-link { display: inline-flex; align-items: center; min-height: 44px; }
+}
 
 .error-text, .erro { color: var(--danger); font-size: var(--t-apoio); font-weight: 600; }
 
