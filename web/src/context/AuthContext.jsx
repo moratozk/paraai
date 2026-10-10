@@ -16,10 +16,25 @@ import {
   checkActionCode,
   applyActionCode,
 } from "firebase/auth";
-import { doc, setDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
+import { doc, onSnapshot, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
+import { apagarDadosDoMotorista, VERSAO_PRIVACIDADE } from "../services/conta";
 
 const AuthContext = createContext();
+
+// Dados da conta para as telas: o perfil do Firestore, com nome, e-mail e
+// foto do Authentication, que tem a versão mais nova deles.
+function dadosDaConta(usuario, perfil) {
+  return {
+    ...perfil,
+    name: usuario.displayName || perfil.name || null,
+    email: usuario.email || perfil.email || null,
+    photoURL: usuario.photoURL || perfil.photoURL || null,
+    // Papel derivado: quem tem estacionamento é operador, mesmo que o campo
+    // role tenha se perdido num cadastro com erro.
+    role: perfil.role || (perfil.estacionamentoId ? "operador" : "motorista"),
+  };
+}
 
 // Padrão consagrado de Context + hook no mesmo arquivo; o aviso do
 // react-refresh só afeta o hot-reload em desenvolvimento, não a aplicação.
@@ -41,6 +56,9 @@ export function AuthProvider({ children }) {
   // cadastro o documento AINDA não existe, e o reparo competiria com as
   // escritas do próprio cadastro (ver comentário no auto-reparo abaixo).
   const cadastroEmAndamento = useRef(false);
+  // Conta excluída agora há pouco: as páginas privadas mandam para o início,
+  // e não para o login, quando o acesso acaba (ver PrivateRoute).
+  const [contaExcluida, setContaExcluida] = useState(false);
 
   // O cadastro público cria apenas motoristas. Papéis privilegiados são
   // provisionados fora do cliente e nunca aceitos neste método.
@@ -70,6 +88,9 @@ export function AuthProvider({ children }) {
           // Direito a vaga especial (autodeclarado); vai para o veículo quando
           // a placa for cadastrada. Só é gravado quando a pessoa declara.
           ...(vagaEspecial && { vagaEspecial }),
+          // A tela de cadastro só envia com a política de privacidade aceita.
+          privacidadeAceitaEm: serverTimestamp(),
+          versaoPrivacidade: VERSAO_PRIVACIDADE,
           createdAt: serverTimestamp(),
         });
       } catch (err) {
@@ -196,11 +217,35 @@ export function AuthProvider({ children }) {
     await verifyBeforeUpdateEmail(auth.currentUser, novoEmail);
   }
 
+  // Exclusão da conta pelo motorista (LGPD): confere a senha, apaga os dados
+  // (services/conta.js) e por último o acesso. O auto-reparo fica desligado
+  // para esta conta: sem isso, o listener abaixo recriaria na hora o perfil
+  // que acabou de ser apagado.
+  async function excluirConta(senhaAtual) {
+    const u = auth.currentUser;
+    if (!u) throw new Error("Sessão inválida. Entre novamente.");
+    await reautenticar(senhaAtual);
+    reparoTentado.current.add(u.uid);
+    await apagarDadosDoMotorista(u.uid);
+    setContaExcluida(true);
+    try {
+      await deleteUser(u);
+    } catch (err) {
+      setContaExcluida(false);
+      console.error("Dados apagados, mas o acesso não foi excluído:", err);
+      throw new Error(
+        "Seus dados foram apagados, mas o acesso não foi encerrado. Confirme a senha e tente de novo.",
+        { cause: err }
+      );
+    }
+  }
+
   useEffect(() => {
     let unsubDoc = null;
 
     const unsubAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      if (currentUser) setContaExcluida(false);
 
       if (unsubDoc) {
         unsubDoc();
@@ -223,39 +268,44 @@ export function AuthProvider({ children }) {
           // AUTO-REPARO: contas antigas que ficaram sem documento recebem o
           // perfil mínimo de motorista. O reparo só roda depois que o fluxo
           // de cadastro termina, por isso não concorre com a escolha de papel
-          // feita na criação de uma conta nova.
+          // feita na criação de uma conta nova. Logo depois do cadastro, uma
+          // leitura atrasada do servidor ainda pode dizer que o perfil não
+          // existe: a transação confere de novo e só cria o que falta, sem
+          // tocar num perfil que já está lá (e sem o aviso de erro na tela).
           if (
             !snap.exists() &&
             !cadastroEmAndamento.current &&
             !reparoTentado.current.has(currentUser.uid)
           ) {
             reparoTentado.current.add(currentUser.uid);
-            setDoc(
-              doc(db, "users", currentUser.uid),
-              {
+            const perfilRef = doc(db, "users", currentUser.uid);
+            runTransaction(db, async (transacao) => {
+              const atual = await transacao.get(perfilRef);
+              if (atual.exists()) return atual.data();
+              transacao.set(perfilRef, {
                 name: currentUser.displayName || null,
                 email: currentUser.email || null,
                 role: "motorista",
                 createdAt: serverTimestamp(),
-              },
-              { merge: true }
-            ).catch((err) => {
-              console.error("Auto-reparo do perfil falhou:", err);
-              if (`${err?.code || ""}`.includes("permission")) {
-                setErroPermissao(true);
-              }
-            });
+              });
+              return null;
+            })
+              // O perfil já existia: as telas passam a usar o que o servidor
+              // devolveu, em vez da leitura atrasada.
+              .then((perfil) => {
+                if (perfil && auth.currentUser?.uid === currentUser.uid) {
+                  setUserData(dadosDaConta(currentUser, perfil));
+                }
+              })
+              .catch((err) => {
+                console.error("Auto-reparo do perfil falhou:", err);
+                if (`${err?.code || ""}`.includes("permission")) {
+                  setErroPermissao(true);
+                }
+              });
           }
 
-          setUserData({
-            ...data,
-            name: currentUser.displayName || data.name || null,
-            email: currentUser.email || data.email || null,
-            photoURL: currentUser.photoURL || data.photoURL || null,
-            // Papel derivado: quem tem estacionamento é operador, mesmo que
-            // o campo role tenha se perdido num cadastro com erro.
-            role: data.role || (data.estacionamentoId ? "operador" : "motorista"),
-          });
+          setUserData(dadosDaConta(currentUser, data));
           setLoading(false);
         },
         (err) => {
@@ -289,6 +339,8 @@ export function AuthProvider({ children }) {
     alterarPerfil,
     alterarSenha,
     alterarEmail,
+    excluirConta,
+    contaExcluida,
     erroPermissao,
   };
 

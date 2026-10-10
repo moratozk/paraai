@@ -5,6 +5,7 @@
 //   catalogoEstacionamentos/{id}     dados seguros exibidos aos motoristas
 //   estacionamentos/{id}/vagas/{n}  ocupação vaga a vaga
 //   veiculos/{PLACA}                carteira única do motorista (global)
+//   veiculos/{PLACA}/recargas/{id}  recargas simuladas (extrato)
 //   historico/{id}                  movimentações (campo estacionamentoId)
 // =========================================================================
 
@@ -17,6 +18,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "../firebase/firebaseConfig";
+import { consultaHistoricoDaPlaca, inicioDoHistorico } from "../services/historico";
 import { TOTAL_VAGAS, TOTEM_OFFLINE_APOS_SEGUNDOS } from "../utils/constants";
 
 // ---------------------------------------------------------------------
@@ -334,45 +336,218 @@ export function useVeiculo(placa) {
 // ---------------------------------------------------------------------
 // Histórico - filtrado por placa (motorista) ou estacionamento (operador).
 // Ordenado no cliente (mais recente primeiro) pra dispensar índice composto.
+// A exceção é a placa reivindicada depois que o dono anterior excluiu a
+// conta: ela traz o limite "desde" (services/historico.js).
 // ---------------------------------------------------------------------
-function useHistoricoPorCampo(campo, valor) {
+function useHistoricoPorCampo(campo, valor, desde = 0) {
   const [snapState, setSnapState] = useState({ chave: null, itens: [] });
+  const chave = valor ? `${valor}|${desde}` : null;
 
   useEffect(() => {
     if (!valor) return undefined;
-    const q = query(collection(db, "historico"), where(campo, "==", valor));
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        const itens = [];
-        snap.forEach((d) => itens.push({ id: d.id, ...d.data() }));
-        itens.sort(
-          (a, b) =>
-            (Number(b.saida) || Number(b.entrada) || 0) -
-            (Number(a.saida) || Number(a.entrada) || 0)
-        );
-        setSnapState({ chave: valor, itens });
-      },
-      (err) => {
-        console.error(`[historico:${campo}] erro no listener:`, err);
-        setSnapState({ chave: valor, itens: [] });
-      }
-    );
-    return unsub;
-  }, [campo, valor]);
+    const q =
+      campo === "placa"
+        ? consultaHistoricoDaPlaca(valor, desde)
+        : query(collection(db, "historico"), where(campo, "==", valor));
+    let unsub = () => {};
+    let timer = null;
+    let tentativas = 0;
+    // Logo depois de cadastrar a placa, a consulta pode chegar ao servidor
+    // antes do veículo, e as regras ainda não reconhecem o dono. Tentar de
+    // novo algumas vezes antes de desistir.
+    const ouvir = () => {
+      unsub = onSnapshot(
+        q,
+        (snap) => {
+          const itens = [];
+          snap.forEach((d) => itens.push({ id: d.id, ...d.data() }));
+          itens.sort(
+            (a, b) =>
+              (Number(b.saida) || Number(b.entrada) || 0) -
+              (Number(a.saida) || Number(a.entrada) || 0)
+          );
+          setSnapState({ chave: `${valor}|${desde}`, itens });
+        },
+        (err) => {
+          if (err?.code === "permission-denied" && tentativas < 3) {
+            tentativas += 1;
+            timer = setTimeout(ouvir, 1000 * tentativas);
+            return;
+          }
+          console.error(`[historico:${campo}] erro no listener:`, err);
+          setSnapState({ chave: `${valor}|${desde}`, itens: [] });
+        }
+      );
+    };
+    ouvir();
+    return () => {
+      unsub();
+      clearTimeout(timer);
+    };
+  }, [campo, valor, desde]);
 
   if (!valor) return { historico: [], loading: false };
-  const atualizado = snapState.chave === valor;
+  const atualizado = snapState.chave === chave;
   return {
     historico: atualizado ? snapState.itens : [],
     loading: !atualizado,
   };
 }
 
+// O limite vem do veículo: a consulta espera ele carregar, para não pedir
+// uma que as regras recusariam numa placa reivindicada.
 export function useHistoricoPlaca(placa) {
-  return useHistoricoPorCampo("placa", placa);
+  const { veiculo, loading: carregandoVeiculo } = useVeiculo(placa);
+  const resultado = useHistoricoPorCampo(
+    "placa",
+    carregandoVeiculo ? null : placa,
+    inicioDoHistorico(veiculo)
+  );
+  if (placa && carregandoVeiculo) return { historico: [], loading: true };
+  return resultado;
 }
 
 export function useHistoricoEstacionamento(estId) {
   return useHistoricoPorCampo("estacionamentoId", estId);
+}
+
+// ---------------------------------------------------------------------
+// Painel da rede (administrador): todas as estadias, todos os totens e a
+// ocupação de cada estacionamento. As regras só liberam a coleção inteira
+// para a conta admin; para as outras, ativo fica falso e nada é consultado.
+// ---------------------------------------------------------------------
+export function useHistoricoRede(ativo) {
+  const [estado, setEstado] = useState({ itens: [], loading: true, erro: "" });
+
+  useEffect(() => {
+    if (!ativo) return undefined;
+    return onSnapshot(
+      collection(db, "historico"),
+      (snap) => {
+        const itens = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        itens.sort((a, b) => (Number(b.saida) || 0) - (Number(a.saida) || 0));
+        setEstado({ itens, loading: false, erro: "" });
+      },
+      (err) => {
+        console.error("[historico-rede] erro no listener:", err);
+        setEstado({
+          itens: [],
+          loading: false,
+          erro: "Não foi possível carregar as movimentações da rede.",
+        });
+      }
+    );
+  }, [ativo]);
+
+  if (!ativo) return { historico: [], loading: false, erro: "" };
+  return { historico: estado.itens, loading: estado.loading, erro: estado.erro };
+}
+
+export function useTotensRede(ativo) {
+  const [estado, setEstado] = useState({ itens: [], loading: true, erro: "" });
+
+  useEffect(() => {
+    if (!ativo) return undefined;
+    return onSnapshot(
+      collection(db, "totems"),
+      (snap) => {
+        const itens = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        itens.sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || "")));
+        setEstado({ itens, loading: false, erro: "" });
+      },
+      (err) => {
+        console.error("[totens-rede] erro no listener:", err);
+        setEstado({
+          itens: [],
+          loading: false,
+          erro: "Não foi possível consultar os totens da rede.",
+        });
+      }
+    );
+  }, [ativo]);
+
+  if (!ativo) return { totens: [], loading: false, erro: "" };
+  return { totens: estado.itens, loading: estado.loading, erro: estado.erro };
+}
+
+// Vagas ocupadas agora em cada estacionamento, contando só as vagas dentro
+// da capacidade atual (como useVagas). Uma escuta por estacionamento.
+export function useOcupacaoRede(estacionamentos) {
+  const chave = estacionamentos
+    .map((item) => `${item.id}:${Math.max(1, Number(item.numVagas) || TOTAL_VAGAS)}`)
+    .join("|");
+  const [ocupadas, setOcupadas] = useState({});
+
+  useEffect(() => {
+    if (!chave) return undefined;
+    const cancelar = chave.split("|").map((parte) => {
+      const separador = parte.lastIndexOf(":");
+      const estId = parte.slice(0, separador);
+      const total = Number(parte.slice(separador + 1));
+      return onSnapshot(
+        collection(db, "estacionamentos", estId, "vagas"),
+        (snap) => {
+          let quantas = 0;
+          snap.forEach((d) => {
+            const numero = Number(d.id);
+            if (d.data().ocupada && numero >= 1 && numero <= total) quantas += 1;
+          });
+          setOcupadas((atual) => ({ ...atual, [estId]: quantas }));
+        },
+        (err) => {
+          console.error(`[ocupacao-rede:${estId}] erro no listener:`, err);
+          setOcupadas((atual) => ({ ...atual, [estId]: null }));
+        }
+      );
+    });
+    return () => cancelar.forEach((fn) => fn());
+  }, [chave]);
+
+  return ocupadas;
+}
+
+// ---------------------------------------------------------------------
+// Recargas simuladas da carteira, para o extrato. As regras só deixam ler
+// as recargas da própria conta, então a consulta filtra pelo uid. A ordem
+// vem do cliente, como no histórico; a data de uma recarga ainda pendente
+// de confirmação é a estimada pelo navegador.
+// ---------------------------------------------------------------------
+export function useRecargas(uid, placa) {
+  const chave = uid && placa ? `${uid}/${placa}` : null;
+  const [snapState, setSnapState] = useState({ chave: null, itens: [], erro: "" });
+
+  useEffect(() => {
+    if (!uid || !placa) return undefined;
+    const q = query(
+      collection(db, "veiculos", placa, "recargas"),
+      where("uid", "==", uid)
+    );
+    return onSnapshot(
+      q,
+      (snap) => {
+        const itens = snap.docs.map((d) => {
+          const dados = d.data({ serverTimestamps: "estimate" });
+          return { id: d.id, ...dados, quando: dados.criadaEm?.seconds || 0 };
+        });
+        itens.sort((a, b) => b.quando - a.quando);
+        setSnapState({ chave: `${uid}/${placa}`, itens, erro: "" });
+      },
+      (err) => {
+        console.error("[recargas] erro no listener:", err);
+        setSnapState({
+          chave: `${uid}/${placa}`,
+          itens: [],
+          erro: "Não foi possível carregar as recargas agora.",
+        });
+      }
+    );
+  }, [uid, placa]);
+
+  if (!chave) return { recargas: [], loading: false, erro: "" };
+  const atualizado = snapState.chave === chave;
+  return {
+    recargas: atualizado ? snapState.itens : [],
+    loading: !atualizado,
+    erro: atualizado ? snapState.erro : "",
+  };
 }

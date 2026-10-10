@@ -1,0 +1,84 @@
+name: Fluxo completo
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - 'firebase/**'
+      - 'e2e/**'
+      - '.github/workflows/e2e.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - 'firebase/**'
+      - 'e2e/**'
+      - '.github/workflows/e2e.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fluxo:
+    # O site no navegador, ligado aos emuladores com as regras de verdade:
+    # cadastro, recarga, reserva, entrada e saída no totem e a cobrança, no
+    # computador e no celular (ver e2e/fluxo.spec.js).
+    name: Fluxo completo nos emuladores
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v5
+      - name: Preparar Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            web/package-lock.json
+            e2e/package-lock.json
+      - name: Preparar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Instalar dependências do site
+        working-directory: web
+        run: npm ci
+      - name: Instalar dependências do teste
+        working-directory: e2e
+        run: npm ci --ignore-scripts
+      - name: Instalar o Chromium do Playwright
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+      - name: Cadastro, recarga, reserva, totem e cobrança no navegador
+        working-directory: e2e
+        run: npm test
+      # Plano B da apresentação (docs/apresentacao.md): a demonstração sem
+      # internet precisa abrir, atender o totem pelo terminal e encerrar.
+      - name: Demonstração sem internet abre e atende o totem
+        working-directory: e2e
+        run: |
+          set -o pipefail
+          printf 'entrada TCC2E26\nentrada BRA2E19\nentrada GHI7J89\nsaida TCC2E26\nsair\n' \
+            | npm run apresentacao 2>&1 | tee apresentacao.log
+          grep -F 'Vaga 3 - R$ 8,50/h' apresentacao.log
+          grep -F 'Vaga 9 - R$ 8,50/h' apresentacao.log
+          grep -F 'SALDO PENDENTE' apresentacao.log
+          grep -F 'SAIDA CONFIRMADA' apresentacao.log
+          grep -F 'Demonstração encerrada.' apresentacao.log
+      - name: Guardar o relatório e as gravações da falha
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fluxo-completo
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+            e2e/apresentacao.log
+          retention-days: 7

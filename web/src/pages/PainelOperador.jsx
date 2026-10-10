@@ -10,10 +10,12 @@ import {
 import {
   useEstacionamento,
   useVagas,
+  useVagasPublicas,
   useHistoricoEstacionamento,
 } from "../hooks/useParkingData";
 import StatusTotem from "../components/StatusTotem";
 import MapaVagas from "../components/MapaVagas";
+import GraficoReceita from "../components/GraficoReceita";
 import {
   formatarMoeda,
   formatarDataHora,
@@ -21,114 +23,19 @@ import {
   valorPendente,
   valorRecebido,
 } from "../utils/format";
+import {
+  PERIODOS,
+  baixarCSV,
+  calcularClientes,
+  calcularHorarioPico,
+  calcularSerieDiaria,
+  inicioDoPeriodo,
+} from "../utils/relatorios";
+import { combinarVagasDoPatio } from "../utils/mapaVagas";
 import "./Pages.css";
 
-const DIAS_SEMANA = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
-
-const PERIODOS = [
-  { id: "hoje", rotulo: "Hoje", dias: 0 },
-  { id: "7d", rotulo: "7 dias", dias: 7 },
-  { id: "30d", rotulo: "30 dias", dias: 30 },
-  { id: "tudo", rotulo: "Tudo", dias: null },
-];
-
-function inicioDoDia(offsetDias = 0) {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() - offsetDias);
-  return Math.floor(d.getTime() / 1000);
-}
-
-// Série diária de receita/acessos para o gráfico
-function calcularSerieDiaria(historico, numDias) {
-  const dias = [];
-  for (let i = numDias - 1; i >= 0; i--) {
-    const inicio = inicioDoDia(i);
-    dias.push({
-      inicio,
-      fim: inicio + 86400,
-      rotulo: DIAS_SEMANA[new Date(inicio * 1000).getDay()],
-      dataCurta: new Date(inicio * 1000).toLocaleDateString("pt-BR", {
-        day: "2-digit",
-        month: "2-digit",
-      }),
-      hoje: i === 0,
-      valor: 0,
-      acessos: 0,
-    });
-  }
-  historico.forEach((h) => {
-    const saida = Number(h.saida) || 0;
-    const dia = dias.find((d) => saida >= d.inicio && saida < d.fim);
-    if (dia) {
-      dia.valor += valorRecebido(h);
-      dia.acessos += 1;
-    }
-  });
-  return dias;
-}
-
-function calcularClientes(historico) {
-  const porPlaca = {};
-  historico.forEach((h) => {
-    if (!h.placa) return;
-    if (!porPlaca[h.placa]) {
-      porPlaca[h.placa] = { placa: h.placa, acessos: 0, total: 0, ultimo: 0 };
-    }
-    const c = porPlaca[h.placa];
-    c.acessos += 1;
-    c.total += Number(h.valorCobrado) || 0;
-    c.ultimo = Math.max(c.ultimo, Number(h.saida) || 0);
-  });
-  return Object.values(porPlaca).sort((a, b) => b.total - a.total);
-}
-
-// Hora do dia com mais entradas (0-23)
-function calcularHorarioPico(historico) {
-  if (!historico.length) return null;
-  const porHora = new Array(24).fill(0);
-  historico.forEach((h) => {
-    const entrada = Number(h.entrada) || 0;
-    if (entrada > 0) porHora[new Date(entrada * 1000).getHours()] += 1;
-  });
-  const max = Math.max(...porHora);
-  if (max === 0) return null;
-  return { hora: porHora.indexOf(max), quantidade: max };
-}
-
-function baixarCSV(historico, nomeEstacionamento) {
-  const cabecalho = [
-    "placa",
-    "vaga",
-    "entrada",
-    "saida",
-    "duracao_minutos",
-    "valor_cobrado",
-    "valor_pendente",
-  ];
-  const linhas = historico.map((h) =>
-    [
-      h.placa || "",
-      h.vaga || "",
-      formatarDataHora(h.entrada),
-      formatarDataHora(h.saida),
-      h.duracaoMinutos || 0,
-      (Number(h.valorCobrado) || 0).toFixed(2).replace(".", ","),
-      valorPendente(h).toFixed(2).replace(".", ","),
-    ].join(";")
-  );
-  const csv = [cabecalho.join(";"), ...linhas].join("\n");
-  // BOM para o Excel abrir acentos corretamente
-  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `paraai-movimentacoes-${(nomeEstacionamento || "estacionamento")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+const LINHAS_INICIAIS = 10;
+const LINHAS_POR_CLIQUE = 20;
 
 export default function PainelOperador() {
   const { userData } = useAuth();
@@ -161,11 +68,18 @@ export default function PainelOperador() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [estacionamento?.id, assinaturaCatalogo]);
 
-  const { vagas } = useVagas(estId, estacionamento?.numVagas);
+  // Ocupação pelo totem e reservas pelo app, juntas no mesmo mapa.
+  const { vagas: vagasOperacionais } = useVagas(estId, estacionamento?.numVagas);
+  const { vagas: vagasPublicas } = useVagasPublicas(estId, estacionamento?.numVagas);
+  const vagas = useMemo(
+    () => combinarVagasDoPatio(vagasOperacionais, vagasPublicas),
+    [vagasOperacionais, vagasPublicas]
+  );
   const { historico, loading } = useHistoricoEstacionamento(estId);
 
   const [periodo, setPeriodo] = useState("7d");
   const [busca, setBusca] = useState("");
+  const [linhasVisiveis, setLinhasVisiveis] = useState(LINHAS_INICIAIS);
 
   // edição dos dados operacionais direto no painel
   const [editando, setEditando] = useState(false);
@@ -214,10 +128,7 @@ export default function PainelOperador() {
 
   // --- recortes do período selecionado ---
   const periodoAtivo = PERIODOS.find((p) => p.id === periodo) || PERIODOS[1];
-  const desde = useMemo(() => {
-    if (periodoAtivo.dias === null) return 0;
-    return inicioDoDia(periodoAtivo.dias === 0 ? 0 : periodoAtivo.dias - 1);
-  }, [periodoAtivo]);
+  const desde = useMemo(() => inicioDoPeriodo(periodoAtivo), [periodoAtivo]);
 
   const doPeriodo = useMemo(
     () => historico.filter((h) => (Number(h.saida) || 0) >= desde),
@@ -242,6 +153,7 @@ export default function PainelOperador() {
     : 0;
 
   const ocupadas = vagas.filter((v) => v.ocupada).length;
+  const reservadas = vagas.filter((v) => v.reservada).length;
   const taxaOcupacao = vagas.length
     ? Math.round((ocupadas / vagas.length) * 100)
     : 0;
@@ -258,21 +170,19 @@ export default function PainelOperador() {
     () => calcularSerieDiaria(historico, diasGrafico),
     [historico, diasGrafico]
   );
-  const maxSerie = Math.max(...serie.map((d) => d.valor), 0);
 
   // --- tabela filtrada pela busca ---
   const movimentacoes = useMemo(() => {
     const termo = busca.trim().toUpperCase();
-    const base = termo
+    return termo
       ? doPeriodo.filter((h) => (h.placa || "").includes(termo))
       : doPeriodo;
-    return base.slice(0, 25);
   }, [doPeriodo, busca]);
 
   if (!estId) {
     return (
       <div className="page container">
-        <div className="card empty-state setup-pendente">
+        <div className="card empty-state">
           <h2>Conclua o cadastro do estacionamento</h2>
           <p>
             Sua conta de operador está pronta, mas ainda falta informar os
@@ -393,8 +303,8 @@ export default function PainelOperador() {
             </div>
           </form>
           <p className="muted-note">
-            Painel e totem usam a mesma tarifa. O equipamento sincroniza as
-            alterações em até um minuto quando está conectado.
+            Painel e totem usam a mesma tarifa. O totem recebe as alterações
+            em até um minuto quando está conectado.
           </p>
         </div>
       )}
@@ -408,7 +318,10 @@ export default function PainelOperador() {
               role="tab"
               aria-selected={periodo === p.id}
               className={`segmented-op ${periodo === p.id ? "ativo" : ""}`}
-              onClick={() => setPeriodo(p.id)}
+              onClick={() => {
+                setPeriodo(p.id);
+                setLinhasVisiveis(LINHAS_INICIAIS);
+              }}
             >
               {p.rotulo}
             </button>
@@ -452,11 +365,11 @@ export default function PainelOperador() {
           </div>
           <div className="fat-p">
             <span className="stat-label">Ticket médio</span>
-            <strong>{formatarMoeda(ticketMedio)}</strong>
+            <strong>{doPeriodo.length ? formatarMoeda(ticketMedio) : "—"}</strong>
           </div>
           <div className="fat-p">
             <span className="stat-label">Permanência média</span>
-            <strong>{formatarDuracao(permanenciaMedia)}</strong>
+            <strong>{doPeriodo.length ? formatarDuracao(permanenciaMedia) : "—"}</strong>
           </div>
         </div>
       </div>
@@ -474,6 +387,8 @@ export default function PainelOperador() {
           </div>
           <span className="muted-note" style={{ marginTop: 0 }}>
             {ocupadas} de {vagas.length} vagas ocupadas
+            {reservadas > 0 &&
+              ` · ${reservadas} ${reservadas === 1 ? "reservada" : "reservadas"} no app`}
           </span>
         </div>
         <div className="card stat-card">
@@ -508,42 +423,11 @@ export default function PainelOperador() {
           {/* ---------- Gráfico ---------- */}
           <div className="card">
             <h2>Receita · últimos {diasGrafico} dias</h2>
-            {maxSerie <= 0 ? (
-              <p className="empty-state">
-                Nenhuma receita registrada neste intervalo. Os valores aparecem
-                aqui automaticamente após cada saída no totem.
-              </p>
-            ) : (
-              <div
-                className="chart-bars"
-                role="img"
-                aria-label={`Receita por dia dos últimos ${diasGrafico} dias`}
-              >
-                {serie.map((dia, i) => (
-                  <div className="chart-col" key={i}>
-                    <div className="chart-bar-track">
-                      <div
-                        className={`chart-bar ${dia.hoje ? "hoje" : ""}`}
-                        style={{
-                          height: `${Math.round((dia.valor / maxSerie) * 100)}%`,
-                        }}
-                      >
-                        <span className="chart-tooltip">
-                          {dia.dataCurta} · {formatarMoeda(dia.valor)} ·{" "}
-                          {dia.acessos} {dia.acessos === 1 ? "carro" : "carros"}
-                        </span>
-                        {dia.valor === maxSerie && (
-                          <span className="chart-bar-value">
-                            {formatarMoeda(dia.valor)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <span className="chart-col-label">{dia.rotulo}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+            <GraficoReceita
+              serie={serie}
+              rotulo={`Receita por dia dos últimos ${diasGrafico} dias`}
+              vazio="Nenhuma receita registrada neste intervalo. Os valores aparecem aqui automaticamente após cada saída no totem."
+            />
           </div>
 
           {/* ---------- Movimentações ---------- */}
@@ -557,7 +441,10 @@ export default function PainelOperador() {
                 className="input-busca"
                 placeholder="Buscar placa..."
                 value={busca}
-                onChange={(e) => setBusca(e.target.value.toUpperCase())}
+                onChange={(e) => {
+                  setBusca(e.target.value.toUpperCase());
+                  setLinhasVisiveis(LINHAS_INICIAIS);
+                }}
                 aria-label="Buscar por placa"
               />
             </div>
@@ -575,48 +462,72 @@ export default function PainelOperador() {
                   : "Nenhuma movimentação neste período."}
               </p>
             ) : (
-              <div className="tabela-wrap tabela-cards">
-                <table className="history-table responsive-table">
-                  <thead>
-                    <tr>
-                      <th>Placa</th>
-                      <th>Vaga</th>
-                      <th>Entrada</th>
-                      <th>Saída</th>
-                      <th>Duração</th>
-                      <th>Valor</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {movimentacoes.map((item) => (
-                      <tr key={item.id}>
-                        <td data-label="Placa">
-                          <span className="placa-tag placa-tag-sm">
-                            {item.placa}
-                          </span>
-                        </td>
-                        <td data-label="Vaga">{item.vaga}</td>
-                        <td data-label="Entrada">{formatarDataHora(item.entrada)}</td>
-                        <td data-label="Saída">{formatarDataHora(item.saida)}</td>
-                        <td data-label="Duração">{formatarDuracao(item.duracaoMinutos)}</td>
-                        <td data-label="Valor" className="money">
-                          <span className="valor-com-marca">
-                            {formatarMoeda(item.valorCobrado)}
-                            {valorPendente(item) > 0 && (
-                              <span
-                                className="status-pill warning pill-pendente"
-                                title={`${formatarMoeda(valorPendente(item))} não coberto pelo saldo`}
-                              >
-                                pendente
-                              </span>
-                            )}
-                          </span>
-                        </td>
+              <>
+                {/* Em telas médias a tabela rola de lado: com foco, o teclado
+                    também consegue rolar. */}
+                <div
+                  className="tabela-wrap tabela-cards"
+                  tabIndex={0}
+                  role="region"
+                  aria-label="Movimentações"
+                >
+                  <table className="history-table responsive-table">
+                    <thead>
+                      <tr>
+                        <th>Placa</th>
+                        <th>Vaga</th>
+                        <th>Entrada</th>
+                        <th>Saída</th>
+                        <th>Duração</th>
+                        <th>Valor</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {movimentacoes.slice(0, linhasVisiveis).map((item) => (
+                        <tr key={item.id}>
+                          <td data-label="Placa">
+                            <span className="placa-tag placa-tag-sm">
+                              {item.placa}
+                            </span>
+                          </td>
+                          <td data-label="Vaga">{item.vaga}</td>
+                          <td data-label="Entrada">{formatarDataHora(item.entrada)}</td>
+                          <td data-label="Saída">{formatarDataHora(item.saida)}</td>
+                          <td data-label="Duração">{formatarDuracao(item.duracaoMinutos)}</td>
+                          <td data-label="Valor" className="money">
+                            <span className="valor-com-marca">
+                              {formatarMoeda(item.valorCobrado)}
+                              {valorPendente(item) > 0 && (
+                                <span
+                                  className="status-pill warning pill-pendente"
+                                  title={`${formatarMoeda(valorPendente(item))} não coberto pelo saldo`}
+                                >
+                                  pendente
+                                </span>
+                              )}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {movimentacoes.length > linhasVisiveis && (
+                  <div className="tabela-mais">
+                    <p className="muted-note">
+                      Mostrando as {linhasVisiveis} mais recentes de {movimentacoes.length}. O CSV
+                      leva todas.
+                    </p>
+                    <button
+                      className="btn btn-outline btn-sm"
+                      type="button"
+                      onClick={() => setLinhasVisiveis((atual) => atual + LINHAS_POR_CLIQUE)}
+                    >
+                      Ver mais
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -631,7 +542,7 @@ export default function PainelOperador() {
               </p>
             ) : (
               <div className="tabela-wrap tabela-cards">
-                <table className="history-table responsive-table">
+                <table className="history-table history-table-compacta responsive-table">
                   <thead>
                     <tr>
                       <th>Placa</th>

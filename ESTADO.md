@@ -11,9 +11,14 @@ Sistema acadêmico de atendimento para estacionamentos:
 
 - **`firmware/`** — firmware do totem na placa CYD de 2,8" de duas portas
   (ESP32-2432S028R: ESP32 + tela ST7789 320×240 + touch XPT2046), sem sensores
-  ou servo/catraca física; gabinete 3D ainda a projetar
+  ou servo/catraca física; gabinete 3D impresso, ainda a montar
 - **`web/`** — painel React/Vite, com Firebase Auth e Firestore
 - **`firebase/`** — regras do Firestore e testes no emulador
+- **`contratos/`** — casos esperados que o site, o totem e as regras testam
+  juntos (conta da estadia, vagas especiais e placas)
+- **`e2e/`** — teste do fluxo completo no navegador e demonstração sem
+  internet, com os emuladores e o totem simulado
+- **`docs/apresentacao.md`** — roteiro da banca, checklist do dia e plano B
 
 O motorista registra entrada/saída por placa. O Firebase associa vaga,
 estadia e cobrança simulada. O operador acompanha pelo painel. A ocupação é
@@ -29,6 +34,267 @@ do veículo e revisão geral). **Regras do Firestore e site publicados em
 versão. **O firmware do totem ainda é o gravado em 06/10/2026** (anterior aos
 PRs #20 e #22), testado naquele dia: uma placa sem direito declarado recebeu a
 primeira vaga comum livre. As regras novas continuam aceitando esse firmware.
+
+## Roteiro da apresentação e demonstração sem internet (09/10/2026)
+
+- **Roteiro (`docs/apresentacao.md`):** o que preparar antes (publicar,
+  gravar o totem, contas da demonstração no site publicado, "Não é spam",
+  vídeo do fluxo, hotspot em 2,4 GHz salvo no totem), o checklist do dia, a
+  ordem da demonstração (cadastro, placa, recarga, reserva, entrada no totem,
+  mapa ao vivo e maquete, saída, cobrança e painel da rede), o plano B para
+  cada falha e as perguntas que a banca costuma fazer, com as respostas
+  tiradas do código.
+- **Demonstração sem internet (`npm run apresentacao` em `e2e/`):** o site no
+  computador, ligado aos emuladores com as regras do repositório, com
+  administrador, dono, dois motoristas prontos (um deles com direito 60+),
+  estadias da última semana no painel da rede e uma placa em dívida
+  (`e2e/apresentacao.mjs`). O totem é simulado no terminal (`entrada PLACA`,
+  `saida PLACA`, `vagas`) e manda o sinal de vida a cada minuto. Cada execução
+  começa do zero, e nada vai para a produção. Precisa de Node 22, Java 21 e
+  `npm ci` em `web/` e `e2e/`, feitos uma vez com internet; a primeira
+  execução baixa os emuladores.
+- **Totem simulado (`e2e/patio.js`):** as mesmas leituras e gravações do
+  firmware (`firmware/totem/Atendimento.cpp`): placa nova cadastrada sem
+  dono, saldo pendente bloqueando a entrada, reserva do app, vaga do direito
+  declarado, modelo e cor copiados para a vaga, saída com a conta de
+  `web/src/utils/cobranca.js` e o sinal de vida. O teste do fluxo completo
+  passou a usar o mesmo módulo, e o CI roda a demonstração com comandos de
+  totem em cada PR.
+- **Simulador antigo removido:** saíram `web/public/totem.html` (o teclado
+  antigo, ainda publicado em `/totem.html`) e `web/public/icons.svg` (sobra do
+  modelo do Vite, sem uso). Depois da próxima publicação, `/totem.html` cai no
+  site, como qualquer endereço que não existe.
+- **Acesso de totem nos emuladores:** "Gerar novo acesso de totem" cria a
+  conta num app à parte (`services/totems.js`), que não seguia os emuladores
+  e falhava na demonstração. Agora segue (`ligarAuthAoEmulador`, em
+  `firebaseConfig.js`). O site publicado não muda.
+- **README:** a limitação sobre vagas especiais dizia que só quem reservou
+  podia usá-las. Agora segue a decisão de 02/10/2026: no totem, quem declarou
+  o direito recebe a primeira vaga livre do seu tipo.
+- Regras e firmware não mudam. Para publicar, só o site.
+
+## Testes automáticos (09/10/2026)
+
+Antes, o site só passava por lint e build no CI. Agora cada PR também roda:
+
+- **Contas do site (`web/test/`, `npm test` em `web/`):** cobrança, placa,
+  celular, dinheiro, valor digitado na recarga, vagas especiais, modelo e cor
+  e os relatórios. A conta da estadia saiu do painel do motorista para
+  `web/src/utils/cobranca.js`, com a mesma ordem de contas do totem e das
+  regras.
+- **Contratos (`contratos/`):** a conta da estadia, a tabela das vagas sem
+  tipo gravado e as placas aceitas existem no site, no totem e nas regras. Os
+  casos esperados ficam em CSV, num lugar só, e as três partes são testadas
+  contra eles: o site em `web/test/contratos.test.js`, o totem em
+  `firmware/test/logica_totem.test.cpp` e as regras no emulador, onde cada
+  cobrança é aceita com o centavo certo e recusada com um centavo a mais ou a
+  menos. O teste do site também compara, no texto do firmware e das regras,
+  as cores, o tamanho do nome do carro, a tolerância de meio centavo e os
+  limites da recarga. Um caso pega a ordem das contas: 9 minutos a R$ 8,50
+  dão R$ 1,27 nas três partes (R$ 1,275 na conta exata).
+- **Fluxo completo (`e2e/`, Playwright):** o site no navegador, ligado aos
+  emuladores com as regras de verdade, no tamanho de computador e de celular.
+  Cadastro com o aceite da política, placa, recarga, reserva (a vaga PCD é
+  recusada sem o direito declarado), entrada no totem na vaga reservada, mapa
+  do dono ao vivo, saída e a cobrança no painel, no comprovante e no extrato.
+  O totem é simulado com as mesmas gravações do firmware. Qualquer erro no
+  console faz o teste falhar.
+- **Defeito que o teste achou:** logo depois de criar a conta, às vezes
+  aparecia a faixa vermelha "Não conseguimos carregar os dados da sua conta".
+  Uma leitura atrasada do perfil disparava o auto-reparo
+  (`web/src/context/AuthContext.jsx`), que tentava regravar um perfil que já existia
+  e era recusado pelas regras. O reparo agora confere numa transação e só cria
+  o perfil que realmente falta. Conta antiga sem perfil continua sendo
+  reparada.
+- **Emuladores só para projeto de demonstração:** o site liga os emuladores
+  apenas com `VITE_EMULADOR_AUTH`, `VITE_EMULADOR_FIRESTORE` e projeto
+  `demo-...` (`web/src/firebase/firebaseConfig.js`). O site publicado não tem nenhuma
+  delas, e o build de produção descarta esse trecho.
+- **Regras e firmware:** não mudam. Só os testes deles leem os casos novos.
+
+## Privacidade e LGPD (09/10/2026)
+
+- **Política de privacidade (`/privacidade`, `pages/Privacidade.jsx`):** aberta
+  a todos, com link no rodapé da Home, no cadastro, nas Configurações e no
+  Perfil. Uma tabela diz, para cada dado, para que serve e quem vê. O "quem vê"
+  segue as regras do Firestore: se uma regra mudar quem lê um dado, mude a
+  tabela também. Os controladores são os autores do TCC. A página não traz
+  nomes completos, instituição nem e-mail de contato, que ainda não foram
+  definidos; quando forem, entram na seção "Quem cuida dos seus dados".
+- **Aceite no cadastro:** caixa obrigatória na última etapa. O perfil grava
+  `privacidadeAceitaEm` (hora do servidor, conferida pelas regras) e
+  `versaoPrivacidade` (`VERSAO_PRIVACIDADE` em `services/conta.js`, que é
+  também a data mostrada na página; troque quando a política mudar). Contas
+  anteriores a esta versão não têm esse registro, e não há tela pedindo o
+  aceite de novo. A declaração da vaga especial passou a valer também como o
+  consentimento do dado sensível (`components/CampoDireitoVaga.jsx`).
+- **Baixar meus dados (Configurações, aba Privacidade):** um arquivo JSON com
+  conta, perfil, veículo, recargas, estadias (com o nome do estacionamento) e
+  reserva, com as datas legíveis. Dono de estacionamento e administrador
+  baixam o próprio perfil; o dono leva também o cadastro do pátio, sem o
+  código de pareamento do totem.
+- **Excluir minha conta (só motorista):** pede a senha, cancela a reserva
+  ativa e, num lote só, libera a placa (`ownerUid` vazio, saldo 0, sem modelo,
+  cor nem vaga especial, `historicoDesde` com a hora do servidor) e apaga o
+  extrato, a reserva e o perfil. Por último apaga o acesso no Authentication e
+  leva ao início. Com o carro no pátio ou com pendência de saldo, a exclusão
+  é recusada e a tela diz o que fazer. As estadias ficam no histórico só com a
+  placa, para o estacionamento e a rede, e o saldo positivo (simulado) não é
+  devolvido. Se o acesso não for apagado depois dos dados, a tela pede a senha
+  de novo, e a segunda tentativa só apaga o acesso.
+- **Placa liberada:** quem cadastra a placa depois não vê as estadias do dono
+  anterior. As regras só deixam o motorista ler estadias com `entrada` a
+  partir de `historicoDesde`, e o site faz a consulta com esse limite
+  (`services/historico.js`). Essa consulta (placa + entrada) usa o índice
+  composto de `firebase/firestore.indexes.json`, que o `firebase.json` agora
+  publica junto com as regras. Placas sem `historicoDesde` (todas as de hoje)
+  seguem com a consulta simples, sem índice.
+- **Regras:** as permissões novas valem só para a exclusão. O motorista apaga
+  o próprio perfil apenas junto com a liberação da placa e sem reserva; apaga a
+  reserva vencida ou cancelada apenas junto com o perfil; apaga as próprias
+  recargas apenas com a placa já liberada; e só libera a placa sem estadia
+  aberta e sem dívida. Dono de estacionamento e administrador não se excluem
+  pelo site. São 9 testes novos no emulador (74 no total).
+- **Firmware:** não muda. A placa liberada entra pelo totem como placa sem
+  dono, e o firmware preserva `historicoDesde` porque grava só os campos que
+  altera.
+
+**Publicação: regras e índice primeiro, depois o site.** `firebase deploy
+--only firestore` publica os dois; se o Firebase perguntar se deve apagar
+índices que não estão no arquivo, responda que não. O índice leva alguns
+minutos para ficar pronto, e só a consulta de placa liberada depende dele.
+Com as regras antigas, o site novo funciona, menos a exclusão da conta, que é
+recusada sem apagar nada.
+
+## Reservas no mapa do dono e acertos de tela (09/10/2026)
+
+- **Mapa do dono (`components/MapaVagas.jsx`):** passou a juntar a vaga do
+  totem com a projeção pública, como o mapa do administrador
+  (`combinarVagasDoPatio` em `utils/mapaVagas.js`). A vaga reservada pelo app
+  aparece em âmbar ("Reserva", "até 14:05"), em vez de "Livre", e o tipo
+  definido pela administração vale também aqui. O tipo vem primeiro da
+  projeção pública, que é de onde o totem lê; o campo `tipo` da vaga
+  operacional só existe em vagas antigas. "Ocupação agora" conta as reservas
+  à parte. Os selos não repetem mais o rótulo ("60+ 60+", "G GESTANTE") e
+  "Gestante" desce para baixo do número em vez de vazar da vaga.
+- **Movimentações do dono:** 10 linhas e "Ver mais" (+20), como no painel da
+  rede; o CSV continua levando o período inteiro. A página do dono no celular
+  tinha mais de 10 mil pixels de altura com 25 linhas.
+- **Vagas ao vivo do administrador:** cada estado mostra só o que tem (vaga
+  livre não tem placa nem origem; a reservada mostra até quando vale e quanto
+  falta, em linhas separadas). O painel lateral não é mais `aria-live`: a
+  contagem da reserva muda a cada segundo e o leitor de tela anunciava sem
+  parar. Na lista, a reserva aparece como "Reservada", e não como uma placa
+  "SEM PLACA".
+- **Saldo baixo (`pages/PainelMotorista.jsx`):** o aviso usava uma tarifa fixa
+  de R$ 5. Agora compara com a tarifa que a pessoa vai pagar: a congelada na
+  entrada, descontado o que a estadia já soma; a do local reservado; a do
+  último local usado; ou a mais barata da rede, para quem nunca estacionou.
+- **Perfil:** o erro da placa aparece embaixo do campo, com o foco nele (no
+  topo do cartão ficava fora da tela do celular), e campo com erro fica com a
+  borda vermelha. A nota do dono não fala mais em `Credenciais.h`, e a lista
+  de acessos chama o equipamento de totem. "Bloquear" virou um botão de
+  verdade no celular.
+- **Gerais:** o anel de foco usa o âmbar de texto (no tema claro o âmbar dos
+  botões ficava em 1,8:1 e o anel quase sumia), o select tem a mesma altura do
+  campo de texto ao lado, a logo da barra tem 44 px de largura a 320 px, e os
+  avisos vazios ("Estacionamento não encontrado") ficaram centralizados, com
+  respiro e título no tamanho de seção.
+
+Sem mudança nas regras do Firestore: o dono já podia ler a projeção pública.
+Só o site precisa ser publicado.
+
+## App instalável no celular (09/10/2026)
+
+O site virou um app que se instala pelo navegador (PWA), sem loja:
+
+- **Instalar:** no Android e no computador (Chrome e Edge), "Instalar o app"
+  aparece no menu da conta e no menu de três traços quando o navegador oferece
+  a instalação; no iPhone, o mesmo item explica o caminho (Compartilhar e
+  "Adicionar à Tela de Início"). Aberto como app, o item some. O app abre no
+  painel (`/dashboard`, que leva ao login quem não entrou), sem a barra do
+  navegador, com a logo como ícone. `icone-maskable-512.png` e
+  `apple-touch-icon.png` são a própria `logo.png` sobre o mesmo âmbar, sem
+  redesenho: o "P" no lugar, só a moldura arredondada vira fundo.
+- **Sem internet:** o service worker (`public/sw.js`) mostra
+  `public/offline.html`, com a logo e o tema escolhido, em vez do erro do
+  navegador, e recarrega sozinho quando a rede volta. Ele não guarda telas nem
+  dados: tudo continua vindo do Firebase, e cada publicação chega na hora.
+- **Depois de cada publicação:** quem estava com o site aberto e abria uma tela
+  ainda não visitada pedia um arquivo que a publicação apagou, e a página
+  ficava inteira em branco. Agora o site recarrega uma vez para pegar a versão
+  nova (`src/pwa.js`); se ainda falhar, aparece "Esta tela não abriu", com o
+  menu no topo e o botão de recarregar (`components/ErroDeTela.jsx`). No
+  `firebase.json`, o `no-cache` passou a valer para `/` e para os endereços de
+  todas as telas, e não só para `/index.html`, além do `sw.js`.
+- A barra do navegador e a do app acompanham o tema (`ThemeContext`), e o
+  `index.html` aplica o tema claro antes do primeiro quadro: quem usa o claro
+  não vê mais o escuro piscar ao abrir o site.
+
+Sem mudança nas regras do Firestore. Só o site precisa ser publicado (os
+cabeçalhos do `firebase.json` vão junto com ele).
+
+## Comprovante da estadia (09/10/2026)
+
+Cada estadia encerrada tem um comprovante (`components/ComprovanteEstadia.jsx`):
+estacionamento e endereço, placa, vaga, entrada, saída, permanência, tarifa
+congelada na entrada, valor, quanto saiu da carteira e o que ficou pendente,
+com o código da estadia (o id do recibo em `historico`). O motorista abre pelo
+"Últimos acessos" do painel (a linha inteira) e pelo botão "Ver" em "Meus
+acessos"; o dono do estacionamento, pelo mesmo botão em "Movimentações".
+"Imprimir ou salvar PDF" usa a impressão do navegador: só a folha sai, com
+tinta escura sobre papel branco, mesmo no tema escuro. O texto avisa que a
+carteira é simulada e que o comprovante não tem valor fiscal. Sem mudança nas
+regras: tudo vem do recibo que o totem já grava e que ninguém altera.
+
+## Painel da rede do administrador (09/10/2026)
+
+A conta `admin` deixou de ver só a lista de estacionamentos e passou a ter o
+painel da rede inteira, no mesmo `/dashboard`:
+
+- **Período** (hoje, 7 dias, 30 dias, tudo) para o recebido na rede, o que
+  ficou a receber, estadias, ticket médio e permanência média; ao lado, a
+  ocupação agora, quantos totens estão online, quantos estacionamentos estão
+  publicados e o horário de pico. O gráfico mostra a receita por dia.
+- **Cada estacionamento** mostra recebido e estadias do período, ocupação
+  agora, tarifa e a situação do totem pelo último sinal gravado no
+  estacionamento (online, offline, nunca conectou ou sem totem). "Gerenciar
+  totens" abre ali mesmo a lista do Perfil do dono: bloquear, reativar e gerar
+  acesso novo (`components/GerenciarTotens.jsx`, usado nos dois lugares).
+- **Movimentações da rede:** filtro por estacionamento e por placa, dez linhas
+  e "Ver mais"; o CSV leva todas as do filtro, com a coluna do estacionamento.
+- Os cálculos do período ficaram em `utils/relatorios.js` e o gráfico em
+  `components/GraficoReceita.jsx`, compartilhados com o painel do operador.
+- **Sem mudança nas regras:** o administrador já lia `historico`, `totems` e
+  as vagas de todos os estacionamentos. Basta publicar o site.
+
+## Saldo protegido e extrato da carteira (09/10/2026)
+
+Achado na revisão geral de 08/10/2026: a regra do Firestore deixava o dono da
+placa gravar qualquer `saldo` no próprio veículo. No emulador passaram saldo
+de 1.000.000, texto no lugar do número, dívida zerada e saldo de -500.
+
+- **O saldo só sobe com registro.** A recarga simulada grava, no mesmo lote, o
+  crédito (`increment`) e um documento em `veiculos/{placa}/recargas/{id}` com
+  `valor`, `forma` (`pix` ou `cartao`), `uid` e `criadaEm` (hora do servidor).
+  As regras conferem um contra o outro: o registro é novo, o veículo aponta
+  para ele em `ultimaRecarga` e o saldo sobe exatamente o valor dele, de
+  R$ 0,01 a R$ 1.000, em centavos. Ninguém altera nem apaga um registro. O
+  totem continua só debitando junto com o recibo da saída, e painel e totem
+  criam o veículo com saldo 0.
+- **Extrato no Perfil** (`components/ExtratoCarteira.jsx`): recargas como
+  crédito e estadias encerradas como débito, da mais recente para a mais
+  antiga, com a parte não coberta pelo saldo. Só quem recarregou lê o registro
+  (nem o estacionamento, nem o totem, nem o administrador). As recargas
+  anteriores a esta versão não têm registro: quando o saldo passa da soma do
+  extrato, ele avisa que essas recargas não aparecem.
+- **Tela de recarga:** o valor digitado segue o formato brasileiro ("1.000" é
+  mil reais, não um; mais de dois centavos é recusado) e o "Novo saldo" do fim
+  deixou de somar a recarga duas vezes.
+- **Publicação: regras e site juntos, regras primeiro.** O site antigo não
+  recarrega com as regras novas, e o novo não recarrega com as antigas (nelas
+  a subcoleção `recargas` não existe). O firmware não muda: já cria o veículo
+  com saldo 0 e só debita.
 
 ## Wi-Fi na tela do totem (07/10/2026)
 
@@ -397,8 +663,9 @@ não apagar dados para resolver inconsistências. Calibrar com o display montado
 
 Depois da validação do totem: evoluir o site e criar a maquete virtual para
 visualizar os registros, sem redefinir cobrança nem simular sensores como
-dados reais. Web/public/totem.html permanece legado, fora desta entrega; os
-textos de sensores do site foram removidos em 02/10/2026.
+dados reais. Web/public/totem.html permanece legado, fora desta entrega
+(removido em 09/10/2026); os textos de sensores do site foram removidos em
+02/10/2026.
 
 ---
 
@@ -454,7 +721,8 @@ flash criptografada nem proteção antiesmagamento no servo de demonstração.
 Não apresentar o protótipo como controlador certificado de barreira real.
 
 O simulador `Web/public/totem.html` permaneceu sem alterações e ainda reflete
-o teclado antigo. O checklist físico completo está em `Main/README.md`.
+o teclado antigo (removido em 09/10/2026). O checklist físico completo está
+em `Main/README.md`.
 
 ---
 
@@ -472,10 +740,11 @@ npm run dev               # http://localhost:5173
 Sem o `.env` o site abre mas login e dados não funcionam — ele não está no
 Git de propósito.
 
-Existe um simulador **legado** em `/totem.html`, com teclado antigo. Para
-inspecionar o firmware atual, usar firmware/test/ui_totem.test.cpp e preview.mjs,
-conforme firmware/README.md. Nenhum deles é a maquete virtual, que fica no
-painel do administrador.
+Para ver as telas do firmware atual no computador, usar
+firmware/test/ui_totem.test.cpp e preview.mjs, conforme firmware/README.md.
+Para o sistema inteiro sem internet, com o totem simulado no terminal, usar
+`npm run apresentacao` em `e2e/` (ver `docs/apresentacao.md`). Nenhum deles é
+a maquete virtual, que fica no painel do administrador.
 
 ### Firmware
 
@@ -488,6 +757,32 @@ em branco: sem rede alguma, o totem abre a configuração na própria tela.
 
 Precisa de Wi-Fi **2,4 GHz** — o ESP32 não enxerga 5 GHz. Abrir `firmware/totem/totem.ino`
 na Arduino IDE e gravar.
+
+### Testes
+
+Cada bloco parte da raiz do repositório.
+
+```bash
+cd web
+npm test                  # contas do site e contratos
+```
+
+```bash
+cd firebase/test
+npm ci
+npm test                  # regras no emulador (precisa do Java 21)
+```
+
+```bash
+cd e2e                    # depois do npm install em web/
+npm ci
+npx playwright install chromium
+npm test                  # fluxo completo no computador e no celular (Java 21)
+```
+
+Os testes do totem no PC estão em `firmware/README.md`. O CI também abre a
+demonstração sem internet e passa alguns comandos pelo totem simulado. Nenhum
+usa o Firebase de produção.
 
 ---
 
@@ -626,6 +921,32 @@ na Arduino IDE e gravar.
    testar no hardware. O firmware antigo continua aceito pelas regras novas, e
    o novo só copia o que as regras deixaram gravar.
 
+9. **Saldo protegido e extrato (09/10/2026, PR próprio).** Publicar as regras
+   e logo em seguida o site: entre uma coisa e outra, a recarga falha (o saldo
+   não muda). Depois, fazer uma recarga e conferir o extrato no Perfil.
+
+10. **App instalável (09/10/2026, PR próprio).** Depois de publicar o site,
+    instalar no celular (Android: menu e "Instalar o app"; iPhone: Compartilhar
+    e "Adicionar à Tela de Início"), abrir pelo ícone e ligar o modo avião para
+    ver a página sem internet. O pedido de instalação do navegador só foi
+    simulado nos testes locais.
+
+11. **Privacidade e LGPD (09/10/2026, PR próprio).** Publicar as regras e o
+    índice (`firebase deploy --only firestore`) e depois o site. Para conferir:
+    criar uma conta de teste, cadastrar uma placa, baixar os dados, excluir a
+    conta e cadastrar a mesma placa com outra conta, que não deve ver as
+    estadias anteriores.
+
+12. **Testes automáticos (09/10/2026, PR próprio).** Rodam sozinhos em cada
+    PR. Para publicar, só o site, que leva a correção do aviso vermelho falso
+    logo depois do cadastro. Regras e firmware não mudam.
+
+13. **Roteiro da apresentação (09/10/2026, PR próprio).** Seguir "Antes do
+    dia" em `docs/apresentacao.md`. Para publicar, só o site, que tira do ar
+    o simulador antigo em `/totem.html`. Preparar a demonstração sem internet
+    no notebook da apresentação (Node 22, Java 21 e `npm ci` em `web/` e
+    `e2e/`, com internet) e abri-la uma vez antes do dia.
+
 ---
 
 ## Decisões já tomadas (não refazer sem motivo)
@@ -720,6 +1041,12 @@ minuto (R$ 0,22) e cobra o restante ao encerrar; “Pagar depois” não descont
 início e cobra o total no fim. Todo minuto iniciado é cobrado, sem o motorista
 informar previamente a duração. Não apresentar esse fluxo como pagamento real.
 
+**Excluir a conta não apaga as estadias (09/10/2026).** Elas são o registro
+de entradas, saídas e faturamento do estacionamento e ficam só com a placa,
+sem nome, e-mail ou celular. O que é só da pessoa (perfil, extrato, reserva,
+modelo, cor e vaga especial) é apagado. Só o motorista se exclui pelo site;
+dono de estacionamento e administrador são encerrados pela administração.
+
 **Modelo e cor vêm do cadastro do motorista, não de consulta pela placa
 (08/10/2026).** Não há consulta oficial gratuita (a do SINESP saiu do ar e a
 Senatran só mostra os veículos da própria conta); as APIs pagas cobram de R$ 4
@@ -750,6 +1077,35 @@ borda da tela, e um texto mais largo que ela parecia caber.
 leva texto escuro por cima; `--accent-text` pinta texto sobre fundo claro.
 Usar o mesmo tom nos dois reprova em um dos casos.
 
+**Texto sobre verde e vermelho cheios** usa `--success-contrast` e
+`--danger-contrast`, nunca `#fff` fixo: no tema escuro esses tons são claros e
+o branco fica em 2:1 e 3,2:1. No claro, verde, vermelho e âmbar de texto
+passam em 4,5:1 também sobre os próprios fundos suaves.
+
+**Saldo não se grava direto.** Qualquer crédito novo precisa do registro em
+`veiculos/{placa}/recargas` no mesmo lote, como faz `adicionarSaldo`
+(`services/veiculos.js`); um `updateDoc` com `saldo` é recusado pelas regras.
+
+**Regra que existe em três lugares muda nos três, e em `contratos/`.** A
+conta da estadia, a tabela das vagas especiais e o formato da placa estão no
+site, no firmware e nas regras. Mudar só um deles faz o CI falhar; mude o CSV
+de `contratos/` e as três implementações no mesmo PR.
+
+**O perfil pode chegar "inexistente" logo depois do cadastro.** Uma leitura
+atrasada do servidor ainda diz que `users/{uid}` não existe. Nada que grave
+o perfil pode confiar só nesse aviso: o auto-reparo confere numa transação.
+
+**O totem simulado repete o firmware.** O teste do fluxo completo e a
+demonstração sem internet usam `e2e/patio.js`, que faz as mesmas leituras e
+gravações de `firmware/totem/Atendimento.cpp`. Ao mudar o que o totem lê ou
+grava, mude o `patio.js` no mesmo PR: as regras recusam só parte das
+diferenças, e o resto passaria sem ninguém notar.
+
+**Estadias de uma placa se consultam com o limite.** Use
+`consultaHistoricoDaPlaca(placa, inicioDoHistorico(veiculo))`
+(`services/historico.js`). Uma consulta só pela placa é recusada pelas regras
+quando a placa foi liberada por uma exclusão de conta.
+
 **Firebase App Check** precisa continuar em "Monitorando" (não forçado), senão
 bloqueia tanto o site quanto o ESP32.
 
@@ -767,6 +1123,13 @@ uma placa nova continua no Firebase já implantado.
 **`getComputedStyle` devolve valor em cache** logo após trocar o atributo do
 tema. Para auditar contraste, force um repaint antes de medir — sem isso o
 resultado é falso.
+
+**Service worker só no site publicado.** `registrarServiceWorker` (`src/pwa.js`)
+não roda no `npm run dev`; para testar, use `npm run build` e `npm run preview`.
+Ao mudar `public/offline.html`, troque `VERSAO` em `public/sw.js`, senão o
+celular continua com a página guardada antes. O service worker não deve passar
+a guardar arquivos de tela nem respostas do Firebase: o site conta com cada
+publicação chegando na hora.
 
 **Vite pode servir arquivo vazio** depois de certas edições. Se um componente
 sumir sem erro no console, limpe `node_modules/.vite` e reinicie.

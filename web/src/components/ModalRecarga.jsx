@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
-import { adicionarSaldo } from "../services/veiculos";
-import { formatarMoeda } from "../utils/format";
+import { adicionarSaldo, RECARGA_MAXIMA, RECARGA_MINIMA } from "../services/veiculos";
+import { formatarMoeda, lerValorEmReais } from "../utils/format";
 import { useFocoNoModal } from "../hooks/useFocoNoModal";
 import "./ModalRecarga.css";
 
@@ -30,8 +30,9 @@ function IconeCartao() {
 // Fluxo de recarga em 3 etapas: valor → pagamento → confirmação.
 // ATENÇÃO (TCC): não há cobrança real. O "pagamento" é simulado e o saldo
 // é creditado direto no Firestore ao final — o objetivo é demonstrar a
-// experiência completa, não integrar um gateway.
-export default function ModalRecarga({ placa, saldoAtual, aoFechar, aoConcluir }) {
+// experiência completa, não integrar um gateway. Cada recarga fica no
+// extrato da carteira, no Perfil.
+export default function ModalRecarga({ uid, placa, saldoAtual, aoFechar, aoConcluir }) {
   const [etapa, setEtapa] = useState("valor"); // valor | pagamento | processando | ok
   const [valor, setValor] = useState(25);
   const [valorLivre, setValorLivre] = useState("");
@@ -61,8 +62,9 @@ export default function ModalRecarga({ placa, saldoAtual, aoFechar, aoConcluir }
     return () => window.removeEventListener("keydown", onKey);
   }, [fechar, etapa]);
 
-  const valorFinal = valorLivre ? Number(valorLivre.replace(",", ".")) : valor;
-  const valorValido = valorFinal > 0 && valorFinal <= 1000;
+  const valorFinal = valorLivre ? lerValorEmReais(valorLivre) : valor;
+  const valorValido =
+    Number.isFinite(valorFinal) && valorFinal >= RECARGA_MINIMA && valorFinal <= RECARGA_MAXIMA;
   const valorParaQr = Number.isFinite(valorFinal) ? valorFinal.toFixed(2) : "0.00";
   const codigoDemonstracao = `PARAAI|RECARGA_SIMULADA|PLACA=${placa}|VALOR=${valorParaQr}`;
 
@@ -97,7 +99,7 @@ export default function ModalRecarga({ placa, saldoAtual, aoFechar, aoConcluir }
     try {
       // simula o tempo de processamento de um gateway real
       await new Promise((r) => setTimeout(r, 1800));
-      await adicionarSaldo(placa, valorFinal);
+      await adicionarSaldo({ uid, placa, valor: valorFinal, forma: metodo });
       setEtapa("ok");
       aoConcluir?.(valorFinal);
     } catch (err) {
@@ -197,15 +199,20 @@ export default function ModalRecarga({ placa, saldoAtual, aoFechar, aoConcluir }
                 id="valorLivre"
                 type="text"
                 inputMode="decimal"
+                maxLength={10}
                 value={valorLivre}
                 onChange={(e) =>
                   setValorLivre(e.target.value.replace(/[^0-9,.]/g, ""))
                 }
                 placeholder="Ex.: 35,00"
+                aria-invalid={Boolean(valorLivre) && !valorValido}
+                aria-describedby={valorLivre && !valorValido ? "valorLivreErro" : undefined}
               />
               {valorLivre && !valorValido && (
-                <span className="field-hint erro">
-                  Informe um valor entre R$ 0,01 e R$ 1.000,00
+                <span className="field-hint erro" id="valorLivreErro">
+                  {Number.isFinite(valorFinal)
+                    ? "Informe um valor entre R$ 0,01 e R$ 1.000,00."
+                    : "Digite o valor em reais, com até dois centavos. Ex.: 35,50"}
                 </span>
               )}
             </div>
@@ -341,7 +348,7 @@ export default function ModalRecarga({ placa, saldoAtual, aoFechar, aoConcluir }
                 +{formatarMoeda(valorFinal)}
               </strong>
               <br />
-              Novo saldo: {formatarMoeda((Number(saldoAtual) || 0) + valorFinal)}
+              Novo saldo: {formatarMoeda(saldoAtual)}
             </p>
             <button className="btn btn-primary btn-block" onClick={fechar}>
               Concluir

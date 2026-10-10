@@ -125,7 +125,7 @@
 @media (hover: hover) {
   .monitor-vaga:hover:not(:disabled) { transform: translateY(-3px); } 
 }
-.monitor-vaga:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.monitor-vaga:focus-visible { outline: 3px solid var(--accent-text); outline-offset: 2px; }
 .monitor-vaga.selecionada { box-shadow: 0 0 0 3px var(--accent-soft); }
 .monitor-vaga.ocupada { border-color: color-mix(in srgb, var(--danger) 70%, var(--border)); background: color-mix(in srgb, var(--danger) 10%, var(--bg-solid)); }
 .monitor-fileira.inferior .monitor-vaga.ocupada { border-bottom-color: var(--danger); }
@@ -265,7 +265,6 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--tipo-cor) 18%, transparent);
 }
 .monitor-tipos-grid input { width: 15px; height: 15px; margin: 0; accent-color: var(--tipo-cor); }
-.monitor-tipos-grid span { font-size: var(--t-legenda); font-weight: 900; }
 .monitor-tipos-grid strong { min-width: 0; font-size: var(--t-legenda); }
 .monitor-tipo-editor > p { color: var(--text-muted); font-size: var(--t-legenda); line-height: 1.45; }
 .monitor-tipo-editor > .error-text { color: var(--danger); }
@@ -289,8 +288,9 @@
 @media (hover: hover) {
   .monitor-veiculos-lista button:hover { border-color: var(--accent); } 
 }
-.monitor-veiculos-lista button > span:not(.placa-tag) { color: var(--text-muted); font-size: var(--t-legenda); }
+.monitor-veiculos-lista button > span:not(.placa-tag, .status-pill) { color: var(--text-muted); font-size: var(--t-legenda); }
 .monitor-veiculos-lista button > b { color: var(--accent-text); font-size: var(--t-legenda); text-align: right; }
+.monitor-veiculos-lista .monitor-sem-placa { justify-self: end; }
 
 @media (max-width: 980px) {
   .monitor-resumo { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -310,6 +310,9 @@
 }
 
 @media (max-width: 480px) {
+  /* "Reservadas" não cabe num quarto da largura do celular e ficava cortada
+     numa rolagem escondida: os quatro filtros vão em duas linhas. */
+  .monitor-controles .segmented { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .monitor-resumo { grid-template-columns: 1fr 1fr; gap: 0.65rem; }
   .monitor-kpi { padding: 0.9rem; }
   .monitor-kpi strong { font-size: var(--t-titulo-g); }

@@ -14,7 +14,7 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
-import { db, firebaseConfig } from "../firebase/firebaseConfig";
+import { db, firebaseConfig, ligarAuthAoEmulador } from "../firebase/firebaseConfig";
 
 function bytesAleatorios(tamanho) {
   const bytes = new Uint8Array(tamanho);
@@ -55,7 +55,7 @@ export async function criarCredencialTotem({ estId, nome = "Totem principal" }) 
     firebaseConfig,
     `provisionar-totem-${Date.now()}-${bytesAleatorios(2)}`
   );
-  const authTemporario = getAuth(appTemporario);
+  const authTemporario = ligarAuthAoEmulador(getAuth(appTemporario));
   let conta;
 
   try {

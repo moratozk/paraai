@@ -1,0 +1,131 @@
+/* ==========================================================================
+   POLÍTICA DE PRIVACIDADE (pages/Privacidade.jsx)
+   Texto longo: coluna de leitura estreita, um cartão por assunto.
+   ========================================================================== */
+/* No computador, o resumo e o índice ficam ao lado do texto, e o índice
+   acompanha a rolagem. No celular e no tablet, só o resumo, antes do texto. */
+.privacidade-grade {
+  display: grid;
+  gap: var(--gap);
+  align-items: start;
+}
+.privacidade-lado,
+.privacidade-texto {
+  display: grid;
+  gap: var(--gap);
+  max-width: 46rem;
+}
+.privacidade-lado { align-content: start; }
+.privacidade-indice { display: none; }
+@media (min-width: 1041px) {
+  .privacidade-grade { grid-template-columns: minmax(0, 46rem) minmax(16rem, 1fr); }
+  .privacidade-texto { grid-column: 1; grid-row: 1; }
+  .privacidade-lado { grid-column: 2; grid-row: 1; align-self: stretch; }
+  .privacidade-indice { display: block; position: sticky; top: 88px; }
+}
+
+.privacidade-indice ol { display: grid; gap: 0.1rem; padding: 0; list-style: none; }
+.privacidade-indice a {
+  display: flex;
+  align-items: center;
+  min-height: 2.25rem;
+  color: var(--text-secondary);
+  font-size: var(--t-apoio);
+  transition: color var(--dur-rapida);
+}
+@media (hover: hover) {
+  .privacidade-indice a:hover { color: var(--accent-text); }
+}
+@media (pointer: coarse) {
+  .privacidade-indice a { min-height: 44px; }
+}
+/* O link do índice para a seção abaixo da barra fixa do topo. */
+.privacidade-texto > section { scroll-margin-top: 88px; }
+
+.privacidade-grade .card > h2 { margin-bottom: var(--esp-3); }
+
+.privacidade-texto p,
+.privacidade-lista li {
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+.privacidade-texto p + p { margin-top: var(--esp-3); }
+
+.privacidade-lista {
+  display: grid;
+  gap: var(--esp-3);
+  padding-left: 1.2rem;
+}
+.privacidade-lista li::marker { color: var(--accent-text); }
+.privacidade-lista strong { color: var(--text-primary); }
+.privacidade-lista + .btn { margin-top: var(--esp-5); }
+
+/* Dados, finalidade e quem vê: três colunas no computador; no celular, um
+   bloco por dado, com o rótulo de cada coluna na frente do texto. */
+.privacidade-tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--t-apoio);
+  margin-bottom: var(--esp-4);
+}
+.privacidade-tabela th,
+.privacidade-tabela td {
+  padding: 0.75rem 1rem 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.5;
+}
+.privacidade-tabela thead th {
+  padding-top: 0;
+  font-family: var(--font-mono);
+  font-size: var(--t-legenda);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.privacidade-tabela tbody th {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+@media (min-width: 621px) {
+  .privacidade-tabela tbody th { width: 26%; }
+}
+.privacidade-tabela td { color: var(--text-secondary); }
+
+@media (max-width: 620px) {
+  .privacidade-tabela thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .privacidade-tabela,
+  .privacidade-tabela tbody,
+  .privacidade-tabela tr,
+  .privacidade-tabela th,
+  .privacidade-tabela td {
+    display: block;
+    width: 100%;
+  }
+  .privacidade-tabela tr {
+    display: grid;
+    gap: var(--esp-2);
+    padding: var(--esp-4) 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .privacidade-tabela tr:first-child { padding-top: 0; }
+  .privacidade-tabela th,
+  .privacidade-tabela td {
+    padding: 0;
+    border: 0;
+  }
+  .privacidade-tabela td::before {
+    content: attr(data-rotulo) ": ";
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+}

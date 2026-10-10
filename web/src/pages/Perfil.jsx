@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useVeiculo, useEstacionamento } from "../hooks/useParkingData";
@@ -19,13 +19,11 @@ import {
   marcaEModelo,
 } from "../utils/veiculo";
 import { criarEstacionamento } from "../services/estacionamentos";
-import {
-  criarCredencialTotem,
-  definirTotemAtivo,
-  observarTotems,
-} from "../services/totems";
+import { observarTotems } from "../services/totems";
+import GerenciarTotens from "../components/GerenciarTotens";
 import { buscarCep, cepCompleto, formatarCep } from "../services/cep";
 import ModalRecarga from "../components/ModalRecarga";
+import ExtratoCarteira from "../components/ExtratoCarteira";
 import { normalizarPlaca, placaValida, formatarMoeda } from "../utils/format";
 import "./Pages.css";
 
@@ -70,6 +68,10 @@ export default function Perfil() {
   const [declarouDireito, setDeclarouDireito] = useState(false);
   const [salvandoDireito, setSalvandoDireito] = useState(false);
   const [mensagem, setMensagem] = useState(null); // { tipo: "erro"|"ok", texto }
+  // Erro da placa embaixo do campo: no topo do cartão ficava fora da tela no
+  // celular, e a pessoa não via por que o cadastro não andou.
+  const [erroPlaca, setErroPlaca] = useState("");
+  const campoPlacaRef = useRef(null);
   const [processando, setProcessando] = useState(false);
 
   // Modal de recarga (fluxo PIX/cartão simulado)
@@ -86,11 +88,9 @@ export default function Perfil() {
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [erroCep, setErroCep] = useState("");
 
-  // Equipamentos vinculados ao estacionamento. A senha de uma credencial
-  // nova fica apenas em memória e é mostrada uma única vez ao operador.
+  // Equipamentos vinculados ao estacionamento (a gestão fica em
+  // GerenciarTotens, que o painel da rede também usa).
   const [totemState, setTotemState] = useState({ estId: null, itens: [] });
-  const [gerandoTotem, setGerandoTotem] = useState(false);
-  const [credencialTotem, setCredencialTotem] = useState(null);
   const [erroTotem, setErroTotem] = useState("");
 
   useEffect(() => {
@@ -105,7 +105,7 @@ export default function Perfil() {
       },
       (erro) => {
         console.error("Falha ao carregar totens:", erro);
-        setErroTotem("Não foi possível consultar os equipamentos vinculados.");
+        setErroTotem("Não foi possível consultar os totens.");
         setTotemState({ estId, itens: [] });
       }
     );
@@ -113,48 +113,6 @@ export default function Perfil() {
 
   const totems = totemState.estId === estId ? totemState.itens : [];
   const carregandoTotems = Boolean(estId) && totemState.estId !== estId;
-
-  async function handleGerarTotem() {
-    setErroTotem("");
-    setCredencialTotem(null);
-    setGerandoTotem(true);
-    try {
-      const credencial = await criarCredencialTotem({ estId });
-      setCredencialTotem(credencial);
-      toast.sucesso("Acesso seguro do totem criado.");
-    } catch (erro) {
-      console.error("Falha ao criar credencial do totem:", erro);
-      setErroTotem(
-        erro?.code === "auth/operation-not-allowed"
-          ? "Ative o provedor E-mail/senha no Firebase Authentication."
-          : "Não foi possível criar o acesso do totem. Tente novamente."
-      );
-    } finally {
-      setGerandoTotem(false);
-    }
-  }
-
-  async function handleAlternarTotem(totem) {
-    setErroTotem("");
-    try {
-      await definirTotemAtivo(totem.id, !totem.ativo);
-      toast.sucesso(totem.ativo ? "Totem bloqueado." : "Totem reativado.");
-    } catch (erro) {
-      console.error("Falha ao alterar o totem:", erro);
-      setErroTotem("Não foi possível alterar o equipamento.");
-    }
-  }
-
-  async function copiarCredencialTotem() {
-    if (!credencialTotem) return;
-    const texto = [
-      `#define TOTEM_EMAIL "${credencialTotem.email}"`,
-      `#define TOTEM_PASSWORD "${credencialTotem.senha}"`,
-      `#define ESTACIONAMENTO_ID "${estId}"`,
-    ].join("\n");
-    await navigator.clipboard.writeText(texto);
-    toast.sucesso("Credenciais copiadas.");
-  }
 
   async function handleCepChange(valor) {
     setEstCep(formatarCep(valor));
@@ -246,17 +204,21 @@ export default function Perfil() {
     }
   }
 
+  function mostrarErroPlaca(texto) {
+    setErroPlaca(texto);
+    campoPlacaRef.current?.focus();
+  }
+
   async function handleCadastrarPlaca(e) {
     e.preventDefault();
     setMensagem(null);
+    setErroPlaca("");
 
     const placaNova = normalizarPlaca(placaInput);
     if (!placaValida(placaNova)) {
-      setMensagem({
-        tipo: "erro",
-        texto:
-          "Placa inválida. Aceitamos o padrão antigo (ABC1234) e o Mercosul (ABC1D23).",
-      });
+      mostrarErroPlaca(
+        "Placa inválida. Aceitamos o padrão antigo (ABC1234) e o Mercosul (ABC1D23)."
+      );
       return;
     }
 
@@ -282,10 +244,7 @@ export default function Perfil() {
       }
       setDescricaoNova(DESCRICAO_VAZIA);
     } catch (err) {
-      setMensagem({
-        tipo: "erro",
-        texto: err.message || "Erro ao cadastrar o veículo. Tente novamente.",
-      });
+      mostrarErroPlaca(err.message || "Erro ao cadastrar o veículo. Tente novamente.");
     } finally {
       setProcessando(false);
     }
@@ -355,6 +314,12 @@ export default function Perfil() {
                   ? "Dono de estacionamento"
                   : "Motorista"}
             </span>
+          </div>
+          <div className="info-row">
+            <span className="label">Privacidade</span>
+            <Link to="/configuracoes?aba=privacidade" className="field-link">
+              {role === "motorista" ? "Baixar ou excluir dados" : "Baixar seus dados"}
+            </Link>
           </div>
         </div>
       </div>
@@ -427,81 +392,20 @@ export default function Perfil() {
                 <code className="est-id">{estId}</code>
               </div>
               <p className="muted-note">
-                Este ID identifica o pátio. Gere abaixo um acesso seguro para
-                cada equipamento e copie e-mail, senha e ID para o arquivo{" "}
-                <code>Credenciais.h</code>. Tarifa e vagas são sincronizadas
-                automaticamente com o painel.
+                Este ID identifica o estacionamento. Gere abaixo um acesso para
+                cada totem e entregue o e-mail, a senha e o ID a quem for
+                instalá-lo. Tarifa e vagas chegam ao totem automaticamente.
               </p>
             </>
           )}
         </div>
         <div className="card totem-security-card">
-          <div className="card-head-row">
-            <div>
-              <h2>Segurança do totem</h2>
-              <p className="muted-note" style={{ margin: 0 }}>
-                Cada equipamento usa um acesso exclusivo e pode ser bloqueado
-                sem afetar sua conta de operador.
-              </p>
-            </div>
-            <span className={`status-pill ${totems.some((item) => item.ativo) ? "success" : "warning"}`}>
-              {totems.filter((item) => item.ativo).length} ativo(s)
-            </span>
-          </div>
-
-          {erroTotem && <p className="error-text">{erroTotem}</p>}
-
-          {credencialTotem && (
-            <div className="totem-credential" role="status">
-              <strong>Copie agora — a senha não será exibida novamente</strong>
-              <div className="totem-credential-row">
-                <span>E-mail do dispositivo</span>
-                <code>{credencialTotem.email}</code>
-              </div>
-              <div className="totem-credential-row">
-                <span>Senha do dispositivo</span>
-                <code>{credencialTotem.senha}</code>
-              </div>
-              <button type="button" className="btn btn-outline btn-sm" onClick={copiarCredencialTotem}>
-                Copiar configuração
-              </button>
-            </div>
-          )}
-
-          {carregandoTotems ? (
-            <p className="empty-state">Consultando equipamentos...</p>
-          ) : totems.length === 0 ? (
-            <p className="empty-state">
-              Nenhum equipamento seguro foi vinculado ainda.
-            </p>
-          ) : (
-            <div className="totem-list">
-              {totems.map((totem) => (
-                <div className="totem-list-item" key={totem.id}>
-                  <div>
-                    <strong>{totem.nome || "Totem"}</strong>
-                    <span>{totem.email}</span>
-                  </div>
-                  <button
-                    type="button"
-                    className={`btn btn-sm ${totem.ativo ? "btn-ghost" : "btn-outline"}`}
-                    onClick={() => handleAlternarTotem(totem)}
-                  >
-                    {totem.ativo ? "Bloquear" : "Reativar"}
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={handleGerarTotem}
-            disabled={gerandoTotem}
-          >
-            {gerandoTotem ? "Gerando acesso..." : "Gerar novo acesso de totem"}
-          </button>
+          <GerenciarTotens
+            estId={estId}
+            totens={totems}
+            carregando={carregandoTotems}
+            erroLista={erroTotem}
+          />
         </div>
         </>
         ) : null
@@ -528,14 +432,25 @@ export default function Perfil() {
                   <label htmlFor="placa">Placa do veículo</label>
                   <input
                     id="placa"
+                    ref={campoPlacaRef}
                     className="campo-placa"
                     type="text"
                     value={placaInput}
-                    onChange={(e) => setPlacaInput(normalizarPlaca(e.target.value))}
+                    onChange={(e) => {
+                      setPlacaInput(normalizarPlaca(e.target.value));
+                      setErroPlaca("");
+                    }}
                     placeholder="ABC1234 ou ABC1D23"
                     maxLength={7}
                     autoComplete="off"
+                    aria-invalid={erroPlaca ? "true" : undefined}
+                    aria-describedby={erroPlaca ? "placa-erro" : undefined}
                   />
+                  {erroPlaca && (
+                    <span className="field-hint erro" id="placa-erro">
+                      {erroPlaca}
+                    </span>
+                  )}
                 </div>
                 <p className="placa-form-extra">
                   Modelo e cor são opcionais. Com eles, o totem mostra o seu
@@ -597,6 +512,8 @@ export default function Perfil() {
             </>
           )}
         </div>
+
+        {placa && <ExtratoCarteira uid={user?.uid} placa={placa} saldo={veiculo?.saldo} />}
 
         {placa && (
           <div className="card vehicle-card">
@@ -820,6 +737,7 @@ export default function Perfil() {
 
       {recargaAberta && placa && (
         <ModalRecarga
+          uid={user?.uid}
           placa={placa}
           saldoAtual={veiculo?.saldo}
           aoFechar={() => setRecargaAberta(false)}

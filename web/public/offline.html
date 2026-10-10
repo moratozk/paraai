@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0a0c11" />
+    <title>Sem conexão · ParaAí</title>
+    <!-- Página que o service worker (sw.js) mostra quando o celular está sem
+         internet. Fica guardada no aparelho, então não pode depender de nada
+         de fora: estilo aqui mesmo, fonte do sistema e a logo que o sw.js
+         também guarda. As cores são as do site, no tema escolhido. -->
+    <script>
+      try {
+        if (localStorage.getItem("para-ai-theme") === "light") {
+          document.documentElement.setAttribute("data-theme", "light");
+          document.querySelector('meta[name="theme-color"]').setAttribute("content", "#e9e7e3");
+        }
+      } catch {
+        // Sem armazenamento, fica o tema escuro, que é o padrão do site.
+      }
+    </script>
+    <style>
+      :root {
+        color-scheme: dark;
+        --fundo: #0a0c11;
+        --cartao: #161a22;
+        --borda: #262c37;
+        --texto: #f4f6f9;
+        --apoio: #a5adbb;
+        --ambar: #ffc300;
+        --ambar-forte: #ffd23f;
+        --ambar-texto: #ffc300;
+        --tinta-ambar: #0a0c11;
+      }
+      [data-theme="light"] {
+        color-scheme: light;
+        --fundo: #e9e7e3;
+        --cartao: #f7f6f4;
+        --borda: #d5d0c9;
+        --texto: #22252b;
+        --apoio: #525864;
+        --ambar: #d9a300;
+        --ambar-forte: #c99700;
+        --ambar-texto: #735100;
+        --tinta-ambar: #0a0c11;
+      }
+      *, *::before, *::after { box-sizing: border-box; }
+      * { margin: 0; }
+      body {
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+        min-height: 100dvh;
+        padding: 24px 16px;
+        background: var(--fundo);
+        color: var(--texto);
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        font-size: 1rem;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+        -webkit-text-size-adjust: 100%;
+      }
+      main {
+        width: 100%;
+        max-width: 420px;
+        padding: 32px 24px;
+        border: 1px solid var(--borda);
+        border-radius: 16px;
+        background: var(--cartao);
+        text-align: center;
+      }
+      img { display: block; margin: 0 auto 20px; }
+      h1 { margin-bottom: 12px; font-size: 1.5rem; line-height: 1.25; text-wrap: balance; }
+      p { color: var(--apoio); text-wrap: pretty; }
+      button {
+        width: 100%;
+        min-height: 48px;
+        margin-top: 24px;
+        padding: 12px 20px;
+        border: 1.5px solid var(--ambar);
+        border-radius: 12px;
+        background: var(--ambar);
+        color: var(--tinta-ambar);
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      button:disabled { cursor: progress; opacity: 0.75; }
+      @media (hover: hover) {
+        button:hover:not(:disabled) { background: var(--ambar-forte); border-color: var(--ambar-forte); }
+      }
+      button:focus-visible { outline: 3px solid var(--ambar-texto); outline-offset: 3px; }
+      .nota { margin-top: 16px; font-size: 0.875rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/logo-192.png" width="64" height="64" alt="ParaAí" />
+      <h1>Sem conexão com a internet</h1>
+      <p>
+        O ParaAí precisa de internet para mostrar vagas, saldo e estadias ao vivo.
+        Quando o sinal voltar, a página abre sozinha.
+      </p>
+      <button type="button" id="tentar">Tentar de novo</button>
+      <p class="nota">No estacionamento, a entrada e a saída pelo totem não dependem do seu celular.</p>
+    </main>
+    <script>
+      // Esta página ocupa o endereço que a pessoa abriu (o painel, o
+      // histórico...), então recarregar leva direto para lá.
+      const botao = document.getElementById("tentar");
+      botao.addEventListener("click", () => {
+        botao.disabled = true;
+        botao.textContent = "Tentando…";
+        location.reload();
+      });
+      window.addEventListener("online", () => location.reload());
+    </script>
+  </body>
+</html>

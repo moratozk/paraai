@@ -17,9 +17,19 @@ import {
   valorPendente,
 } from "../utils/format";
 import { VALOR_POR_HORA } from "../utils/constants";
+import { valorDaEstadia } from "../utils/cobranca";
 import { cancelarReserva, reservaAtiva } from "../services/reservas";
 import { descreverVeiculo } from "../utils/veiculo";
+import ComprovanteEstadia from "../components/ComprovanteEstadia";
 import "./Pages.css";
+
+function IconeAbrir() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  );
+}
 
 export default function PainelMotorista() {
   const { user, userData } = useAuth();
@@ -31,6 +41,7 @@ export default function PainelMotorista() {
   const { historico } = useHistoricoPlaca(placa);
   const { reserva } = useReserva(user?.uid);
   const [cancelandoReserva, setCancelandoReserva] = useState(false);
+  const [comprovante, setComprovante] = useState(null);
 
   const estacionado = Number(veiculo?.vagaAtual) > 0;
   const horaEntrada = Number(veiculo?.horaEntrada) || 0;
@@ -63,13 +74,14 @@ export default function PainelMotorista() {
 
   const segundosEstacionado =
     estacionado && horaEntrada > 0 ? Math.max(0, agora - horaEntrada) : 0;
-  const custoEstimado = (segundosEstacionado / 3600) * tarifaAtual;
+  // A mesma conta do totem na saída, arredondada ao centavo.
+  const custoEstimado = valorDaEstadia(segundosEstacionado, tarifaAtual);
 
   const ultimosAcessos = historico.slice(0, 5);
   // O motorista vê o nome do estacionamento, nunca o identificador interno.
   const { estacionamentos } = useCatalogoEstacionamentos();
-  const nomesPorEstacionamento = useMemo(
-    () => Object.fromEntries(estacionamentos.map((item) => [item.id, item.nome])),
+  const estacionamentosPorId = useMemo(
+    () => Object.fromEntries(estacionamentos.map((item) => [item.id, item])),
     [estacionamentos]
   );
   const totalGasto = historico.reduce(
@@ -80,8 +92,36 @@ export default function PainelMotorista() {
   const saldo = Number(veiculo?.saldo) || 0;
   // Saldo negativo: uma saída não foi coberta e o totem recusa nova entrada.
   const emPendencia = Boolean(placa) && saldoEmPendencia(saldo);
-  // Alerta se o saldo não cobre nem 1 hora na tarifa vigente
-  const saldoBaixo = Boolean(placa) && !emPendencia && saldo < tarifaAtual;
+
+  // Saldo baixo: não cobre uma hora na tarifa que a pessoa vai pagar de fato.
+  // Estacionado, a congelada na entrada, descontado o que a estadia já soma;
+  // com reserva, a do local reservado; senão, a do último local usado e, para
+  // quem nunca estacionou, a mais barata da rede. Sem tarifa, sem aviso.
+  const referenciaSaldo = useMemo(() => {
+    if (estacionado) return { tarifa: tarifaAtual, onde: "" };
+    const tarifaDe = (est) => Number(est?.tarifaHora) || 0;
+    if (reservaValida && tarifaDe(estReserva) > 0) {
+      return { tarifa: tarifaDe(estReserva), onde: "no estacionamento da sua reserva" };
+    }
+    const ultimo = estacionamentosPorId[historico[0]?.estacionamentoId];
+    if (tarifaDe(ultimo) > 0) {
+      return { tarifa: tarifaDe(ultimo), onde: "no último estacionamento que você usou" };
+    }
+    const tarifasDaRede = estacionamentos
+      .filter((est) => est.ativo !== false)
+      .map(tarifaDe)
+      .filter((tarifa) => tarifa > 0);
+    if (tarifasDaRede.length) {
+      return { tarifa: Math.min(...tarifasDaRede), onde: "no estacionamento mais barato da rede" };
+    }
+    return null;
+  }, [estacionado, tarifaAtual, reservaValida, estReserva, estacionamentosPorId, historico, estacionamentos]);
+  const saldoDisponivel = estacionado ? saldo - custoEstimado : saldo;
+  const saldoBaixo =
+    Boolean(placa) &&
+    !emPendencia &&
+    Boolean(referenciaSaldo) &&
+    saldoDisponivel < referenciaSaldo.tarifa;
 
   async function cancelarMinhaReserva() {
     setCancelandoReserva(true);
@@ -150,8 +190,16 @@ export default function PainelMotorista() {
       {saldoBaixo && (
         <div className="card destaque-aviso alerta-saldo">
           <div>
-            <strong>Saldo baixo.</strong> Você tem{" "}
-            {formatarMoeda(saldo)} — menos que uma hora de estacionamento.
+            <strong>Saldo baixo.</strong>{" "}
+            {!estacionado
+              ? `Você tem ${formatarMoeda(saldo)}, e uma hora custa ${formatarMoeda(
+                  referenciaSaldo.tarifa
+                )} ${referenciaSaldo.onde}.`
+              : saldoDisponivel >= 0
+                ? `Descontando esta estadia até agora, sobram ${formatarMoeda(
+                    saldoDisponivel
+                  )}, e cada hora aqui custa ${formatarMoeda(referenciaSaldo.tarifa)}.`
+                : `Esta estadia já passou do seu saldo em ${formatarMoeda(-saldoDisponivel)}.`}{" "}
             Recarregue para não sair com pendência.
           </div>
           <Link to="/perfil" className="btn btn-primary btn-sm">
@@ -292,35 +340,55 @@ export default function PainelMotorista() {
               </p>
             ) : (
               <>
-                {ultimosAcessos.map((item) => (
-                  <div className="activity-item" key={item.id}>
-                    <div>
-                      <strong>Vaga {item.vaga}</strong>
-                      {item.estacionamentoId
-                        ? ` · ${nomesPorEstacionamento[item.estacionamentoId] || "Rede ParaAí"}`
-                        : ""}
-                      <div className="activity-time">
-                        {item.status === "ativa"
-                          ? "Em andamento"
-                          : formatarDataHora(item.saida)}
-                      </div>
-                    </div>
-                    <span
-                      className={`status-pill ${
-                        item.status === "ativa" || valorPendente(item) > 0
-                          ? "warning"
-                          : "success"
-                      }`}
-                      title={
-                        valorPendente(item) > 0
-                          ? "Parte desta estadia ficou pendente"
-                          : undefined
-                      }
+                {ultimosAcessos.map((item) => {
+                  // Spans no lugar de divs: o conteúdo também vai dentro de um botão.
+                  const conteudo = (
+                    <>
+                      <span className="activity-texto">
+                        <strong>Vaga {item.vaga}</strong>
+                        {item.estacionamentoId
+                          ? ` · ${estacionamentosPorId[item.estacionamentoId]?.nome || "Rede ParaAí"}`
+                          : ""}
+                        <span className="activity-time">
+                          {item.status === "ativa"
+                            ? "Em andamento"
+                            : formatarDataHora(item.saida)}
+                        </span>
+                      </span>
+                      <span
+                        className={`status-pill ${
+                          item.status === "ativa" || valorPendente(item) > 0
+                            ? "warning"
+                            : "success"
+                        }`}
+                        title={
+                          valorPendente(item) > 0
+                            ? "Parte desta estadia ficou pendente"
+                            : undefined
+                        }
+                      >
+                        {formatarMoeda(item.valorCobrado)}
+                      </span>
+                    </>
+                  );
+                  // Estadia encerrada: a linha inteira abre o comprovante.
+                  return item.status !== "ativa" && Number(item.saida) > 0 ? (
+                    <button
+                      type="button"
+                      className="activity-item activity-item-botao"
+                      key={item.id}
+                      onClick={() => setComprovante(item)}
                     >
-                      {formatarMoeda(item.valorCobrado)}
-                    </span>
-                  </div>
-                ))}
+                      <span className="sr-only">Ver comprovante: </span>
+                      {conteudo}
+                      <IconeAbrir />
+                    </button>
+                  ) : (
+                    <div className="activity-item" key={item.id}>
+                      {conteudo}
+                    </div>
+                  );
+                })}
                 <Link to="/historico" className="btn btn-outline btn-block" style={{ marginTop: 16 }}>
                   Ver histórico completo
                 </Link>
@@ -329,6 +397,14 @@ export default function PainelMotorista() {
           </div>
         </div>
       </div>
+
+      {comprovante && (
+        <ComprovanteEstadia
+          estadia={comprovante}
+          estacionamento={estacionamentosPorId[comprovante.estacionamentoId]}
+          aoFechar={() => setComprovante(null)}
+        />
+      )}
     </div>
   );
 }

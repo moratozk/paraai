@@ -1,4 +1,5 @@
 // Formatação e validação compartilhadas pelas páginas.
+import { TOLERANCIA_SALDO } from "./cobranca.js";
 
 // Placas no padrão do totem: só letras/números, maiúsculas, até 7 caracteres
 export function normalizarPlaca(valor) {
@@ -48,9 +49,27 @@ export function formatarMoeda(valor) {
   });
 }
 
+// Valor digitado em reais. Vírgula separa os centavos e o ponto, opcional,
+// os milhares ("1.000,50"). Sem vírgula, ponto seguido de três dígitos é
+// milhar ("1.000") e de um ou dois é decimal ("35.5"), como alguns teclados
+// de celular escrevem. Mais de dois centavos ou formato ambíguo dá NaN.
+export function lerValorEmReais(texto) {
+  const valor = String(texto ?? "").trim();
+  let numero;
+  if (/^(\d{1,3}(\.\d{3})+|\d+),\d{0,2}$/.test(valor)) {
+    numero = Number(valor.replace(/\./g, "").replace(",", "."));
+  } else if (/^[1-9]\d{0,2}(\.\d{3})+$/.test(valor)) {
+    numero = Number(valor.replace(/\./g, ""));
+  } else if (/^\d+(\.\d{0,2})?$/.test(valor)) {
+    numero = Number(valor);
+  } else {
+    return NaN;
+  }
+  return Math.round(numero * 100) / 100;
+}
+
 // Parte da cobrança que o saldo não cobriu. Recibos antigos não têm o campo e
 // contam como pagos. Meio centavo é a mesma tolerância do totem e das regras.
-const TOLERANCIA_SALDO = 0.005;
 export function valorPendente(recibo) {
   const pendente = Number(recibo?.valorPendente) || 0;
   return pendente >= TOLERANCIA_SALDO ? pendente : 0;
@@ -70,6 +89,16 @@ export function formatarDataHora(timestampSegundos) {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+// Só a hora (14:05), para o fim de uma reserva.
+export function formatarHora(timestampSegundos) {
+  const ts = Number(timestampSegundos);
+  if (!ts) return "—";
+  return new Date(ts * 1000).toLocaleTimeString("pt-BR", {
     hour: "2-digit",
     minute: "2-digit",
   });

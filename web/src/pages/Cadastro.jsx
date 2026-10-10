@@ -44,6 +44,7 @@ export default function Cadastro() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [verSenha, setVerSenha] = useState(false);
+  const [aceitouPrivacidade, setAceitouPrivacidade] = useState(false);
 
   // etapa 2 — estacionamento
   const [nomeEstacionamento, setNomeEstacionamento] = useState("");
@@ -132,6 +133,9 @@ export default function Cadastro() {
       if (vagaEspecial && !declarouDireito)
         return setError("Confirme a declaração do direito à vaga especial.");
     }
+
+    if (!aceitouPrivacidade)
+      return setError("Para criar a conta, aceite a política de privacidade.");
 
     if (role === "operador") {
       const vagas = Number(numVagas);
@@ -495,6 +499,28 @@ export default function Cadastro() {
                 A tarifa por hora você define no painel, logo após entrar.
               </p>
             </>
+          )}
+
+          {/* Aceite da política na última etapa, logo antes de criar a conta. */}
+          {etapa === totalEtapas && (
+            <div className="field">
+              <label className="declaracao declaracao-curta" htmlFor="aceitePrivacidade">
+                <input
+                  id="aceitePrivacidade"
+                  type="checkbox"
+                  required
+                  checked={aceitouPrivacidade}
+                  onChange={(e) => setAceitouPrivacidade(e.target.checked)}
+                />
+                <span>
+                  Li e aceito a{" "}
+                  <Link to="/privacidade" target="_blank" rel="noopener">
+                    política de privacidade
+                  </Link>
+                  .
+                </span>
+              </label>
+            </div>
           )}
 
           {/* ---------- AÇÕES ---------- */}

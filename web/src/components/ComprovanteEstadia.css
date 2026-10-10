@@ -1,0 +1,135 @@
+/* Comprovante de estadia: janela sobre a página e, na impressão, a folha. */
+.comprovante { max-width: 440px; }
+
+.comprovante-marca {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  margin-bottom: var(--esp-2);
+  padding-right: 52px;
+}
+
+.comprovante-cabecalho {
+  display: grid;
+  gap: var(--esp-2);
+  padding-bottom: var(--esp-3);
+  border-bottom: 1px dashed var(--border-strong);
+}
+.comprovante-situacao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-2);
+}
+.comprovante-cabecalho .modal-titulo { margin: 0; }
+.comprovante-eyebrow {
+  color: var(--accent-text);
+  font-family: var(--font-mono);
+  font-size: var(--t-legenda);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.comprovante-endereco {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--t-apoio);
+  line-height: 1.5;
+}
+
+.comprovante-linhas {
+  margin: 0;
+  padding: var(--esp-2) 0;
+  border-bottom: 1px dashed var(--border-strong);
+}
+.comprovante-linhas > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-4);
+  padding: 0.32rem 0;
+}
+.comprovante-linhas dt {
+  color: var(--text-secondary);
+  font-size: var(--t-apoio);
+}
+.comprovante-linhas dd {
+  margin: 0;
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+.comprovante-total dt {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+.comprovante-total dd {
+  font-size: var(--t-subtitulo);
+  font-weight: 800;
+}
+.comprovante-pendente dt,
+.comprovante-pendente dd {
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
+.comprovante-rodape {
+  padding-top: var(--esp-3);
+  color: var(--text-muted);
+  font-size: var(--t-legenda);
+  line-height: 1.55;
+}
+.comprovante-rodape p { margin: 0 0 var(--esp-1); }
+.comprovante-rodape code {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+.comprovante-acoes { margin-top: var(--esp-4); }
+
+/* Impressão (ou "Salvar como PDF"): só a folha, tinta escura sobre o papel,
+   qualquer que seja o tema da tela. */
+@media print {
+  @page { margin: 16mm; }
+
+  body > :not(.comprovante-raiz) { display: none !important; }
+  body::after { display: none; }
+
+  .comprovante-raiz {
+    position: static;
+    display: block;
+    padding: 0;
+    overflow: visible;
+    background: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    animation: none;
+    --text-primary: #16181d;
+    --text-secondary: #3a3f48;
+    --text-muted: #4d525c;
+    --accent-text: #5c4100;
+    --border-strong: #8a857d;
+    --success: #0b613b;
+    --success-soft: transparent;
+    --accent: #5c4100;
+    --accent-soft: transparent;
+  }
+  .comprovante {
+    max-width: 120mm;
+    max-height: none;
+    margin: 0 auto;
+    overflow: visible;
+    border: 1px solid #8a857d;
+    background: #fff;
+    color: var(--text-primary);
+    box-shadow: none;
+    animation: none;
+  }
+  .comprovante .modal-fechar,
+  .comprovante-acoes { display: none; }
+  .comprovante .placa-tag-sm {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

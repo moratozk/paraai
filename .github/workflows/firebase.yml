@@ -5,11 +5,13 @@ on:
     branches: [main]
     paths:
       - 'firebase/**'
+      - 'contratos/**'
       - '.github/workflows/firebase.yml'
   push:
     branches: [main]
     paths:
       - 'firebase/**'
+      - 'contratos/**'
       - '.github/workflows/firebase.yml'
 
 permissions:

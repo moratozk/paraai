@@ -7,6 +7,7 @@ import Navbar from "./components/Navbar";
 import PrivateRoute from "./components/PrivateRoute";
 import PublicRoute from "./components/PublicRoute";
 import AvisoConfiguracao from "./components/AvisoConfiguracao";
+import ErroDeTela from "./components/ErroDeTela";
 
 // Cada tela vira um pacote separado. Assim a home não baixa de uma vez os
 // painéis, gráficos, formulários e modal de recarga que talvez nem sejam usados.
@@ -16,6 +17,7 @@ const Cadastro = lazy(() => import("./pages/Cadastro"));
 const RecuperarSenha = lazy(() => import("./pages/RecuperarSenha"));
 const RedefinirSenha = lazy(() => import("./pages/RedefinirSenha"));
 const AcaoConta = lazy(() => import("./pages/AcaoConta"));
+const Privacidade = lazy(() => import("./pages/Privacidade"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const MarketplaceEstacionamentos = lazy(() => import("./pages/MarketplaceEstacionamentos"));
 const Historico = lazy(() => import("./pages/Historico"));
@@ -23,6 +25,13 @@ const Perfil = lazy(() => import("./pages/Perfil"));
 const Configuracoes = lazy(() => import("./pages/Configuracoes"));
 const MonitoramentoVagasAdmin = lazy(() => import("./pages/MonitoramentoVagasAdmin"));
 const MaqueteVirtual = lazy(() => import("./pages/MaqueteVirtual"));
+
+const carregando = (
+  <div className="estado-central" role="status" aria-live="polite">
+    <span className="spinner" aria-hidden="true" />
+    <span>Carregando…</span>
+  </div>
+);
 
 export default function App() {
   return (
@@ -34,14 +43,8 @@ export default function App() {
               <AvisoConfiguracao />
               <Navbar />
 
-              <Suspense
-                fallback={
-                  <div className="estado-central" role="status" aria-live="polite">
-                    <span className="spinner" aria-hidden="true" />
-                    <span>Carregando…</span>
-                  </div>
-                }
-              >
+              <ErroDeTela carregando={carregando}>
+              <Suspense fallback={carregando}>
                 <Routes>
                 <Route path="/" element={<PublicRoute><Home /></PublicRoute>} />
                 <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
@@ -50,6 +53,8 @@ export default function App() {
                 <Route path="/redefinir-senha" element={<PublicRoute><RedefinirSenha /></PublicRoute>} />
                 {/* Links dos e-mails do Firebase; vale logado ou não (ver AcaoConta). */}
                 <Route path="/acao" element={<AcaoConta />} />
+                {/* Política de privacidade: o cadastro aponta para cá antes de a conta existir. */}
+                <Route path="/privacidade" element={<Privacidade />} />
 
                 <Route
                   path="/dashboard"
@@ -117,6 +122,7 @@ export default function App() {
                   />
                 </Routes>
               </Suspense>
+              </ErroDeTela>
             </div>
           </BrowserRouter>
         </AuthProvider>

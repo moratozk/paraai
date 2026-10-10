@@ -47,6 +47,10 @@
   --success-soft: rgba(41, 208, 126, 0.12);
   --danger: #ff4d5e;
   --danger-soft: rgba(255, 77, 94, 0.12);
+  /* Texto sobre o verde e o vermelho cheios: no escuro esses tons são
+     claros e pedem tinta escura (branco ficaria em 2:1 e 3,2:1). */
+  --success-contrast: #0a0c11;
+  --danger-contrast: #0a0c11;
   --plate-blue: #0b3a9d;
 
   /* ---- Vagas especiais: uma só paleta nos três mapas (meio-tom, legível
@@ -137,7 +141,7 @@
 
   --text-primary: #22252b;
   --text-secondary: #525864;
-  --text-muted: #5a5f6b;    /* 4.6:1 até sobre --bg-elevated */
+  --text-muted: #575c68;    /* 4.5:1 até sobre --bg-asphalt */
 
   /* No claro o âmbar tem dois papéis distintos:
      --accent      preenche superfícies e leva texto escuro por cima
@@ -148,14 +152,19 @@
   --accent-deep: #a67400;
   --accent-soft: rgba(166, 116, 0, 0.14);
   --accent-contrast: #0a0c11;
-  --accent-text: #7d5800;   /* 5.2:1 sobre o fundo claro */
+  --accent-text: #735100;   /* 5.8:1 sobre o fundo claro */
 
+  /* Verde, vermelho e âmbar de texto passam em 4.5:1 também sobre os
+     próprios fundos suaves em cima de --bg-elevated (selos em linhas de
+     tabela, avisos) e sobre --bg-asphalt (corredor do mapa). */
   --cyan: #0b687e;
   --cyan-soft: rgba(11, 104, 126, 0.1);
-  --success: #0c6d42;
-  --success-soft: rgba(12, 109, 66, 0.12);
-  --danger: #ba1d31;
-  --danger-soft: rgba(186, 29, 49, 0.1);
+  --success: #0b613b;
+  --success-soft: rgba(11, 97, 59, 0.12);
+  --success-contrast: #fff;
+  --danger: #a81a2c;
+  --danger-soft: rgba(168, 26, 44, 0.1);
+  --danger-contrast: #fff;
 
   --border: #d5d0c9;
   --border-strong: #b9b3aa;
@@ -219,8 +228,10 @@ a, button, [role="button"], label, summary, input, select, textarea {
 input, select, textarea { min-width: 0; max-width: 100%; }
 a { color: inherit; text-decoration: none; }
 
+/* Âmbar de texto: no tema claro o âmbar dos botões fica em 1,8:1 sobre o
+   fundo e o anel de foco quase sumia. No escuro as duas cores são iguais. */
 :focus-visible {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--accent-text);
   outline-offset: 3px;
   border-radius: 3px;
 }
@@ -254,7 +265,6 @@ h2 { font-size: var(--t-h2); line-height: 1.14; letter-spacing: -0.016em; }
 h3 { font-size: var(--t-h3); line-height: 1.24; letter-spacing: -0.01em; }
 h4 { font-size: var(--t-corpo); line-height: 1.35; letter-spacing: -0.004em; }
 
-/* Manchete: condensada, caixa alta, bem grande. Só em hero e afins. */
 /* Manchete: condensada, caixa alta, bem grande. Só em hero e afins. */
 .display {
   font-family: var(--font-display);
@@ -358,8 +368,10 @@ p { text-wrap: pretty; }
 
 .btn-danger { --btn-bg: transparent; --btn-borda: var(--danger); --btn-cor: var(--danger); }
 @media (hover: hover) {
-  .btn-danger:hover:not(:disabled) { --btn-bg: var(--danger); --btn-cor: #fff; }
+  .btn-danger:hover:not(:disabled) { --btn-bg: var(--danger); --btn-cor: var(--danger-contrast); }
 }
+/* Confirmação final de uma ação que não se desfaz (ex.: excluir a conta). */
+.btn-danger-solido { --btn-bg: var(--danger); --btn-borda: var(--danger); --btn-cor: var(--danger-contrast); }
 
 .btn-sm { min-height: 40px; padding: 0.5rem 1rem; font-size: var(--t-apoio); }
 .btn-lg { min-height: 52px; padding: 0.95rem 2rem; font-size: var(--t-destaque); }
@@ -438,6 +450,10 @@ select, textarea {
     box-shadow var(--dur-rapida);
 }
 
+/* O select ignora o line-height e ficava com 48px ao lado de um campo de
+   texto de 54px. */
+.field select, select { min-height: 3.375rem; }
+
 input::placeholder, textarea::placeholder { color: var(--text-muted); }
 
 .field input:focus, .field select:focus, .field textarea:focus,
@@ -446,6 +462,10 @@ input:focus, select:focus, textarea:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 4px var(--accent-soft);
 }
+/* Campo com erro (o texto do erro fica logo abaixo): vermelho, com ou sem foco. */
+:is(input, select, textarea)[aria-invalid="true"],
+:is(input, select, textarea)[aria-invalid="true"]:focus { border-color: var(--danger); }
+:is(input, select, textarea)[aria-invalid="true"]:focus { box-shadow: 0 0 0 4px var(--danger-soft); }
 
 .field-hint { font-size: var(--t-apoio); color: var(--text-muted); }
 /* Autodeclaração (ex.: direito a vaga especial): caixa e texto alinhados.
@@ -467,9 +487,29 @@ input:focus, select:focus, textarea:focus {
   padding: 0;
   accent-color: var(--accent);
 }
+/* Declaração de uma linha (ex.: aceite da política): no toque, a linha
+   inteira é um alvo de 44 px, com a caixa no meio do texto. */
+@media (pointer: coarse) {
+  .declaracao-curta { min-height: 44px; align-items: center; }
+  .declaracao-curta input[type="checkbox"] { margin-top: 0; }
+}
+/* Link no meio de uma frase (ex.: a política de privacidade no cadastro):
+   âmbar e sublinhado, para não depender só da cor. */
+.link-texto,
+.declaracao a {
+  color: var(--accent-text);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
 .field-link { font-size: var(--t-apoio); color: var(--accent-text); font-weight: 600; }
 @media (hover: hover) {
   .field-link:hover { text-decoration: underline; }
+}
+/* Link solto numa linha de dados (ex.: "Informar no Perfil"): no toque, a
+   área chega a 44 px sem mudar o texto. */
+@media (pointer: coarse) {
+  .info-row .field-link { display: inline-flex; align-items: center; min-height: 44px; }
 }
 
 .error-text, .erro { color: var(--danger); font-size: var(--t-apoio); font-weight: 600; }
@@ -601,6 +641,35 @@ input:focus, select:focus, textarea:focus {
   padding: clamp(2rem, 6vw, 4rem) 1rem;
   color: var(--text-secondary);
 }
+/* Aviso com título, texto e botão: tudo centralizado e com respiro, e o
+   título no tamanho de seção, não no de abertura de página. */
+div.empty-state {
+  display: grid;
+  justify-items: center;
+  gap: var(--esp-3);
+}
+div.empty-state > :is(h1, h2) {
+  color: var(--text-primary);
+  font-size: var(--t-titulo);
+  line-height: 1.25;
+}
+div.empty-state > p { max-width: 52ch; }
+div.empty-state > .btn { margin-top: var(--esp-2); }
+
+/* Tela que não abriu (ver ErroDeTela). Fica no pacote principal, então não
+   conta com o CSS das páginas. */
+.erro-tela { padding-block: clamp(1.6rem, 4vh, 2.6rem) clamp(3rem, 8vh, 5rem); }
+.erro-tela .card {
+  display: grid;
+  justify-items: center;
+  gap: var(--esp-3);
+  max-width: 560px;
+  margin-inline: auto;
+  text-align: center;
+}
+.erro-tela h1 { font-size: var(--t-titulo); line-height: 1.25; }
+.erro-tela p { max-width: 46ch; color: var(--text-secondary); }
+.erro-tela .btn { margin-top: var(--esp-2); }
 
 @media (max-width: 620px) {
   .container { width: min(calc(100% - 1.5rem), var(--largura)); }

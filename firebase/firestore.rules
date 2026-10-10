@@ -114,7 +114,8 @@ service cloud.firestore {
         && dados.ativo == true
         && dados.vagaAtual == 0
         && dados.horaEntrada == 0
-        && dados.saldo is number && dados.saldo >= 0
+        // Todo veículo nasce com a carteira vazia: saldo só entra por recarga.
+        && dados.saldo == 0
         // Os dois campos abaixo foram acrescentados depois da primeira
         // versão do painel. Aceitamos a ausência apenas para não interromper
         // uma página antiga que ainda esteja em cache durante a atualização.
@@ -139,7 +140,7 @@ service cloud.firestore {
         && dados.ativo == true
         && dados.vagaAtual == 0
         && dados.horaEntrada == 0
-        && dados.saldo is number && dados.saldo >= 0
+        && dados.saldo == 0
         && dados.estacionamentoId == ''
         // Também aceita o firmware já gravado antes de tarifaHoraEntrada
         // existir. O próximo firmware passa a criar o campo explicitamente.
@@ -377,6 +378,36 @@ service cloud.firestore {
           && math.abs(dados.valorPendente + saldoDepois) < 0.000001);
     }
 
+    // Recarga simulada do dono: o saldo só sobe junto com o registro da
+    // recarga (veiculos/{placa}/recargas/{id}), criado no mesmo lote. Um
+    // confere o outro: o registro existe, é novo, e a diferença do saldo é
+    // exatamente o valor dele. Assim o navegador não grava saldo arbitrário e
+    // o extrato do motorista não ganha recarga sem crédito.
+    function recargaDoDonoValida(placa) {
+      let id = request.resource.data.get('ultimaRecarga', '');
+      let caminho = /databases/$(database)/documents/veiculos/$(placa)/recargas/$(id);
+      return signedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'saldo', 'ultimaRecarga', 'ownerNome', 'atualizadoEm'
+        ])
+        && resource.data.saldo is number
+        && request.resource.data.saldo is number
+        && id is string && id != ''
+        && !exists(caminho)
+        && existsAfter(caminho)
+        && math.abs(request.resource.data.saldo - resource.data.saldo
+          - getAfter(caminho).data.valor) < 0.000001;
+    }
+
+    // Mesmo limite da tela de recarga: de R$ 0,01 a R$ 1.000, em centavos.
+    function valorDeRecargaValido(valor) {
+      return valor is number
+        && valor >= 0.01 && valor <= 1000
+        && math.abs(valor * 100 - math.round(valor * 100)) < 0.000001;
+    }
+
     function placaDeMotoristaValida() {
       return resource.data.role == 'motorista'
         && request.resource.data.placa is string
@@ -384,14 +415,79 @@ service cloud.firestore {
           .hasOnly(['placa']);
     }
 
+    // Aceite da política de privacidade no cadastro: a data é a do servidor,
+    // e depois ninguém a altera (fica fora da lista do update).
+    function aceitePrivacidadeValido(dados) {
+      return (!('privacidadeAceitaEm' in dados) || dados.privacidadeAceitaEm == request.time)
+        && (!('versaoPrivacidade' in dados) || dados.versaoPrivacidade is string);
+    }
+
+    // Exclusão da conta pelo motorista (LGPD). A placa volta a ficar livre
+    // para outra pessoa cadastrar, mas sem nada do dono anterior: sem saldo
+    // (a carteira é simulada), sem marca, modelo, cor e direito a vaga
+    // especial. historicoDesde guarda o momento da liberação: quem cadastrar
+    // a placa depois só lê as estadias a partir dali. Só vale no lote que
+    // apaga users/{uid}, e nunca com o carro no pátio ou com pendência (a
+    // dívida não some com a conta).
+    function liberacaoDaPlacaValida() {
+      return signedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && !existsAfter(/databases/$(database)/documents/users/$(request.auth.uid))
+        && resource.data.vagaAtual == 0
+        && resource.data.get('estacionamentoId', '') == ''
+        && resource.data.saldo is number
+        && resource.data.saldo > -0.005
+        && request.resource.data.ownerUid == ''
+        && request.resource.data.saldo == 0
+        && request.resource.data.historicoDesde == request.time
+        && !request.resource.data.keys().hasAny([
+          'ownerNome', 'marca', 'modelo', 'cor', 'vagaEspecial', 'ultimaRecarga'
+        ])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'ownerUid', 'saldo', 'historicoDesde', 'atualizadoEm', 'ownerNome',
+          'marca', 'modelo', 'cor', 'vagaEspecial', 'ultimaRecarga'
+        ]);
+    }
+
+    // A placa da conta não pode continuar ligada a ela depois do lote.
+    function placaLiberadaDepois(placa) {
+      return placa == null || placa == ''
+        || !existsAfter(/databases/$(database)/documents/veiculos/$(placa))
+        || getAfter(/databases/$(database)/documents/veiculos/$(placa)).data.get('ownerUid', '')
+          != request.auth.uid;
+    }
+
+    // Estadias de uma placa para quem é dono dela agora. Se um dono anterior
+    // excluiu a conta, as estadias de antes da liberação (historicoDesde)
+    // ficam só com o estacionamento e a administração. A consulta do site
+    // traz o mesmo limite (entrada >= historicoDesde em segundos).
+    function estadiaDoDonoAtual(dados) {
+      return donoDoVeiculo(dados.placa)
+        && estadiaDepoisDaLiberacao(dados,
+          get(/databases/$(database)/documents/veiculos/$(dados.placa)).data);
+    }
+
+    function estadiaDepoisDaLiberacao(dados, veiculo) {
+      return !('historicoDesde' in veiculo)
+        || dados.entrada >= math.ceil(veiculo.historicoDesde.toMillis() / 1000.0);
+    }
+
     match /users/{uid} {
       allow read: if signedIn() && request.auth.uid == uid;
-      allow delete: if false;
+      // Exclusão da conta pelo próprio motorista (LGPD), no mesmo lote que
+      // libera a placa e apaga a reserva. Estacionamento e administração são
+      // encerrados pela administração da rede, fora do site.
+      allow delete: if signedIn() && request.auth.uid == uid
+        && resource.data.get('role', 'motorista') == 'motorista'
+        && !('estacionamentoId' in resource.data)
+        && placaLiberadaDepois(resource.data.get('placa', ''))
+        && !existsAfter(/databases/$(database)/documents/reservas/$(uid));
       // O cadastro público cria somente motoristas. Contas administrativas
       // são promovidas fora do cliente, e operadores antigos são preservados.
       allow create: if signedIn() && request.auth.uid == uid
         && request.resource.data.role == 'motorista'
-        && direitoVagaValido(request.resource.data);
+        && direitoVagaValido(request.resource.data)
+        && aceitePrivacidadeValido(request.resource.data);
       allow update: if signedIn() && request.auth.uid == uid
         && (
           (request.resource.data.diff(resource.data).affectedKeys().hasOnly([
@@ -525,7 +621,12 @@ service cloud.firestore {
               && request.resource.data.diff(resource.data).affectedKeys()
                 .hasOnly(['status']))))
         || totemConsomeReserva();
-      allow delete: if false;
+      // Exclusão da conta: a reserva sai no mesmo lote. Uma reserva ativa é
+      // cancelada antes, para a vaga voltar a ficar livre no mapa.
+      allow delete: if signedIn() && request.auth.uid == uid
+        && (resource.data.status != 'ativa'
+          || resource.data.expiraEm * 1000 < request.time.toMillis())
+        && !existsAfter(/databases/$(database)/documents/users/$(uid));
     }
 
     function vagaPublicaValida(dados) {
@@ -648,12 +749,14 @@ service cloud.firestore {
           && veiculoInicialDoPainelValido(request.resource.data));
       allow update: if totemPodeRegistrarEntrada(placa)
         || totemPodeRegistrarSaida(placa)
+        || recargaDoDonoValida(placa)
+        || liberacaoDaPlacaValida()
         || (signedIn()
           && resource.data.ownerUid == request.auth.uid
           && request.resource.data.ownerUid == request.auth.uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'ownerNome', 'saldo', 'atualizadoEm', 'vagaEspecial', 'marca',
-            'modelo', 'cor'
+            'ownerNome', 'atualizadoEm', 'vagaEspecial', 'marca', 'modelo',
+            'cor'
           ])
           && direitoVagaValido(request.resource.data)
           && descricaoVeiculoValida(request.resource.data))
@@ -667,12 +770,38 @@ service cloud.firestore {
           && direitoVagaValido(request.resource.data)
           && descricaoVeiculoValida(request.resource.data));
       allow delete: if false;
+
+      // Extrato das recargas simuladas. Só quem recarregou lê (a consulta
+      // filtra por uid); ninguém altera, e só se apaga na exclusão da conta.
+      match /recargas/{recarga} {
+        allow read: if signedIn() && resource.data.uid == request.auth.uid;
+        allow create: if signedIn()
+          && request.resource.data.keys().hasOnly(['valor', 'forma', 'uid', 'criadaEm'])
+          && request.resource.data.keys().hasAll(['valor', 'forma', 'uid', 'criadaEm'])
+          && request.resource.data.uid == request.auth.uid
+          && valorDeRecargaValido(request.resource.data.valor)
+          && request.resource.data.forma in ['pix', 'cartao']
+          && request.resource.data.criadaEm == request.time
+          && get(/databases/$(database)/documents/veiculos/$(placa)).data.ownerUid
+            == request.auth.uid
+          && getAfter(/databases/$(database)/documents/veiculos/$(placa)).data.get('ultimaRecarga', '')
+            == recarga
+          && math.abs(getAfter(/databases/$(database)/documents/veiculos/$(placa)).data.saldo
+            - get(/databases/$(database)/documents/veiculos/$(placa)).data.saldo
+            - request.resource.data.valor) < 0.000001;
+        allow update: if false;
+        // Junto com a liberação da placa (ou depois dela), nunca enquanto a
+        // placa é de quem apaga: o extrato não some de uma carteira em uso.
+        allow delete: if signedIn() && resource.data.uid == request.auth.uid
+          && getAfter(/databases/$(database)/documents/veiculos/$(placa)).data.get('ownerUid', '')
+            != request.auth.uid;
+      }
     }
 
     match /historico/{registro} {
       allow read: if adminDoSistema()
         || donoDoEstacionamento(resource.data.estacionamentoId)
-        || donoDoVeiculo(resource.data.placa);
+        || estadiaDoDonoAtual(resource.data);
       allow create: if totemCadastrado()
         && historicoValido(request.resource.data)
         && historicoCorrespondeAEstadia(request.resource.data, registro)

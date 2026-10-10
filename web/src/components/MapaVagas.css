@@ -23,6 +23,7 @@
 .mapa-legenda span { display: inline-flex; align-items: center; gap: 0.38rem; }
 .legenda-cor { width: 10px; height: 10px; border-radius: 3px; background: var(--success); }
 .legenda-cor.ocupada { background: var(--danger); }
+.legenda-cor.reservada { background: var(--accent); }
 .legenda-cor.pcd { background: var(--vaga-pcd); }
 .legenda-cor.idoso { background: var(--vaga-idoso); }
 .legenda-cor.gestante { background: var(--vaga-gestante); }
@@ -84,11 +85,15 @@
 @media (hover: hover) {
   .mapa-vaga:hover { transform: translateY(-2px); border-color: var(--accent); }
 }
-.mapa-vaga:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.mapa-vaga:focus-visible { outline: 3px solid var(--accent-text); outline-offset: 3px; }
 .mapa-vaga.selecionada { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .mapa-vaga.ocupada {
   background: color-mix(in srgb, var(--danger) 11%, var(--bg-solid));
   border-color: color-mix(in srgb, var(--danger) 64%, var(--border));
+}
+.mapa-vaga.reservada {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 75%, var(--border));
 }
 .mapa-vaga.especial.pcd {
   background: color-mix(in srgb, var(--vaga-pcd) 20%, var(--bg-solid));
@@ -104,7 +109,15 @@
 }
 .mapa-vaga.especial.selecionada { box-shadow: 0 0 0 3px var(--accent-soft); }
 
-.mapa-vaga-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.25rem; }
+/* O selo desce para baixo do número quando não cabe ao lado ("GESTANTE"
+   numa vaga estreita), em vez de vazar da vaga. */
+.mapa-vaga-topo {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.2rem 0.25rem;
+}
 .mapa-vaga-topo strong {
   font-family: var(--font-main);
   font-size: var(--t-subtitulo);
@@ -132,15 +145,23 @@
   place-items: center;
   border-radius: 14px 14px 7px 7px;
   background: var(--danger);
-  color: #fff;
+  color: var(--danger-contrast);
   font-family: var(--font-mono);
   font-size: var(--t-legenda);
   font-weight: 800;
   letter-spacing: 0.06em;
   box-shadow: inset 0 5px rgba(255, 255, 255, 0.16), 0 5px 12px rgba(0, 0, 0, 0.22);
 }
-.mapa-livre { color: var(--success); font-size: var(--t-legenda); font-weight: 800; letter-spacing: 0.06em; }
+/* Estado em caixa normal, como no mapa do administrador: "RESERVADA" em
+   caixa alta não cabia na vaga estreita do celular. */
+.mapa-livre,
+.mapa-reservada { font-size: var(--t-legenda); font-weight: 800; letter-spacing: 0.02em; }
+.mapa-livre { color: var(--success); }
+.mapa-reservada { color: var(--accent-text); }
+/* Vazio na vaga livre, mas com a altura de uma linha: assim "Livre" fica na
+   mesma altura do carro e da reserva das vagas vizinhas. */
 .mapa-vaga-rodape {
+  min-height: 1lh;
   overflow: hidden;
   color: var(--text-secondary);
   font-family: var(--font-mono);
@@ -191,12 +212,17 @@
   border: 1px solid var(--accent);
   border-radius: var(--radius-sm);
   background: var(--accent-soft);
+  /* Sobre o fundo âmbar o cinza apagado cai para 3,9:1 no tema escuro:
+     dentro do editor, rótulos e notas usam o cinza secundário. */
+  --text-muted: var(--text-secondary);
 }
 .mapa-editor-resumo { display: grid; gap: 0.25rem; min-width: 130px; }
 .mapa-editor-resumo strong { font-size: var(--t-corpo); }
+.mapa-editor-resumo .status-pill { justify-self: start; }
 .mapa-editor-resumo .status-pill.danger {
   border-color: var(--danger);
-  background: var(--danger-soft);
+  /* Fundo opaco: o vermelho suave sobre o âmbar escurecia demais o selo. */
+  background: color-mix(in srgb, var(--danger) 12%, var(--bg-solid));
   color: var(--danger);
 }
 .mapa-editor-placa { margin: 0; }
