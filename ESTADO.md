@@ -32,10 +32,13 @@ em 06/10/2026** a partir da `main` (`26a97e5`); o site no ar é o build dessa
 versão. **O firmware da `main` foi gravado no totem no mesmo dia** e testado:
 uma placa sem direito declarado recebeu a primeira vaga comum livre.
 
-## Painel da rede e menu no celular (10/10/2026)
+## Painéis no celular (10/10/2026)
 
-O painel da rede, aberto num iPhone, estava ruim de usar. Refeito e
-conferido a 393 e 430 px de largura, nos dois temas, sem mudar o computador:
+O painel da rede, aberto num iPhone, estava ruim de usar. Refeito, junto com
+os painéis do dono e do motorista, e conferido a 393 e 430 px de largura, nos
+dois temas. No computador a arrumação das telas não muda; valem lá também o
+seletor de período corrigido, o "+" do botão de novo estacionamento, o aviso
+de rolagem do mapa e a placa das vagas ao vivo (abaixo).
 
 - **Menu de três traços (`components/Navbar.jsx`):** vale até 900 px (antes
   só até 760 px, e num tablet em pé não havia como trocar de tela). Logado, o
@@ -55,6 +58,24 @@ conferido a 393 e 430 px de largura, nos dois temas, sem mudar o computador:
   âmbar reto (a borda esquerda no canto arredondado desenhava uma meia-lua),
   e as opções dos seletores de período e de filtro ficam com o texto
   centralizado (a regra do trilho valia também para cada opção).
+- **Listas de estadias (`.tabela-lista`):** as movimentações do painel do
+  dono e "Meus acessos" (motorista e dono) seguem o modelo das movimentações
+  da rede: duas linhas por estadia e, no histórico, uma terceira com a
+  situação e "Ver comprovante" (o selo e o botão ficavam esticados). A
+  entrada sai da tela no celular e fica para o leitor de tela e o
+  comprovante. "Melhores clientes" continua tabela. A 430 px, o painel do dono
+  caiu de cerca de 6.000 para 3.200 px, e "Meus acessos" de 2.900 para 1.200.
+- **Mapa de vagas (dono e vagas ao vivo):** no celular o pátio tem só as
+  colunas das vagas, sem o asfalto vazio no fim da rolagem, e a borda
+  esmaece do lado em que ainda há vagas, com "Role para o lado para ver
+  todas as vagas" embaixo (`components/RolagemLateral.jsx`). O aviso também
+  aparece no computador quando o mapa não cabe, como nas vagas ao vivo.
+- **Painel do dono:** os botões do topo ficam lado a lado só quando cabem, e
+  "Exportar CSV" fica do tamanho do texto, à direita, embaixo do período.
+- **Vagas ao vivo:** indicadores com traço reto no topo e a placa da lista
+  "Veículos e reservas agora" do tamanho dela (esticada, virava uma faixa
+  branca, também no computador).
+- **Estacionamentos:** o endereço não começa mais uma linha com "· SP".
 
 Sem mudança nas regras do Firestore. Só o site precisa ser publicado.
 

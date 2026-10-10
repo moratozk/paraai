@@ -1,0 +1,41 @@
+/* Esmaecido na borda do lado em que ainda há conteúdo para rolar. A cor é a
+   do cartão, que é onde a faixa fica; quem estiver sobre outro fundo troca
+   --rolagem-fundo. */
+.rolagem-lateral-janela { position: relative; }
+.rolagem-lateral-janela::before,
+.rolagem-lateral-janela::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 2.75rem;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-rapida);
+}
+.rolagem-lateral-janela::before {
+  left: 0;
+  background: linear-gradient(to right, var(--rolagem-fundo, var(--bg-solid)), transparent);
+}
+.rolagem-lateral-janela::after {
+  right: 0;
+  background: linear-gradient(to left, var(--rolagem-fundo, var(--bg-solid)), transparent);
+}
+.mais-a-esquerda > .rolagem-lateral-janela::before,
+.mais-a-direita > .rolagem-lateral-janela::after { opacity: 1; }
+
+.rolagem-lateral-aviso {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.35rem 0 0;
+  color: var(--text-muted);
+  font-size: var(--t-legenda);
+  font-weight: 600;
+}
+.rolagem-lateral-aviso > span {
+  color: var(--accent-text);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}

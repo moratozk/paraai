@@ -9,6 +9,7 @@ import {
 } from "../hooks/useParkingData";
 import { formatarDataHora, formatarDuracaoAoVivo, formatarHora } from "../utils/format";
 import { dadosDaCor, descreverVeiculo } from "../utils/veiculo";
+import RolagemLateral from "../components/RolagemLateral";
 import { atualizarTipoVagaAdmin } from "../services/estacionamentos";
 import {
   combinarVagasDoPatio,
@@ -341,13 +342,14 @@ export default function MonitoramentoVagasAdmin() {
             {/* Com filtro, as vagas de fora ficam desativadas e o mapa pode
                 ficar sem nada focável: o próprio mapa recebe o foco para o
                 teclado conseguir rolá-lo no celular. */}
-            <div
+            <RolagemLateral
               className="monitor-mapa-scroll"
               tabIndex={0}
               role="region"
               aria-label="Mapa das vagas"
+              aviso="Role para o lado para ver todas as vagas."
             >
-              <div className="monitor-patio">
+              <div className="monitor-patio" style={{ "--vagas-na-fileira": Math.max(metade, 1) }}>
                 <div className="monitor-fileira">
                   {vagasComVisibilidade.slice(0, metade).map(renderizarVaga)}
                 </div>
@@ -360,7 +362,7 @@ export default function MonitoramentoVagasAdmin() {
                   {vagasComVisibilidade.slice(metade).map(renderizarVaga)}
                 </div>
               </div>
-            </div>
+            </RolagemLateral>
           </section>
 
           {/* Sem aria-live: a contagem da reserva muda a cada segundo e o

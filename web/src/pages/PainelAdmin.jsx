@@ -686,16 +686,18 @@ export default function PainelAdmin() {
                 <tbody>
                   {movimentacoes.slice(0, linhasVisiveis).map((h) => (
                     <tr key={h.id}>
-                      <td data-label="Estacionamento">
+                      <td data-label="Estacionamento" className="col-local">
                         {nomesPorEstacionamento[h.estacionamentoId] || h.estacionamentoId || "—"}
                       </td>
-                      <td data-label="Placa">
+                      <td data-label="Placa" className="col-placa">
                         <span className="placa-tag placa-tag-sm">{h.placa}</span>
                       </td>
-                      <td data-label="Vaga">{h.vaga}</td>
-                      <td data-label="Saída">{formatarDataHora(h.saida)}</td>
-                      <td data-label="Duração">{formatarDuracao(h.duracaoMinutos)}</td>
-                      <td data-label="Valor" className="money">
+                      <td data-label="Vaga" className="col-vaga">{h.vaga}</td>
+                      <td data-label="Saída" className="col-saida">{formatarDataHora(h.saida)}</td>
+                      <td data-label="Duração" className="col-duracao">
+                        {formatarDuracao(h.duracaoMinutos)}
+                      </td>
+                      <td data-label="Valor" className="money col-valor">
                         <span className="valor-com-marca">
                           {formatarMoeda(h.valorCobrado)}
                           {valorPendente(h) > 0 && (

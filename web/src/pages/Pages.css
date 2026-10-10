@@ -526,6 +526,8 @@
    painel sem a largura mínima das tabelas de movimentação. */
 .history-table-compacta { min-width: 0; }
 .history-active-pill { margin-left: 0.45rem; vertical-align: middle; }
+/* "Ver comprovante": o resto do texto só aparece no celular (ver .tabela-lista). */
+.col-acao-resto { display: none; }
 .history-payment { display: grid; gap: 0.18rem; }
 .history-payment small {
   color: var(--text-muted);
@@ -1030,8 +1032,11 @@
   .page-header { flex-direction: column; align-items: flex-start; }
   .page-header p { max-width: 100%; }
 
+  /* Cada botão do tamanho do texto: lado a lado quando cabem, um por linha
+     quando não (com base fixa, "Ajustar estacionamento" ficava mais largo que
+     o botão a 393 px). */
   .header-acoes { width: 100%; align-items: stretch; }
-  .header-acoes .btn { flex: 1 1 160px; }
+  .header-acoes .btn { flex: 1 1 auto; }
 
   .card-head-row { align-items: flex-start; }
   .card-head-row .input-busca { flex-basis: 100%; width: 100%; }
@@ -1093,7 +1098,9 @@
     width: 100%;
   }
   .segmented button { padding: 0.55rem 0.25rem; }
-  .toolbar > .btn { flex: 1 1 100%; }
+  /* "Exportar CSV" é ação secundária: embaixo do período, à direita, do
+     tamanho do texto, em vez de uma faixa da largura da tela. */
+  .toolbar > .btn { flex: 0 0 auto; margin-left: auto; }
 
   .destaque-aviso,
   .marketplace-chamada-painel,
@@ -1173,6 +1180,96 @@
   .history-table.responsive-table td > .placa-tag { justify-self: end; }
   .history-table.responsive-table .history-payment { justify-items: end; }
   .history-table.responsive-table .history-payment small { white-space: normal; }
+
+  /* Listas de estadias (movimentações e acessos): cada estadia em duas ou
+     três linhas, sem um rótulo por linha. Com um rótulo por linha, dez
+     estadias ocupavam quase cinco telas. Cada célula diz o que é pela
+     classe (col-*) e a tabela escolhe a arrumação. A entrada fica só para o
+     leitor de tela, que continua com o cabeçalho da tabela: a saída e a
+     duração já dizem quando o carro chegou, e o comprovante mostra tudo. */
+  .tabela-lista.responsive-table tbody { gap: 0; }
+  .tabela-lista.responsive-table tr {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "placa local valor"
+      "vaga saida duracao";
+    align-items: center;
+    gap: 0.35rem 0.75rem;
+    padding: 0.8rem 0;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    background: none;
+  }
+  /* Um estacionamento só (painel e histórico do dono): sem a coluna do
+     local, a placa ocupa o começo da linha. */
+  .tabela-lista.lista-patio.responsive-table tr {
+    grid-template-areas:
+      "placa placa valor"
+      "vaga saida duracao";
+  }
+  /* Histórico: a situação e o comprovante numa terceira linha. */
+  .tabela-lista.lista-acessos.responsive-table tr {
+    grid-template-areas:
+      "local local valor"
+      "vaga saida duracao"
+      "situacao situacao acao";
+  }
+  .tabela-lista.lista-acessos.lista-patio.responsive-table tr {
+    grid-template-areas:
+      "placa placa valor"
+      "vaga saida duracao"
+      "situacao situacao acao";
+  }
+  .tabela-lista.responsive-table tr:first-child { padding-top: 0.25rem; }
+  .tabela-lista.responsive-table tr:last-child { border-bottom: 0; }
+  .tabela-lista.responsive-table td {
+    display: block;
+    width: auto;
+    padding: 0;
+    border: 0;
+    text-align: left;
+  }
+  .tabela-lista.responsive-table td::before { content: none; }
+  .tabela-lista.responsive-table .col-local { grid-area: local; font-weight: 600; line-height: 1.3; }
+  .tabela-lista.responsive-table .col-placa { grid-area: placa; }
+  .tabela-lista.responsive-table .col-vaga { grid-area: vaga; }
+  .tabela-lista.responsive-table .col-saida { grid-area: saida; }
+  .tabela-lista.responsive-table .col-duracao { grid-area: duracao; text-align: right; }
+  .tabela-lista.responsive-table .col-valor { grid-area: valor; font-weight: 700; text-align: right; }
+  .tabela-lista.responsive-table .col-situacao { grid-area: situacao; }
+  .tabela-lista.responsive-table .col-acao { grid-area: acao; text-align: right; }
+  .tabela-lista.responsive-table :is(.col-vaga, .col-saida, .col-duracao) {
+    color: var(--text-muted);
+    line-height: 1.3;
+  }
+  .tabela-lista.responsive-table td.col-entrada {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  /* Onde a célula traz só o número, a vaga ganha a palavra "Vaga". */
+  .tabela-lista:not(.lista-acessos).responsive-table .col-vaga::before {
+    content: "Vaga ";
+    font: inherit;
+    letter-spacing: 0;
+    text-transform: none;
+    color: inherit;
+  }
+  /* Saída sem saldo: o selo, menor, fica embaixo do valor sem alargar a
+     coluna. */
+  .tabela-lista .valor-com-marca {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.2rem;
+  }
+  .tabela-lista .pill-pendente { padding: 0.1rem 0.5rem; letter-spacing: 0.04em; }
+  .tabela-lista .col-acao-resto { display: inline; }
 }
 
 @media (max-width: 340px) {

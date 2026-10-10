@@ -63,9 +63,11 @@ export async function buscarCep(valor) {
   };
 }
 
-// Monta o endereço completo em uma linha, para exibir no painel
+// Monta o endereço completo em uma linha, para exibir no painel. O espaço
+// antes do "·" e do "-" não quebra: no celular, a linha nunca começa com o
+// separador ("· SP" sozinho embaixo).
 export function montarEnderecoLinha({ logradouro, numero, bairro, cidade, uf }) {
   const rua = [logradouro, numero].filter(Boolean).join(", ");
-  const local = [bairro, cidade].filter(Boolean).join(" - ");
-  return [rua, local, uf].filter(Boolean).join(" · ");
+  const local = [bairro, cidade].filter(Boolean).join(" - ");
+  return [rua, local, uf].filter(Boolean).join(" · ");
 }
