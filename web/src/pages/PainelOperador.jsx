@@ -471,7 +471,7 @@ export default function PainelOperador() {
                   role="region"
                   aria-label="Movimentações"
                 >
-                  <table className="history-table responsive-table">
+                  <table className="history-table responsive-table tabela-lista lista-patio">
                     <thead>
                       <tr>
                         <th>Placa</th>
@@ -485,16 +485,22 @@ export default function PainelOperador() {
                     <tbody>
                       {movimentacoes.slice(0, linhasVisiveis).map((item) => (
                         <tr key={item.id}>
-                          <td data-label="Placa">
+                          <td data-label="Placa" className="col-placa">
                             <span className="placa-tag placa-tag-sm">
                               {item.placa}
                             </span>
                           </td>
-                          <td data-label="Vaga">{item.vaga}</td>
-                          <td data-label="Entrada">{formatarDataHora(item.entrada)}</td>
-                          <td data-label="Saída">{formatarDataHora(item.saida)}</td>
-                          <td data-label="Duração">{formatarDuracao(item.duracaoMinutos)}</td>
-                          <td data-label="Valor" className="money">
+                          <td data-label="Vaga" className="col-vaga">{item.vaga}</td>
+                          <td data-label="Entrada" className="col-entrada">
+                            {formatarDataHora(item.entrada)}
+                          </td>
+                          <td data-label="Saída" className="col-saida">
+                            {formatarDataHora(item.saida)}
+                          </td>
+                          <td data-label="Duração" className="col-duracao">
+                            {formatarDuracao(item.duracaoMinutos)}
+                          </td>
+                          <td data-label="Valor" className="money col-valor">
                             <span className="valor-com-marca">
                               {formatarMoeda(item.valorCobrado)}
                               {valorPendente(item) > 0 && (
@@ -541,8 +547,10 @@ export default function PainelOperador() {
                 Os clientes aparecem aqui após o primeiro uso.
               </p>
             ) : (
-              <div className="tabela-wrap tabela-cards">
-                <table className="history-table history-table-compacta responsive-table">
+              /* Três colunas cabem no celular: continua tabela, sem virar
+                 um cartão por cliente. */
+              <div className="tabela-wrap">
+                <table className="history-table history-table-compacta">
                   <thead>
                     <tr>
                       <th>Placa</th>

@@ -60,6 +60,15 @@ function IconeSeta() {
   );
 }
 
+function IconeMais() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"
+         strokeLinecap="round" aria-hidden="true">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
 const FORM_VAZIO = {
   nome: "",
   numVagas: 20,
@@ -274,14 +283,19 @@ export default function PainelAdmin() {
 
   return (
     <main className="page container admin-page">
-      <div className="page-header header-row">
-        <div>
+      {/* No celular o botão fica ao lado do título, só com "Novo" à vista (o
+          leitor de tela continua ouvindo "Novo estacionamento"). */}
+      <div className="page-header admin-cabecalho">
+        <div className="admin-titulo">
           <span className="admin-eyebrow">Administração do sistema</span>
           <h1>Rede ParaAí</h1>
-          <p>Faturamento, ocupação e totens de todos os estacionamentos.</p>
         </div>
-        <button className="btn btn-primary" type="button" onClick={abrirNovo}>
-          Novo estacionamento
+        <p>Faturamento, ocupação e totens de todos os estacionamentos.</p>
+        <button className="btn btn-primary admin-novo" type="button" onClick={abrirNovo}>
+          <IconeMais />
+          <span>
+            Novo<span className="admin-novo-resto"> estacionamento</span>
+          </span>
         </button>
       </div>
 
@@ -544,9 +558,10 @@ export default function PainelAdmin() {
                   </div>
                 </div>
                 <p className="admin-endereco">
-                  {[item.logradouro, item.numero, item.bairro].filter(Boolean).join(", ") ||
-                    "Endereço não informado"}
-                  {" · "}
+                  <span>
+                    {[item.logradouro, item.numero, item.bairro].filter(Boolean).join(", ") ||
+                      "Endereço não informado"}
+                  </span>
                   <span className="admin-tarifa">
                     Tarifa {formatarMoeda(item.tarifaHora)}/hora
                   </span>
@@ -657,7 +672,7 @@ export default function PainelAdmin() {
               role="region"
               aria-label="Movimentações da rede"
             >
-              <table className="history-table responsive-table">
+              <table className="history-table responsive-table tabela-lista">
                 <thead>
                   <tr>
                     <th>Estacionamento</th>
@@ -671,16 +686,18 @@ export default function PainelAdmin() {
                 <tbody>
                   {movimentacoes.slice(0, linhasVisiveis).map((h) => (
                     <tr key={h.id}>
-                      <td data-label="Estacionamento">
+                      <td data-label="Estacionamento" className="col-local">
                         {nomesPorEstacionamento[h.estacionamentoId] || h.estacionamentoId || "—"}
                       </td>
-                      <td data-label="Placa">
+                      <td data-label="Placa" className="col-placa">
                         <span className="placa-tag placa-tag-sm">{h.placa}</span>
                       </td>
-                      <td data-label="Vaga">{h.vaga}</td>
-                      <td data-label="Saída">{formatarDataHora(h.saida)}</td>
-                      <td data-label="Duração">{formatarDuracao(h.duracaoMinutos)}</td>
-                      <td data-label="Valor" className="money">
+                      <td data-label="Vaga" className="col-vaga">{h.vaga}</td>
+                      <td data-label="Saída" className="col-saida">{formatarDataHora(h.saida)}</td>
+                      <td data-label="Duração" className="col-duracao">
+                        {formatarDuracao(h.duracaoMinutos)}
+                      </td>
+                      <td data-label="Valor" className="money col-valor">
                         <span className="valor-com-marca">
                           {formatarMoeda(h.valorCobrado)}
                           {valorPendente(h) > 0 && (

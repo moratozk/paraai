@@ -2,6 +2,7 @@ import { useState } from "react";
 import { iconeAoLadoDoRotulo, obterTipoVaga } from "../utils/mapaVagas";
 import { descreverVeiculo } from "../utils/veiculo";
 import { formatarHora } from "../utils/format";
+import RolagemLateral from "./RolagemLateral";
 import "./MapaVagas.css";
 
 function situacaoDaVaga(vaga) {
@@ -104,8 +105,16 @@ export default function MapaVagas({ vagas, nomeEstacionamento }) {
         <span><i className="legenda-cor gestante" />Gestante</span>
       </div>
 
-      <div className="mapa-vagas-scroll">
-        <div className="mapa-patio" role="region" aria-label="Mapa visual das vagas do estacionamento">
+      <RolagemLateral
+        className="mapa-vagas-scroll"
+        aviso="Role para o lado para ver todas as vagas."
+      >
+        <div
+          className="mapa-patio"
+          role="region"
+          aria-label="Mapa visual das vagas do estacionamento"
+          style={{ "--vagas-na-fileira": Math.max(metade, 1) }}
+        >
           <div className="mapa-fileira superior">
             {fileiraSuperior.map((vaga) => (
               <Vaga key={vaga.id} vaga={vaga} selecionada={vaga.id === vagaSelecionada} onSelecionar={selecionarVaga} />
@@ -124,7 +133,7 @@ export default function MapaVagas({ vagas, nomeEstacionamento }) {
             ))}
           </div>
         </div>
-      </div>
+      </RolagemLateral>
 
       {vagaAtual && (
         <div className="mapa-vaga-editor" role="status" aria-live="polite">

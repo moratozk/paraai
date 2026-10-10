@@ -120,7 +120,11 @@ export default function Historico() {
 
           <div className="card">
             <div className="tabela-wrap tabela-cards">
-              <table className="history-table responsive-table">
+              <table
+                className={`history-table responsive-table tabela-lista lista-acessos${
+                  role === "operador" ? " lista-patio" : ""
+                }`}
+              >
                 <thead>
                   <tr>
                     {role === "operador" && <th>Placa</th>}
@@ -140,25 +144,29 @@ export default function Historico() {
                     return (
                       <tr key={item.id}>
                         {role === "operador" && (
-                          <td data-label="Placa">
+                          <td data-label="Placa" className="col-placa">
                             <span className="placa-tag placa-tag-sm">{item.placa}</span>
                           </td>
                         )}
                         {role === "motorista" && (
-                          <td data-label="Estacionamento">
+                          <td data-label="Estacionamento" className="col-local">
                             {estacionamentosPorId[item.estacionamentoId]?.nome || "Rede ParaAí"}
                           </td>
                         )}
-                        <td data-label="Vaga">Vaga {item.vaga}</td>
-                        <td data-label="Entrada">{formatarDataHora(item.entrada)}</td>
-                        <td data-label="Saída">
+                        <td data-label="Vaga" className="col-vaga">Vaga {item.vaga}</td>
+                        <td data-label="Entrada" className="col-entrada">
+                          {formatarDataHora(item.entrada)}
+                        </td>
+                        <td data-label="Saída" className="col-saida">
                           {item.status === "ativa" ? "—" : formatarDataHora(item.saida)}
                         </td>
-                        <td data-label="Duração">{formatarDuracao(item.duracaoMinutos)}</td>
-                        <td data-label="Valor" className="money">
+                        <td data-label="Duração" className="col-duracao">
+                          {formatarDuracao(item.duracaoMinutos)}
+                        </td>
+                        <td data-label="Valor" className="money col-valor">
                           {formatarMoeda(item.valorCobrado)}
                         </td>
-                        <td data-label="Situação">
+                        <td data-label="Situação" className="col-situacao">
                           <span
                             className={`status-pill ${estado.classe}`}
                             title={
@@ -170,7 +178,7 @@ export default function Historico() {
                             {estado.rotulo}
                           </span>
                         </td>
-                        <td data-label="Comprovante">
+                        <td data-label="Comprovante" className="col-acao">
                           {item.status === "ativa" || !Number(item.saida) ? (
                             "—"
                           ) : (
@@ -180,7 +188,11 @@ export default function Historico() {
                               aria-label={`Ver comprovante da saída de ${formatarDataHora(item.saida)}`}
                               onClick={() => setComprovante(item)}
                             >
-                              Ver
+                              {/* No celular, sem o cabeçalho da coluna, o botão
+                                  diz o que abre. */}
+                              <span>
+                                Ver<span className="col-acao-resto"> comprovante</span>
+                              </span>
                             </button>
                           )}
                         </td>

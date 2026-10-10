@@ -229,6 +229,13 @@
 .mapa-editor-acoes { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.45rem; }
 .mapa-editor-erro, .mapa-editor-nota { grid-column: 1 / -1; margin: 0; }
 
+/* Celular: uma coluna por vaga da fileira, sem o asfalto vazio das dez
+   colunas do computador no fim da rolagem. */
+@media (max-width: 620px) {
+  .mapa-patio { min-width: 100%; width: max-content; }
+  .mapa-fileira { grid-template-columns: repeat(var(--vagas-na-fileira, 10), 80px); }
+}
+
 @media (max-width: 760px) {
   .mapa-vaga-editor { grid-template-columns: 1fr; align-items: stretch; }
   .mapa-editor-acoes { justify-content: stretch; }

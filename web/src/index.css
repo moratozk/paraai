@@ -601,7 +601,7 @@ input:focus, select:focus, textarea:focus {
 
 /* Transparência reduzida: superfícies de vidro viram sólidas. */
 @media (prefers-reduced-transparency: reduce) {
-  .navbar, .navbar-rolou, .modal-overlay, .mapa-publico-overlay, .menu-mobile {
+  .navbar, .navbar-rolou, .modal-overlay, .mapa-publico-overlay, .menu-mobile, .menu-mobile-veu {
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
   }

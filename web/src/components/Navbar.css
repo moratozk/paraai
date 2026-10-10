@@ -306,27 +306,78 @@
    ========================================================================== */
 .menu-hamburguer {
   display: none;
-  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  gap: 5px;
-  width: 44px;
+  gap: 0.6rem;
+  min-width: 44px;
   height: 44px;
-  padding: 0 10px;
+  padding: 0 11px;
   border-radius: var(--radius-sm);
   border: 1.5px solid var(--border);
   background: var(--bg-elevated);
+  color: var(--text-primary);
+  transition: border-color var(--dur-rapida), background var(--dur-rapida);
+}
+.menu-hamburguer.aberto { border-color: var(--accent); }
+@media (hover: hover) {
+  .menu-hamburguer:hover { border-color: var(--accent); }
 }
 
-.menu-hamburguer span {
+/* Logado: a inicial e os três traços numa pílula só. */
+.menu-hamburguer.com-conta {
+  padding: 0 12px 0 5px;
+  border-radius: 999px;
+}
+.menu-hamburguer .avatar {
+  width: 30px;
+  height: 30px;
+  font-size: var(--t-apoio);
+}
+
+.menu-tracos {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 18px;
+}
+.menu-tracos span {
   display: block;
   height: 2px;
-  width: 100%;
-  background: var(--text-primary);
+  border-radius: 2px;
+  background: currentColor;
   transition: transform 0.28s var(--mola), opacity 0.2s;
 }
-.menu-hamburguer.aberto span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-.menu-hamburguer.aberto span:nth-child(2) { opacity: 0; }
-.menu-hamburguer.aberto span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+.menu-hamburguer.aberto .menu-tracos span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.menu-hamburguer.aberto .menu-tracos span:nth-child(2) { opacity: 0; }
+.menu-hamburguer.aberto .menu-tracos span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* Véu sobre a página enquanto o menu está aberto: o menu fica claramente na
+   frente, e tocar fora dele fecha. Começa logo abaixo da barra. */
+.menu-mobile-veu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  height: 100dvh;
+  background: rgba(6, 7, 10, 0.6);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  touch-action: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--dur-media) ease-out, visibility 0s var(--dur-media);
+}
+[data-theme="light"] .menu-mobile-veu { background: rgba(34, 37, 43, 0.35); }
+.menu-mobile-veu.aberto {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity var(--dur-rapida) ease-out, visibility 0s;
+}
+/* Com o menu aberto, a página atrás não rola junto com o dedo. */
+html.menu-mobile-aberto,
+html.menu-mobile-aberto body { overflow: hidden; }
 
 /* Painel do menu: sai do botão (origem no topo) e volta pelo mesmo caminho.
    Só opacidade e transform animam; a altura nunca é animada. */
@@ -341,6 +392,7 @@
   overscroll-behavior: contain;
   background: var(--bg-solid);
   border-bottom: 1px solid var(--border);
+  border-radius: 0 0 20px 20px;
   box-shadow: var(--shadow-deep);
   transform-origin: top center;
   opacity: 0;
@@ -355,64 +407,138 @@
   visibility: visible;
   transition: opacity var(--dur-rapida) ease-out,
     transform var(--dur-media) var(--mola-critica), visibility 0s;
-  border-bottom-color: var(--border);
 }
 
 .menu-mobile-inner {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding-block: 1.2rem 1.6rem;
+  padding-block: 0.6rem 1rem;
 }
 
-/* :not(.btn) é essencial aqui: sem ele esta regra vence a do .btn por
-   especificidade (classe+elemento contra classe só) e pinta o texto do botão
-   primário de cinza sobre o fundo âmbar — 1,4:1, ilegível. */
-.menu-mobile-inner a:not(.btn),
-.menu-mobile-item {
-  padding: 0.8rem 0.2rem;
-  font-weight: 600;
-  border-bottom: 1px solid var(--border);
-  color: var(--text-secondary);
-}
-/* Ação no meio dos links (Instalar o app): mesma linha, alinhada à esquerda. */
-.menu-mobile-item { width: 100%; text-align: left; }
-@media (hover: hover) {
-  .menu-mobile-inner a:not(.btn):hover,
-  .menu-mobile-item:hover { color: var(--accent-text); }
-}
-.menu-mobile-inner .btn { margin-top: 0.4rem; }
-
+/* Quem está logado: inicial, nome, papel e e-mail. */
 .menu-mobile-user {
   display: flex;
   align-items: center;
-  gap: 0.8rem;
-  padding-bottom: 1rem;
-  margin-bottom: 0.4rem;
+  gap: 0.85rem;
+  padding: 0.6rem 0.25rem 1rem;
   border-bottom: 1px solid var(--border);
 }
-.menu-mobile-user div { display: flex; flex-direction: column; line-height: 1.3; }
+.menu-mobile-user .avatar {
+  width: 46px;
+  height: 46px;
+  font-size: var(--t-destaque);
+}
+.menu-mobile-user > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+.menu-mobile-user strong { font-size: var(--t-corpo); }
+.menu-mobile-email {
+  margin-top: 0.15rem;
+  font-size: var(--t-apoio);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Grupos de linhas separados por um filete: navegação, conta, sair. */
+.menu-mobile-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-block: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Cada linha: ícone, texto e seta, com 48 px de altura para o dedo. */
+.menu-mobile-linha {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  min-height: 48px;
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--t-corpo);
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: left;
+  transition: background var(--dur-rapida), color var(--dur-rapida);
+}
+.menu-mobile-linha > svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: var(--text-muted);
+}
+.menu-mobile-linha > .menu-mobile-seta {
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+}
+.menu-mobile-linha:active { background: var(--bg-elevated); }
+@media (hover: hover) {
+  .menu-mobile-linha:hover { background: var(--bg-elevated); }
+}
+/* Tela atual: fundo âmbar suave e um traço reto, como faixa pintada (uma
+   borda esquerda acompanharia a curva do canto). */
+.menu-mobile-linha.ativo { background: var(--accent-soft); }
+.menu-mobile-linha.ativo::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 11px;
+  bottom: 11px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+}
+.menu-mobile-linha.ativo > svg:first-child { color: var(--accent-text); }
+
+.menu-mobile-sair { margin-top: 0.5rem; color: var(--danger); }
+.menu-mobile-sair > svg { color: var(--danger); }
+
+/* Sem conta: Entrar e Criar conta lado a lado no fim do menu. */
+.menu-mobile-entrar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  padding-top: 1rem;
+}
 
 /* ==========================================================================
    RESPONSIVO
    ========================================================================== */
+/* Até 900 px os links não cabem na barra: o menu de três traços assume a
+   navegação e a conta (antes ele só aparecia em 760 px, e entre os dois
+   tamanhos, num tablet em pé, não havia como trocar de tela). */
 @media (max-width: 900px) {
   .navbar-links { display: none; }
-  .user-bloco, .conta-seta { display: none; }
-  .conta-botao { padding: 0.3rem; }
+  .conta-wrap { display: none; }
+  .menu-hamburguer { display: flex; }
+  .menu-mobile,
+  .menu-mobile-veu { display: block; }
 }
 
 @media (max-width: 760px) {
-  .menu-hamburguer { display: flex; }
-  .menu-mobile { display: block; }
   .navbar-actions .btn { display: none; }
   .navbar-inner { height: 64px; gap: 0.65rem; }
   .logo-word { font-size: var(--t-subtitulo); }
-  .conta-menu { width: min(260px, calc(100vw - 1.5rem)); }
+}
 
-  .menu-mobile-inner a:not(.btn),
-  .menu-mobile-inner button { min-height: 44px; }
-
+/* No celular o tema é só o ícone, sem caixa: a barra fica com a marca e o
+   botão do menu, sem três caixas disputando o canto. */
+@media (max-width: 620px) {
+  .navbar-actions { gap: 0.25rem; }
+  .theme-toggle {
+    border-color: transparent;
+    background: transparent;
+  }
+  .theme-toggle svg { width: 20px; height: 20px; }
 }
 
 @media (max-width: 340px) {

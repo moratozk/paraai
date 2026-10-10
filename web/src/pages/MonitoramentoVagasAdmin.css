@@ -191,11 +191,22 @@
   border: 0;
   border-radius: 0;
   background: var(--bg-primary);
+  --rolagem-fundo: var(--bg-primary);
 }
 .monitor-mapa-card.monitor-mapa-expandido {
   position: fixed;
   inset: 0;
   z-index: 1000;
+}
+/* Em tela cheia o pátio ocupa a altura que sobra: as duas caixas da rolagem
+   lateral (components/RolagemLateral.jsx) passam a altura adiante. */
+.monitor-mapa-card:fullscreen .rolagem-lateral,
+.monitor-mapa-card.monitor-mapa-expandido .rolagem-lateral,
+.monitor-mapa-card:fullscreen .rolagem-lateral-janela,
+.monitor-mapa-card.monitor-mapa-expandido .rolagem-lateral-janela {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
 }
 .monitor-mapa-card:fullscreen .monitor-mapa-scroll,
 .monitor-mapa-card.monitor-mapa-expandido .monitor-mapa-scroll {
@@ -290,6 +301,9 @@
 }
 .monitor-veiculos-lista button > span:not(.placa-tag, .status-pill) { color: var(--text-muted); font-size: var(--t-legenda); }
 .monitor-veiculos-lista button > b { color: var(--accent-text); font-size: var(--t-legenda); text-align: right; }
+/* A placa fica do tamanho dela, alinhada à direita como a reserva (esticada
+   na coluna, virava uma faixa branca). */
+.monitor-veiculos-lista .placa-tag,
 .monitor-veiculos-lista .monitor-sem-placa { justify-self: end; }
 
 @media (max-width: 980px) {
@@ -307,6 +321,30 @@
   .monitor-resultados { align-self: flex-end; }
   .monitor-mapa-cabecalho { align-items: stretch; flex-direction: column; }
   .monitor-mapa-acoes { justify-content: space-between; }
+}
+
+@media (max-width: 620px) {
+  /* Uma coluna por vaga da fileira, sem o asfalto vazio das dez colunas do
+     computador no fim da rolagem. */
+  .monitor-patio { min-width: 100%; width: max-content; }
+  .monitor-fileira { grid-template-columns: repeat(var(--vagas-na-fileira, 10), 82px); }
+
+  /* A cor de cada indicador vira um traço reto no topo: com o canto
+     arredondado, a borda de 3 px desenhava uma meia-lua. */
+  .monitor-kpi:is(.total, .livre, .ocupada, .reservada) { border-top: 1px solid var(--border); }
+  .monitor-kpi::before {
+    content: "";
+    position: absolute;
+    top: -1px;
+    left: 0.9rem;
+    right: 0.9rem;
+    height: 3px;
+    border-radius: 0 0 3px 3px;
+    background: var(--kpi-cor, var(--border-strong));
+  }
+  .monitor-kpi.livre { --kpi-cor: var(--success); }
+  .monitor-kpi.ocupada { --kpi-cor: var(--danger); }
+  .monitor-kpi.reservada { --kpi-cor: var(--accent); }
 }
 
 @media (max-width: 480px) {
