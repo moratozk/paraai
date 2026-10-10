@@ -1,0 +1,53 @@
+/* ==========================================================================
+   PLACA DO CARRO (components/Placa.jsx)
+   As cores são as da placa de verdade e não mudam com o tema: a placa é um
+   objeto, como na rua. A borda escura a separa do cartão nos dois temas.
+   ========================================================================== */
+.placa-carro {
+  display: inline-grid;
+  grid-template-rows: auto auto;
+  flex: none;
+  max-width: max-content;
+  border: 1.5px solid #1f2533;
+  border-radius: 5px;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.placa-carro-faixa { display: block; height: 4px; }
+.placa-carro-letras {
+  padding: 0.2em 0.5em 0.22em;
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+
+/* Mercosul: fundo branco, faixa azul. */
+.placa-carro.mercosul { background: #fff; color: #0a0c11; }
+.placa-carro.mercosul .placa-carro-faixa { background: var(--plate-blue); color: #fff; }
+
+/* Antiga: cinza, com a tarja de cima separada por um fio. */
+.placa-carro.antiga { background: #c9cdd3; color: #14171d; border-color: #3b414d; }
+.placa-carro.antiga .placa-carro-faixa { border-bottom: 1px solid rgba(20, 23, 29, 0.18); }
+
+/* Fora dos dois formatos (como "SEM PLACA" na maquete): branca, sem faixa. */
+.placa-carro.sem-formato { background: #f4f6f9; color: #0a0c11; border-color: #2b3242; }
+
+/* Tamanhos */
+.placa-carro.pequena { font-size: 0.8125rem; }
+.placa-carro.media { font-size: var(--t-corpo); }
+.placa-carro.grande { font-size: 1.6rem; border-width: 2px; border-radius: 8px; }
+.placa-carro.grande .placa-carro-letras { padding: 0.12em 0.45em 0.16em; }
+.placa-carro.grande .placa-carro-faixa {
+  height: auto;
+  padding: 3px 0 2px;
+  font-family: var(--font-main);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  text-align: center;
+  text-indent: 0.32em; /* o espaço depois da última letra não descentraliza */
+}
+.placa-carro.grande.antiga .placa-carro-faixa { min-height: calc(0.5625rem + 5px); }

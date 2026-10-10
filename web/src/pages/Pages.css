@@ -569,33 +569,8 @@
 }
 
 /* ==========================================================================
-   PLACA
+   PLACA (o desenho da placa está em components/Placa.css)
    ========================================================================== */
-.placa-tag, .placa-tag-sm {
-  display: inline-flex;
-  align-items: center;
-  border-radius: 4px;
-  overflow: hidden;
-  border: 1.5px solid #2b3242;
-  background: #f4f6f9;
-  font-family: var(--font-mono);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: #0a0c11;
-  line-height: 1;
-  white-space: nowrap;
-}
-.placa-tag::before, .placa-tag-sm::before {
-  content: "";
-  align-self: stretch;
-  width: 7px;
-  background: var(--plate-blue);
-  flex: none;
-  margin-right: 0.5rem;
-}
-.placa-tag { font-size: var(--t-apoio); padding: 0.35rem 0.6rem 0.35rem 0; }
-.placa-tag-sm { font-size: var(--t-legenda); padding: 0.25rem 0.45rem 0.25rem 0; }
-
 /* Cadastro da placa: placa, depois marca, modelo e cor opcionais. */
 .placa-form { display: grid; }
 .placa-form .campo-placa {
@@ -717,6 +692,62 @@
 .vehicle-card > .muted-note,
 .vehicle-card > .error-text,
 .vehicle-card > .success-text { width: 100%; }
+
+/* Cartões do motorista no Perfil: no computador, o carro e os ajustes de um
+   lado e o extrato do outro (com tudo numa coluna de 1.200 px, o rótulo e o
+   valor de cada linha ficavam longe demais); no celular, um embaixo do
+   outro, com o extrato, o mais longo, por último. */
+.perfil-colunas {
+  display: grid;
+  gap: var(--gap);
+  margin-top: var(--gap);
+  align-items: start;
+}
+.perfil-coluna { display: grid; gap: var(--gap); min-width: 0; }
+@media (min-width: 1041px) {
+  .perfil-colunas.duas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Meu carro (painel do motorista): a placa e o modelo juntos no topo e, com
+   o carro no pátio, a estadia em curso num bloco só. */
+.meu-carro-id {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.meu-carro-modelo { font-weight: 600; color: var(--text-secondary); }
+
+.estadia-agora {
+  display: grid;
+  gap: 0.3rem;
+  margin: 1rem 0 0.35rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+}
+.estadia-agora .stat-label { color: var(--accent-text); }
+.estadia-agora-local { font-size: var(--t-corpo); line-height: 1.35; }
+.estadia-agora-numeros {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.45rem;
+}
+.estadia-agora-numeros > div { display: grid; gap: 0.15rem; min-width: 0; }
+.estadia-agora-numeros > div > span:last-child {
+  font-size: var(--t-legenda);
+  color: var(--text-muted);
+}
+.estadia-agora-valor {
+  font-family: var(--font-display);
+  font-size: var(--t-titulo-g);
+  line-height: 1.05;
+  color: var(--text-primary);
+}
 
 .totem-security-card {
   display: grid;
@@ -872,6 +903,13 @@
   color: var(--text-primary);
   font-weight: 700;
 }
+.config-nav-item svg {
+  flex: none;
+  width: 1.15rem;
+  height: 1.15rem;
+  color: var(--text-muted);
+}
+.config-nav-item.ativo svg { color: var(--accent-text); }
 
 .config-conteudo { display: grid; gap: var(--gap); }
 /* Aba Privacidade: texto, lista do que acontece ao excluir e ações, num
@@ -1062,6 +1100,18 @@
     border-radius: 0 3px 3px 0;
     background: var(--accent);
   }
+  /* O mesmo traço reto nos cartões do Perfil. */
+  .vehicle-card { border-left: 1px solid var(--border); }
+  .vehicle-card::before {
+    content: "";
+    position: absolute;
+    left: -1px;
+    top: 1.3rem;
+    bottom: 1.3rem;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--accent);
+  }
 
   /* Os três números do faturamento numa faixa só, separados por filetes e
      com o valor em cima: um rótulo que quebra em duas linhas não desalinha
@@ -1177,7 +1227,7 @@
     text-transform: uppercase;
     color: var(--text-muted);
   }
-  .history-table.responsive-table td > .placa-tag { justify-self: end; }
+  .history-table.responsive-table td > .placa-carro { justify-self: end; }
   .history-table.responsive-table .history-payment { justify-items: end; }
   .history-table.responsive-table .history-payment small { white-space: normal; }
 
@@ -1277,13 +1327,12 @@
 }
 
 @media (max-width: 480px) {
-  .info-row {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 0.3rem;
-  }
-  .info-row > :last-child,
-  .info-row > span[style] { text-align: left !important; }
+  /* Rótulo e valor na mesma linha, como nos ajustes do iPhone: um embaixo do
+     outro, cada cartão do Perfil ficava com o dobro da altura. Valor longo
+     quebra dentro da própria coluna, alinhado à direita. */
+  .info-row { gap: 0.75rem; }
+  .info-row > :first-child { flex: none; }
+  .info-row > :last-child { text-align: right; }
 
   .totem-list-item { align-items: stretch; flex-direction: column; }
   .totem-list-item .btn { width: 100%; }

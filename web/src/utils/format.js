@@ -19,6 +19,19 @@ export function placaValida(placa) {
   return PLACA_ANTIGA.test(placa) || PLACA_MERCOSUL.test(placa);
 }
 
+// Qual das duas a placa é, para desenhá-la como a de verdade (components/Placa).
+export function tipoPlaca(placa) {
+  if (PLACA_MERCOSUL.test(placa)) return "mercosul";
+  if (PLACA_ANTIGA.test(placa)) return "antiga";
+  return null;
+}
+
+// Como a placa aparece escrita: a antiga com o hífen (ABC-1234), como na rua.
+// O banco e o totem continuam com a placa sem hífen.
+export function placaParaExibir(placa) {
+  return tipoPlaca(placa) === "antiga" ? `${placa.slice(0, 3)}-${placa.slice(3)}` : placa || "";
+}
+
 // ---------- Telefone celular (BR) ----------
 
 export function normalizarTelefone(valor) {

@@ -25,6 +25,7 @@ import { buscarCep, cepCompleto, formatarCep } from "../services/cep";
 import ModalRecarga from "../components/ModalRecarga";
 import ExtratoCarteira from "../components/ExtratoCarteira";
 import { normalizarPlaca, placaValida, formatarMoeda } from "../utils/format";
+import Placa from "../components/Placa";
 import "./Pages.css";
 
 const DESCRICAO_VAZIA = { marca: "", modelo: "", cor: "" };
@@ -276,7 +277,7 @@ export default function Perfil() {
           ) : (
             placa && (
               <>
-                <span className="placa-tag">{placa}</span>
+                <Placa placa={placa} tamanho="grande" />
                 {descreverVeiculo(veiculo) && (
                   <p className="perfil-carro">{descreverVeiculo(veiculo)}</p>
                 )}
@@ -410,7 +411,8 @@ export default function Perfil() {
         </>
         ) : null
       ) : (
-        <>
+        <div className={`perfil-colunas ${placa ? "duas" : ""}`}>
+        <div className="perfil-coluna">
         <div className="card vehicle-card">
           <h2>Meu veículo</h2>
 
@@ -475,7 +477,7 @@ export default function Perfil() {
             <>
               <div className="info-row">
                 <span className="label">Placa</span>
-                <span className="placa-tag">{placa}</span>
+                <Placa placa={placa} />
               </div>
               <div className="info-row">
                 <span className="label">Cadastro</span>
@@ -512,8 +514,6 @@ export default function Perfil() {
             </>
           )}
         </div>
-
-        {placa && <ExtratoCarteira uid={user?.uid} placa={placa} saldo={veiculo?.saldo} />}
 
         {placa && (
           <div className="card vehicle-card">
@@ -642,7 +642,14 @@ export default function Perfil() {
             </form>
           )}
         </div>
-        </>
+        </div>
+
+        {placa && (
+          <div className="perfil-coluna">
+            <ExtratoCarteira uid={user?.uid} placa={placa} saldo={veiculo?.saldo} />
+          </div>
+        )}
+        </div>
       )}
 
       {role === "operador" && !estId && (

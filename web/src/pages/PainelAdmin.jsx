@@ -31,6 +31,7 @@ import {
   resumirEstadias,
 } from "../utils/relatorios";
 import { TOTEM_OFFLINE_APOS_SEGUNDOS } from "../utils/constants";
+import Placa from "../components/Placa";
 import "./Pages.css";
 import "./Admin.css";
 
@@ -690,7 +691,7 @@ export default function PainelAdmin() {
                         {nomesPorEstacionamento[h.estacionamentoId] || h.estacionamentoId || "—"}
                       </td>
                       <td data-label="Placa" className="col-placa">
-                        <span className="placa-tag placa-tag-sm">{h.placa}</span>
+                        <Placa placa={h.placa} tamanho="pequena" />
                       </td>
                       <td data-label="Vaga" className="col-vaga">{h.vaga}</td>
                       <td data-label="Saída" className="col-saida">{formatarDataHora(h.saida)}</td>

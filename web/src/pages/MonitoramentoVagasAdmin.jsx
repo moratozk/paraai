@@ -17,6 +17,7 @@ import {
   resumirVagas,
   TIPOS_VAGA_EDITAVEIS,
 } from "../utils/mapaVagas";
+import Placa from "../components/Placa";
 import "./Pages.css";
 import "./MonitoramentoVagasAdmin.css";
 
@@ -493,7 +494,7 @@ export default function MonitoramentoVagasAdmin() {
                     <strong>Vaga {String(vaga.numero).padStart(2, "0")}</strong>
                     {/* A reserva ainda não tem carro: no lugar da placa, o estado. */}
                     {vaga.placa ? (
-                      <span className="placa-tag placa-tag-sm">{vaga.placa}</span>
+                      <Placa placa={vaga.placa} tamanho="pequena" />
                     ) : (
                       <span className="status-pill warning monitor-sem-placa">Reservada</span>
                     )}

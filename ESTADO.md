@@ -88,6 +88,32 @@ de rolagem do mapa e a placa das vagas ao vivo (abaixo).
   760 px, a faixa âmbar do corredor some (`Auth.css`), porque o cartão ocupa
   quase toda a largura e dela só sobravam dois tracinhos nas bordas.
 
+- **Placas como as de verdade (`components/Placa.jsx`):** o formato decide
+  o desenho. Mercosul (ABC1D23) branca com a faixa azul em cima; antiga
+  (ABC1234) cinza, com o hífen só na tela (o banco e o totem seguem sem
+  hífen) e a tarja da cidade em branco, porque o site não sabe de onde é o
+  carro. Na grande (Perfil, painel do motorista e comprovante), a faixa da
+  Mercosul leva "BRASIL". Vale em todas as telas que mostram placa; as cores
+  são as da placa e não mudam com o tema. A tela do totem não mudou.
+- **Painel do motorista:** "Meu carro" abre com a placa e o modelo; com o
+  carro no pátio, um bloco "Estacionado agora" junta o local e a vaga, o
+  tempo correndo e o custo estimado (antes eram seis linhas de rótulo e
+  valor). "Vai estacionar?" some com o carro estacionado e vira botão
+  secundário quando há aviso de saldo ou reserva. Nos últimos acessos, a
+  estadia com pendência diz "pendente" ao lado da data (antes só a cor do
+  valor dizia).
+- **Perfil e linhas de informação:** no celular, rótulo e valor ficam na
+  mesma linha (`.info-row`), como nos ajustes do iPhone; os cartões do Perfil
+  têm o traço âmbar reto dos indicadores. No computador, o carro, o modelo e
+  a vaga especial ficam numa coluna e o extrato na outra; no celular, o
+  extrato vem por último.
+- **Mapa de vagas do motorista:** no celular, cada fileira fica em linhas do
+  mesmo tamanho (num pátio de 12 vagas, 3 + 3 por lado; antes, 5 + 1).
+- **Configurações:** ícones de traço nas abas, no lugar dos emojis.
+- **Estacionamentos e comprovante:** a faixa com o "P" de cada cartão fica
+  mais baixa no celular, e o endereço do comprovante não começa linha com
+  "· SP".
+
 Sem mudança nas regras do Firestore. Só o site precisa ser publicado.
 
 ## Roteiro da apresentação e demonstração sem internet (09/10/2026)

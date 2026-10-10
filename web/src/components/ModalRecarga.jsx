@@ -3,6 +3,7 @@ import QRCode from "qrcode";
 import { adicionarSaldo, RECARGA_MAXIMA, RECARGA_MINIMA } from "../services/veiculos";
 import { formatarMoeda, lerValorEmReais } from "../utils/format";
 import { useFocoNoModal } from "../hooks/useFocoNoModal";
+import Placa from "./Placa";
 import "./ModalRecarga.css";
 
 const VALORES = [10, 25, 50, 100];
@@ -174,7 +175,7 @@ export default function ModalRecarga({ uid, placa, saldoAtual, aoFechar, aoConcl
             <h2 className="modal-titulo">Adicionar saldo</h2>
             <p className="modal-sub">
               Saldo atual: <strong>{formatarMoeda(saldoAtual)}</strong> · Placa{" "}
-              <span className="placa-tag placa-tag-sm">{placa}</span>
+              <Placa placa={placa} tamanho="pequena" />
             </p>
 
             <div className="valores-grid">

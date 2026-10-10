@@ -118,7 +118,7 @@ test("motorista e dono: do cadastro à cobrança, com o totem pelas regras", asy
     await motorista.goto("/perfil");
     await motorista.getByLabel("Placa do veículo").fill(PLACA);
     await motorista.getByRole("button", { name: "Cadastrar", exact: true }).click();
-    await expect(cartao(motorista, "Meu veículo").locator(".placa-tag")).toHaveText(PLACA);
+    await expect(cartao(motorista, "Meu veículo").locator(".placa-carro")).toHaveText(PLACA);
   });
 
   await test.step("recarga simulada de R$ 50 pelo Pix", async () => {

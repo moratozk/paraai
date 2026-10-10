@@ -13,6 +13,7 @@ import {
   formatarMoeda,
   formatarDataHora,
   formatarDuracaoAoVivo,
+  formatarHora,
   saldoEmPendencia,
   valorPendente,
 } from "../utils/format";
@@ -21,6 +22,7 @@ import { valorDaEstadia } from "../utils/cobranca";
 import { cancelarReserva, reservaAtiva } from "../services/reservas";
 import { descreverVeiculo } from "../utils/veiculo";
 import ComprovanteEstadia from "../components/ComprovanteEstadia";
+import Placa from "../components/Placa";
 import "./Pages.css";
 
 function IconeAbrir() {
@@ -76,6 +78,10 @@ export default function PainelMotorista() {
     estacionado && horaEntrada > 0 ? Math.max(0, agora - horaEntrada) : 0;
   // A mesma conta do totem na saída, arredondada ao centavo.
   const custoEstimado = valorDaEstadia(segundosEstacionado, tarifaAtual);
+  // Entrou hoje: só a hora; noutro dia, a data também.
+  const entrouHoje =
+    horaEntrada > 0 &&
+    new Date(horaEntrada * 1000).toDateString() === new Date(agora * 1000).toDateString();
 
   const ultimosAcessos = historico.slice(0, 5);
   // O motorista vê o nome do estacionamento, nunca o identificador interno.
@@ -237,15 +243,24 @@ export default function PainelMotorista() {
         </div>
       </div>
 
-      <div className="card destaque-aviso marketplace-chamada-painel">
-        <div>
-          <strong>Vai estacionar?</strong> Compare os locais da rede, veja a
-          tarifa e confira as vagas antes de sair.
+      {/* Com o carro no pátio, procurar onde parar não faz sentido. Com um
+          aviso de saldo ou reserva acima, o botão principal é o do aviso. */}
+      {!estacionado && (
+        <div className="card destaque-aviso marketplace-chamada-painel">
+          <div>
+            <strong>Vai estacionar?</strong> Compare os locais da rede, veja a
+            tarifa e confira as vagas antes de sair.
+          </div>
+          <Link
+            to="/estacionamentos"
+            className={`btn btn-sm ${
+              emPendencia || saldoBaixo || reservaValida ? "btn-outline" : "btn-primary"
+            }`}
+          >
+            Explorar estacionamentos
+          </Link>
         </div>
-        <Link to="/estacionamentos" className="btn btn-primary btn-sm">
-          Explorar estacionamentos
-        </Link>
-      </div>
+      )}
 
       <div className="dashboard-grid">
         <div className="dashboard-col">
@@ -261,46 +276,40 @@ export default function PainelMotorista() {
               </div>
             ) : (
               <>
-                <div className="info-row">
-                  <span className="label">Placa</span>
-                  <span className="placa-tag">{placa}</span>
-                </div>
-                <div className="info-row">
-                  <span className="label">Modelo e cor</span>
+                <div className="meu-carro-id">
+                  <Placa placa={placa} tamanho="grande" />
                   {descreverVeiculo(veiculo) ? (
-                    <span>{descreverVeiculo(veiculo)}</span>
+                    <span className="meu-carro-modelo">{descreverVeiculo(veiculo)}</span>
                   ) : (
                     <Link to="/perfil" className="field-link">
-                      Informar no Perfil
+                      Informar modelo e cor
                     </Link>
                   )}
                 </div>
 
                 {estacionado ? (
-                  <>
-                    <div className="info-row">
-                      <span className="label">Estacionado em</span>
-                      <strong>
-                        {estAtual?.nome || estIdAtual || "Estacionamento da rede"}
-                      </strong>
+                  // A estadia em curso em destaque: onde, quanto tempo e quanto.
+                  <div className="estadia-agora">
+                    <span className="stat-label">Estacionado agora</span>
+                    <strong className="estadia-agora-local">
+                      {estAtual?.nome || estIdAtual || "Estacionamento da rede"} · Vaga{" "}
+                      {veiculo.vagaAtual}
+                    </strong>
+                    <div className="estadia-agora-numeros">
+                      <div>
+                        <span className="estadia-agora-valor">
+                          {formatarDuracaoAoVivo(segundosEstacionado)}
+                        </span>
+                        <span>
+                          desde {entrouHoje ? formatarHora(horaEntrada) : formatarDataHora(horaEntrada)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="estadia-agora-valor">{formatarMoeda(custoEstimado)}</span>
+                        <span>custo estimado</span>
+                      </div>
                     </div>
-                    <div className="info-row">
-                      <span className="label">Vaga</span>
-                      <strong>Vaga {veiculo.vagaAtual}</strong>
-                    </div>
-                    <div className="info-row">
-                      <span className="label">Entrada</span>
-                      <span>{formatarDataHora(horaEntrada)}</span>
-                    </div>
-                    <div className="info-row">
-                      <span className="label">Tempo estacionado</span>
-                      <strong>{formatarDuracaoAoVivo(segundosEstacionado)}</strong>
-                    </div>
-                    <div className="info-row">
-                      <span className="label">Custo estimado</span>
-                      <strong className="money">{formatarMoeda(custoEstimado)}</strong>
-                    </div>
-                  </>
+                  </div>
                 ) : reservaValida ? (
                   <div className="info-row">
                     <span className="label">Reserva</span>
@@ -353,6 +362,8 @@ export default function PainelMotorista() {
                           {item.status === "ativa"
                             ? "Em andamento"
                             : formatarDataHora(item.saida)}
+                          {/* A cor do valor sozinha não diz que ficou pendência. */}
+                          {valorPendente(item) > 0 && " · pendente"}
                         </span>
                       </span>
                       <span

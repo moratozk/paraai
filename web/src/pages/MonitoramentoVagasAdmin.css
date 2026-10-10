@@ -299,11 +299,11 @@
 @media (hover: hover) {
   .monitor-veiculos-lista button:hover { border-color: var(--accent); } 
 }
-.monitor-veiculos-lista button > span:not(.placa-tag, .status-pill) { color: var(--text-muted); font-size: var(--t-legenda); }
+.monitor-veiculos-lista button > span:not(.placa-carro, .status-pill) { color: var(--text-muted); font-size: var(--t-legenda); }
 .monitor-veiculos-lista button > b { color: var(--accent-text); font-size: var(--t-legenda); text-align: right; }
 /* A placa fica do tamanho dela, alinhada à direita como a reserva (esticada
    na coluna, virava uma faixa branca). */
-.monitor-veiculos-lista .placa-tag,
+.monitor-veiculos-lista .placa-carro,
 .monitor-veiculos-lista .monitor-sem-placa { justify-self: end; }
 
 @media (max-width: 980px) {

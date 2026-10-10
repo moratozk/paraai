@@ -45,6 +45,9 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
   const temReserva = reservaAtiva(reserva);
 
   const metade = Math.ceil(vagas.length / 2);
+  // No celular, cada fileira em linhas do mesmo tamanho: com 5 por linha, a
+  // 6ª vaga de um pátio de 12 ficava sozinha embaixo. "max" é o que cabe.
+  const colunas = (max) => Math.ceil(metade / Math.max(1, Math.ceil(metade / max)));
   const selecionada = vagas.find((vaga) => vaga.numero === vagaSelecionada);
   const tipoSelecionada = selecionada
     ? obterTipoVaga(selecionada.tipo, selecionada.numero)
@@ -225,7 +228,10 @@ export default function MapaVagasPublico({ estacionamento, rota, motorista, onFe
               <span><i className="gestante" />Gestante</span>
             </div>
 
-            <div className="mapa-publico-patio">
+            <div
+              className="mapa-publico-patio"
+              style={{ "--colunas-celular": colunas(5), "--colunas-estreito": colunas(4) }}
+            >
               <div className="mapa-publico-fileira">
                 {vagas.slice(0, metade).map(renderizarVaga)}
               </div>

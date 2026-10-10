@@ -32,6 +32,7 @@ import {
   inicioDoPeriodo,
 } from "../utils/relatorios";
 import { combinarVagasDoPatio } from "../utils/mapaVagas";
+import Placa from "../components/Placa";
 import "./Pages.css";
 
 const LINHAS_INICIAIS = 10;
@@ -486,9 +487,7 @@ export default function PainelOperador() {
                       {movimentacoes.slice(0, linhasVisiveis).map((item) => (
                         <tr key={item.id}>
                           <td data-label="Placa" className="col-placa">
-                            <span className="placa-tag placa-tag-sm">
-                              {item.placa}
-                            </span>
+                            <Placa placa={item.placa} tamanho="pequena" />
                           </td>
                           <td data-label="Vaga" className="col-vaga">{item.vaga}</td>
                           <td data-label="Entrada" className="col-entrada">
@@ -562,7 +561,7 @@ export default function PainelOperador() {
                     {clientes.slice(0, 6).map((c) => (
                       <tr key={c.placa}>
                         <td data-label="Placa">
-                          <span className="placa-tag placa-tag-sm">{c.placa}</span>
+                          <Placa placa={c.placa} tamanho="pequena" />
                         </td>
                         <td data-label="Usos">{c.acessos}</td>
                         <td data-label="Gasto" className="money">
