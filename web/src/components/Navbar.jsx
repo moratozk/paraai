@@ -29,6 +29,55 @@ function IconeLua() {
   );
 }
 
+// Ícones das linhas do menu do celular, no mesmo traço dos do tema.
+const TRACOS_DO_ICONE = {
+  painel: (
+    <>
+      <rect x="3.5" y="3.5" width="7" height="8" rx="1.5" />
+      <rect x="13.5" y="3.5" width="7" height="5" rx="1.5" />
+      <rect x="13.5" y="11.5" width="7" height="9" rx="1.5" />
+      <rect x="3.5" y="14.5" width="7" height="6" rx="1.5" />
+    </>
+  ),
+  local: (
+    <>
+      <path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z" />
+      <circle cx="12" cy="10" r="2.4" />
+    </>
+  ),
+  historico: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3 2" />
+    </>
+  ),
+  perfil: (
+    <>
+      <circle cx="12" cy="8" r="3.8" />
+      <path d="M4.5 20.5a7.5 7.5 0 0 1 15 0" />
+    </>
+  ),
+  ajustes: (
+    <>
+      <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
+      <circle cx="15" cy="7" r="2" />
+      <circle cx="9" cy="17" r="2" />
+    </>
+  ),
+  instalar: <path d="M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5M5 20h14" />,
+  sair: <path d="M9.5 20H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h3.5M15.5 16.5 20 12l-4.5-4.5M20 12H9" />,
+  seta: <path d="m9.5 6 6 6-6 6" />,
+};
+
+function Icone({ nome, className }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+         strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={className}>
+      {TRACOS_DO_ICONE[nome]}
+    </svg>
+  );
+}
+
 // Seções da Home, na ordem em que aparecem na página.
 const SECOES_HOME = [
   { id: "vantagens", label: "Vantagens" },
@@ -83,6 +132,21 @@ export default function Navbar() {
     barra.style.transform = `scaleX(${total > 0 ? Math.min(1, window.scrollY / total) : 0})`;
   });
 
+  // Menu do celular aberto: a página por trás não rola e o ESC fecha.
+  useEffect(() => {
+    if (!menuAberto) return undefined;
+    const raiz = document.documentElement;
+    raiz.classList.add("menu-mobile-aberto");
+    function aoTeclar(e) {
+      if (e.key === "Escape") setMenuEm(null);
+    }
+    document.addEventListener("keydown", aoTeclar);
+    return () => {
+      raiz.classList.remove("menu-mobile-aberto");
+      document.removeEventListener("keydown", aoTeclar);
+    };
+  }, [menuAberto]);
+
   // fecha ao clicar fora ou apertar ESC
   useEffect(() => {
     if (!contaAberta) return undefined;
@@ -130,22 +194,52 @@ export default function Navbar() {
   const admin = userData?.role === "admin";
   const nome = userData?.name || user?.displayName || "Usuário";
   const inicial = nome[0].toUpperCase();
+  const papel = admin ? "Administrador" : operador ? "Estacionamento" : "Motorista";
+  const foto = userData?.photoURL || user?.photoURL;
+  // Foto da conta ou a inicial do nome: no botão da conta, no botão do menu
+  // do celular e no topo dos dois menus.
+  const avatar = foto ? (
+    <img src={foto} alt="" className="avatar" />
+  ) : (
+    <span className="avatar avatar-placeholder">{inicial}</span>
+  );
 
   // Links de navegação principais (Perfil/Config saíram para o menu do avatar)
   const links = user
     ? admin
-      ? [{ to: "/dashboard", label: "Administração" }]
+      ? [{ to: "/dashboard", label: "Administração", icone: "painel" }]
       : operador
       ? [
-          { to: "/dashboard", label: "Painel" },
-          { to: "/historico", label: "Movimentações" },
+          { to: "/dashboard", label: "Painel", icone: "painel" },
+          { to: "/historico", label: "Movimentações", icone: "historico" },
         ]
       : [
-          { to: "/dashboard", label: "Painel" },
-          { to: "/estacionamentos", label: "Estacionamentos" },
-          { to: "/historico", label: "Meus acessos" },
+          { to: "/dashboard", label: "Painel", icone: "painel" },
+          { to: "/estacionamentos", label: "Estacionamentos", icone: "local" },
+          { to: "/historico", label: "Meus acessos", icone: "historico" },
         ]
     : [];
+  // As telas de um estacionamento da rede (vagas ao vivo, maquete) contam
+  // como Administração.
+  const rotaAtiva = (to) =>
+    location.pathname === to ||
+    (admin && to === "/dashboard" && location.pathname.startsWith("/admin/"));
+
+  // Linha do menu do celular. Tocar na tela em que já se está também fecha
+  // o menu (a rota não muda, então ele não fecharia sozinho).
+  const linhaDoMenu = ({ to, label, icone }) => (
+    <Link
+      key={to}
+      to={to}
+      className={`menu-mobile-linha ${rotaAtiva(to) ? "ativo" : ""}`}
+      aria-current={rotaAtiva(to) ? "page" : undefined}
+      onClick={() => setMenuAberto(false)}
+    >
+      <Icone nome={icone} />
+      <span>{label}</span>
+      <Icone nome="seta" className="menu-mobile-seta" />
+    </Link>
+  );
 
   return (
     <header
@@ -160,16 +254,7 @@ export default function Navbar() {
         <nav className="navbar-links">
           {user ? (
             links.map((l) => (
-              <Link
-                key={l.to}
-                to={l.to}
-                className={
-                  location.pathname === l.to ||
-                  (admin && l.to === "/dashboard" && location.pathname.startsWith("/admin/"))
-                    ? "ativo"
-                    : ""
-                }
-              >
+              <Link key={l.to} to={l.to} className={rotaAtiva(l.to) ? "ativo" : ""}>
                 {l.label}
               </Link>
             ))
@@ -212,20 +297,10 @@ export default function Navbar() {
                 aria-expanded={contaAberta}
                 aria-label="Menu da conta"
               >
-                {userData?.photoURL || user?.photoURL ? (
-                  <img
-                    src={userData?.photoURL || user?.photoURL}
-                    alt=""
-                    className="avatar"
-                  />
-                ) : (
-                  <div className="avatar avatar-placeholder">{inicial}</div>
-                )}
+                {avatar}
                 <span className="user-bloco">
                   <span className="user-name">{nome}</span>
-                  <span className="user-papel">
-                    {admin ? "Administrador" : operador ? "Estacionamento" : "Motorista"}
-                  </span>
+                  <span className="user-papel">{papel}</span>
                 </span>
                 <span className={`conta-seta ${contaAberta ? "girada" : ""}`}>
                   ▾
@@ -235,7 +310,7 @@ export default function Navbar() {
               {contaAberta && (
                 <div className="conta-menu" role="menu">
                   <div className="conta-menu-topo">
-                    <div className="avatar avatar-placeholder">{inicial}</div>
+                    {avatar}
                     <div className="conta-menu-info">
                       <strong>{nome}</strong>
                       <span>{user.email}</span>
@@ -276,67 +351,90 @@ export default function Navbar() {
           )}
         </div>
 
+        {/* No celular o menu da conta e o de navegação são um só: logado, o
+            botão leva a inicial (ou a foto) junto dos três traços. */}
         <button
           type="button"
-          className={`menu-hamburguer ${menuAberto ? "aberto" : ""}`}
+          className={`menu-hamburguer ${menuAberto ? "aberto" : ""} ${user ? "com-conta" : ""}`}
           onClick={() => setMenuAberto(!menuAberto)}
           aria-label={menuAberto ? "Fechar menu" : "Abrir menu"}
           aria-expanded={menuAberto}
+          aria-controls="menu-mobile"
         >
-          <span></span>
-          <span></span>
-          <span></span>
+          {user && avatar}
+          <span className="menu-tracos" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </span>
         </button>
       </div>
 
       {/* ---- menu mobile ---- */}
-      <div className={`menu-mobile ${menuAberto ? "aberto" : ""}`}>
+      {/* Véu sobre a página: escurece o que ficou atrás e fecha ao tocar. */}
+      <div
+        className={`menu-mobile-veu ${menuAberto ? "aberto" : ""}`}
+        aria-hidden="true"
+        onClick={() => setMenuAberto(false)}
+      />
+      <div id="menu-mobile" className={`menu-mobile ${menuAberto ? "aberto" : ""}`}>
         <div className="container menu-mobile-inner">
           {user ? (
             <>
               <div className="menu-mobile-user">
-                <div className="avatar avatar-placeholder">{inicial}</div>
+                {avatar}
                 <div>
                   <strong>{nome}</strong>
-                  <span className="user-papel">
-                    {admin ? "Administrador" : operador ? "Estacionamento" : "Motorista"}
-                  </span>
+                  <span className="user-papel">{papel}</span>
+                  <span className="menu-mobile-email">{user.email}</span>
                 </div>
               </div>
-              {links.map((l) => (
-                <Link key={l.to} to={l.to}>
-                  {l.label}
-                </Link>
-              ))}
-              <Link to="/perfil">Meu perfil</Link>
-              <Link to="/configuracoes">Configurações</Link>
-              {instalacao && (
-                <button type="button" className="menu-mobile-item" onClick={handleInstalar}>
-                  Instalar o app
-                </button>
-              )}
-              <button className="btn btn-outline btn-block" onClick={handleLogout}>
-                Sair
+              <nav className="menu-mobile-grupo" aria-label="Navegação">
+                {links.map(linhaDoMenu)}
+              </nav>
+              <div className="menu-mobile-grupo">
+                {linhaDoMenu({ to: "/perfil", label: "Meu perfil", icone: "perfil" })}
+                {linhaDoMenu({ to: "/configuracoes", label: "Configurações", icone: "ajustes" })}
+                {instalacao && (
+                  <button type="button" className="menu-mobile-linha" onClick={handleInstalar}>
+                    <Icone nome="instalar" />
+                    <span>Instalar o app</span>
+                  </button>
+                )}
+              </div>
+              <button type="button" className="menu-mobile-linha menu-mobile-sair" onClick={handleLogout}>
+                <Icone nome="sair" />
+                <span>Sair da conta</span>
               </button>
             </>
           ) : (
             <>
-              {SECOES_HOME.map((s) => (
-                <a key={s.id} href={`/#${s.id}`} onClick={() => setMenuAberto(false)}>
-                  {s.label}
-                </a>
-              ))}
-              {instalacao && (
-                <button type="button" className="menu-mobile-item" onClick={handleInstalar}>
-                  Instalar o app
-                </button>
-              )}
-              <Link to="/login" className="btn btn-outline btn-block">
-                Entrar
-              </Link>
-              <Link to="/cadastro" className="btn btn-primary btn-block">
-                Criar conta
-              </Link>
+              <nav className="menu-mobile-grupo" aria-label="Seções da página inicial">
+                {SECOES_HOME.map((s) => (
+                  <a
+                    key={s.id}
+                    href={`/#${s.id}`}
+                    className="menu-mobile-linha"
+                    onClick={() => setMenuAberto(false)}
+                  >
+                    <span>{s.label}</span>
+                    <Icone nome="seta" className="menu-mobile-seta" />
+                  </a>
+                ))}
+                {instalacao && (
+                  <button type="button" className="menu-mobile-linha" onClick={handleInstalar}>
+                    <span>Instalar o app</span>
+                  </button>
+                )}
+              </nav>
+              <div className="menu-mobile-entrar">
+                <Link to="/login" className="btn btn-outline" onClick={() => setMenuAberto(false)}>
+                  Entrar
+                </Link>
+                <Link to="/cadastro" className="btn btn-primary" onClick={() => setMenuAberto(false)}>
+                  Criar conta
+                </Link>
+              </div>
             </>
           )}
         </div>
