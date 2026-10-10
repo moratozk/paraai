@@ -25,6 +25,11 @@
       } catch {
         // Sem armazenamento, fica o escuro, que é o padrão.
       }
+      // Aberto pela tela inicial do iPhone: a barra do topo desce um pouco
+      // (--respiro-app, no index.css).
+      if (window.navigator.standalone === true) {
+        document.documentElement.classList.add("app-instalado");
+      }
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
