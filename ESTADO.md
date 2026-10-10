@@ -1,7 +1,7 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **09/10/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **10/10/2026**.
 
 ---
 
@@ -25,12 +25,18 @@ estadia e cobrança simulada. O operador acompanha pelo painel. A ocupação é
 lógica; a maquete virtual do administrador mostra os mesmos registros com
 carros andando num pátio desenhado (ver "Maquete virtual", abaixo).
 
-Projeto acadêmico (TCC). A `main` tem tudo: a integração (PR #9) e, desde
-06/10/2026, os PRs #10 a #15 (pinos e tela da CYD, pastas, vagas especiais,
-revisão visual e nova tela inicial). **Regras do Firestore e site publicados
-em 06/10/2026** a partir da `main` (`26a97e5`); o site no ar é o build dessa
-versão. **O firmware da `main` foi gravado no totem no mesmo dia** e testado:
-uma placa sem direito declarado recebeu a primeira vaga comum livre.
+Projeto acadêmico (TCC). A `main` tem tudo: a integração (PR #9), desde
+06/10/2026 os PRs #10 a #15 (pinos e tela da CYD, pastas, vagas especiais,
+revisão visual e nova tela inicial) e, desde 09/10/2026, os PRs #19 a #34
+(recuperação de senha, Wi-Fi na tela do totem, maquete virtual, modelo e cor
+do veículo, saldo protegido e extrato, painel da rede, comprovante da estadia,
+app instalável, privacidade, testes automáticos, roteiro da apresentação e
+acertos de tela). **Regras, índice do Firestore e site publicados em
+10/10/2026** a partir da `main` (`fa07f39`), as regras e o índice primeiro; o
+site no ar é o build dessa versão. **O firmware do totem ainda é o gravado em
+06/10/2026** (anterior aos PRs #20 e #22), testado naquele dia: uma placa sem
+direito declarado recebeu a primeira vaga comum livre. As regras publicadas
+continuam aceitando esse firmware.
 
 ## Roteiro da apresentação e demonstração sem internet (09/10/2026)
 
@@ -912,37 +918,34 @@ usa o Firebase de produção.
    sem direito declarado recebeu a vaga comum, não a PCD. Para gravar de novo:
    placa na COM3 e modo de gravação (segurar BOOT, apertar RST, soltar BOOT).
 
-8. **Modelo e cor do veículo (08/10/2026, PR próprio).** Para funcionar por
-   inteiro, nesta ordem: publicar as regras (sem elas, o Perfil não salva
-   modelo e cor, mas o cadastro da placa continua funcionando), publicar o
-   site e gravar o firmware novo, que mostra "GOL PRATA" e copia modelo e cor
-   para a vaga. Qualquer ordem é segura: firmware antigo continua aceito pelas
-   regras novas, e o firmware novo só copia o que as regras deixaram gravar.
-   Falta testar no hardware.
+8. **Modelo e cor do veículo (08/10/2026, PR #22).** Regras e site publicados
+   em 09/10/2026. Falta gravar o firmware novo, que mostra "GOL PRATA" e copia
+   modelo e cor para a vaga (até lá a maquete pinta o carro pela placa), e
+   testar no hardware. O firmware antigo continua aceito pelas regras novas, e
+   o novo só copia o que as regras deixaram gravar.
 
-9. **Saldo protegido e extrato (09/10/2026, PR próprio).** Publicar as regras
-   e logo em seguida o site: entre uma coisa e outra, a recarga falha (o saldo
-   não muda). Depois, fazer uma recarga e conferir o extrato no Perfil.
+9. **Saldo protegido e extrato (09/10/2026, PR #26).** Regras e site
+   publicados em 10/10/2026, um logo depois do outro. Falta fazer uma recarga
+   e conferir o extrato no Perfil.
 
-10. **App instalável (09/10/2026, PR próprio).** Depois de publicar o site,
-    instalar no celular (Android: menu e "Instalar o app"; iPhone: Compartilhar
+10. **App instalável (09/10/2026, PR #29).** Site publicado em 10/10/2026.
+    Falta instalar no celular (Android: menu e "Instalar o app"; iPhone: Compartilhar
     e "Adicionar à Tela de Início"), abrir pelo ícone e ligar o modo avião para
     ver a página sem internet. O pedido de instalação do navegador só foi
     simulado nos testes locais.
 
-11. **Privacidade e LGPD (09/10/2026, PR próprio).** Publicar as regras e o
-    índice (`firebase deploy --only firestore`) e depois o site. Para conferir:
-    criar uma conta de teste, cadastrar uma placa, baixar os dados, excluir a
+11. **Privacidade e LGPD (09/10/2026, PR #32).** Regras, índice e site
+    publicados em 10/10/2026. Falta conferir: criar uma conta de teste, cadastrar uma placa, baixar os dados, excluir a
     conta e cadastrar a mesma placa com outra conta, que não deve ver as
     estadias anteriores.
 
-12. **Testes automáticos (09/10/2026, PR próprio).** Rodam sozinhos em cada
-    PR. Para publicar, só o site, que leva a correção do aviso vermelho falso
-    logo depois do cadastro. Regras e firmware não mudam.
+12. **Testes automáticos (09/10/2026, PR #33).** Rodam sozinhos em cada
+    PR. O site publicado em 10/10/2026 já leva a correção do aviso vermelho
+    falso logo depois do cadastro. Regras e firmware não mudam.
 
-13. **Roteiro da apresentação (09/10/2026, PR próprio).** Seguir "Antes do
-    dia" em `docs/apresentacao.md`. Para publicar, só o site, que tira do ar
-    o simulador antigo em `/totem.html`. Preparar a demonstração sem internet
+13. **Roteiro da apresentação (09/10/2026, PR #34).** Seguir "Antes do
+    dia" em `docs/apresentacao.md`. O site publicado em 10/10/2026 já tirou do
+    ar o simulador antigo em `/totem.html`. Preparar a demonstração sem internet
     no notebook da apresentação (Node 22, Java 21 e `npm ci` em `web/` e
     `e2e/`, com internet) e abri-la uma vez antes do dia.
 
