@@ -34,8 +34,11 @@
   scrollbar-color: var(--border-strong) transparent;
 }
 
+/* Ocupa o cartão e só passa dele (e rola) quando as vagas não cabem: com
+   900 px fixos, num tablet o mapa rolava só para mostrar asfalto. */
 .mapa-patio {
-  min-width: 900px;
+  width: fit-content;
+  min-width: 100%;
   padding: clamp(0.8rem, 2vw, 1.25rem);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);

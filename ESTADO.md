@@ -97,7 +97,7 @@ de rolagem do mapa e a placa das vagas ao vivo (abaixo).
   são as da placa e não mudam com o tema. A tela do totem não mudou.
 - **Painel do motorista:** "Meu carro" abre com a placa e o modelo; com o
   carro no pátio, um bloco "Estacionado agora" junta o local e a vaga, o
-  tempo correndo e o custo estimado (antes eram seis linhas de rótulo e
+  tempo correndo e o custo estimado (antes eram cinco linhas de rótulo e
   valor). "Vai estacionar?" some com o carro estacionado e vira botão
   secundário quando há aviso de saldo ou reserva. Nos últimos acessos, a
   estadia com pendência diz "pendente" ao lado da data (antes só a cor do
@@ -126,6 +126,18 @@ de rolagem do mapa e a placa das vagas ao vivo (abaixo).
   caminho até o painel).
 - **Perfil do dono:** o selo diz "Dono de estacionamento" (era "Operador"),
   e no computador o estacionamento e os totens ficam lado a lado.
+- **Mapas de vagas (dono e vagas ao vivo):** o pátio ocupa o cartão e só
+  rola quando as vagas não cabem. Antes, com 900 px fixos, as vagas ao vivo
+  rolavam em qualquer tela (e o mapa do dono, até 1.024 px), com o aviso
+  "Role para o lado" mesmo com as 12 vagas à vista, só para mostrar asfalto
+  e a placa de saída. Nas vagas ao vivo, até dez vagas por fileira,
+  centralizadas, e na tela cheia elas crescem até 200 px.
+- **Painel da rede:** no formulário de estacionamento, os campos curtos ficam
+  lado a lado no celular (vagas e tarifa, número e bairro, cidade e UF; antes
+  eram nove caixas empilhadas), a tarifa diz "(R$)" e, no computador, a
+  cidade fecha a última linha. Na vaga selecionada das vagas ao vivo, a
+  placa aparece desenhada. O Perfil do administrador diz "Administrador da
+  rede", como em Configurações (dizia "do sistema").
 
 Sem mudança nas regras do Firestore. Só o site precisa ser publicado.
 

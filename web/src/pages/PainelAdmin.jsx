@@ -337,7 +337,7 @@ export default function PainelAdmin() {
               />
             </label>
             <label className="field">
-              <span>Tarifa por hora</span>
+              <span>Tarifa por hora (R$)</span>
               <input
                 required
                 type="number"
@@ -347,7 +347,7 @@ export default function PainelAdmin() {
                 onChange={(event) => atualizarCampo("tarifaHora", event.target.value)}
               />
             </label>
-            <label className="field">
+            <label className="field admin-cep">
               <span>CEP</span>
               <div className="input-com-acao">
                 <input
@@ -380,7 +380,7 @@ export default function PainelAdmin() {
                 onChange={(event) => atualizarCampo("bairro", event.target.value)}
               />
             </label>
-            <label className="field">
+            <label className="field admin-cidade">
               <span>Cidade</span>
               <input
                 value={form.cidade}

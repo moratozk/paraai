@@ -310,7 +310,7 @@ export default function Perfil() {
             <span className="label">Tipo de conta</span>
             <span>
               {role === "admin"
-                ? "Administrador do sistema"
+                ? "Administrador da rede"
                 : role === "operador"
                   ? "Dono de estacionamento"
                   : "Motorista"}
