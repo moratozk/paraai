@@ -113,7 +113,10 @@ export default function MapaVagas({ vagas, nomeEstacionamento }) {
           className="mapa-patio"
           role="region"
           aria-label="Mapa visual das vagas do estacionamento"
-          style={{ "--vagas-na-fileira": Math.max(metade, 1) }}
+          style={{
+            "--vagas-na-fileira": Math.max(metade, 1),
+            "--colunas-mapa": Math.min(Math.max(metade, 1), 10),
+          }}
         >
           <div className="mapa-fileira superior">
             {fileiraSuperior.map((vaga) => (

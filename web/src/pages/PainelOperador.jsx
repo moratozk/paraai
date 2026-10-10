@@ -286,20 +286,21 @@ export default function PainelOperador() {
                 </span>
               </div>
             </div>
-            <div className="acoes-etapa">
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => setEditando(false)}
-              >
-                Cancelar
-              </button>
+            <div className="acoes-form">
               <button
                 type="submit"
                 className="btn btn-primary"
                 disabled={salvandoConfig}
               >
                 {salvandoConfig ? "Salvando..." : "Salvar"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline"
+                disabled={salvandoConfig}
+                onClick={() => setEditando(false)}
+              >
+                Cancelar
               </button>
             </div>
           </form>
@@ -419,163 +420,160 @@ export default function PainelOperador() {
 
       <MapaVagas vagas={vagas} nomeEstacionamento={estacionamento?.nome} />
 
-      <div className="dashboard-grid">
-        <div className="dashboard-col">
-          {/* ---------- Gráfico ---------- */}
-          <div className="card">
-            <h2>Receita · últimos {diasGrafico} dias</h2>
-            <GraficoReceita
-              serie={serie}
-              rotulo={`Receita por dia dos últimos ${diasGrafico} dias`}
-              vazio="Nenhuma receita registrada neste intervalo. Os valores aparecem aqui automaticamente após cada saída no totem."
-            />
-          </div>
-
-          {/* ---------- Movimentações ---------- */}
-          <div className="card">
-            <div className="card-head-row">
-              <h2 style={{ marginBottom: 0, background: "none", paddingBottom: 0 }}>
-                Movimentações
-              </h2>
-              <input
-                type="search"
-                className="input-busca"
-                placeholder="Buscar placa..."
-                value={busca}
-                onChange={(e) => {
-                  setBusca(e.target.value.toUpperCase());
-                  setLinhasVisiveis(LINHAS_INICIAIS);
-                }}
-                aria-label="Buscar por placa"
-              />
-            </div>
-
-            {loading ? (
-              <div className="skeleton-lista">
-                {[0, 1, 2, 3].map((i) => (
-                  <div className="skeleton-linha" key={i} />
-                ))}
-              </div>
-            ) : movimentacoes.length === 0 ? (
-              <p className="empty-state">
-                {busca
-                  ? `Nenhuma movimentação da placa "${busca}" neste período.`
-                  : "Nenhuma movimentação neste período."}
-              </p>
-            ) : (
-              <>
-                {/* Em telas médias a tabela rola de lado: com foco, o teclado
-                    também consegue rolar. */}
-                <div
-                  className="tabela-wrap tabela-cards"
-                  tabIndex={0}
-                  role="region"
-                  aria-label="Movimentações"
-                >
-                  <table className="history-table responsive-table tabela-lista lista-patio">
-                    <thead>
-                      <tr>
-                        <th>Placa</th>
-                        <th>Vaga</th>
-                        <th>Entrada</th>
-                        <th>Saída</th>
-                        <th>Duração</th>
-                        <th>Valor</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {movimentacoes.slice(0, linhasVisiveis).map((item) => (
-                        <tr key={item.id}>
-                          <td data-label="Placa" className="col-placa">
-                            <Placa placa={item.placa} tamanho="pequena" />
-                          </td>
-                          <td data-label="Vaga" className="col-vaga">{item.vaga}</td>
-                          <td data-label="Entrada" className="col-entrada">
-                            {formatarDataHora(item.entrada)}
-                          </td>
-                          <td data-label="Saída" className="col-saida">
-                            {formatarDataHora(item.saida)}
-                          </td>
-                          <td data-label="Duração" className="col-duracao">
-                            {formatarDuracao(item.duracaoMinutos)}
-                          </td>
-                          <td data-label="Valor" className="money col-valor">
-                            <span className="valor-com-marca">
-                              {formatarMoeda(item.valorCobrado)}
-                              {valorPendente(item) > 0 && (
-                                <span
-                                  className="status-pill warning pill-pendente"
-                                  title={`${formatarMoeda(valorPendente(item))} não coberto pelo saldo`}
-                                >
-                                  pendente
-                                </span>
-                              )}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {movimentacoes.length > linhasVisiveis && (
-                  <div className="tabela-mais">
-                    <p className="muted-note">
-                      Mostrando as {linhasVisiveis} mais recentes de {movimentacoes.length}. O CSV
-                      leva todas.
-                    </p>
-                    <button
-                      className="btn btn-outline btn-sm"
-                      type="button"
-                      onClick={() => setLinhasVisiveis((atual) => atual + LINHAS_POR_CLIQUE)}
-                    >
-                      Ver mais
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+      <div className="dashboard-grid painel-graficos">
+        {/* ---------- Gráfico ---------- */}
+        <div className="card">
+          <h2>Receita · últimos {diasGrafico} dias</h2>
+          <GraficoReceita
+            serie={serie}
+            rotulo={`Receita por dia dos últimos ${diasGrafico} dias`}
+            vazio="Nenhuma receita registrada neste intervalo. Os valores aparecem aqui automaticamente após cada saída no totem."
+          />
         </div>
 
-        <div className="dashboard-col">
-          {/* ---------- Clientes ---------- */}
-          <div className="card">
-            <h2>Melhores clientes</h2>
-            {clientes.length === 0 ? (
-              <p className="empty-state">
-                Os clientes aparecem aqui após o primeiro uso.
-              </p>
-            ) : (
-              /* Três colunas cabem no celular: continua tabela, sem virar
-                 um cartão por cliente. */
-              <div className="tabela-wrap">
-                <table className="history-table history-table-compacta">
-                  <thead>
-                    <tr>
-                      <th>Placa</th>
-                      <th>Usos</th>
-                      <th>Gasto</th>
+        {/* ---------- Clientes ---------- */}
+        <div className="card">
+          <h2>Melhores clientes</h2>
+          {clientes.length === 0 ? (
+            <p className="empty-state">
+              Os clientes aparecem aqui após o primeiro uso.
+            </p>
+          ) : (
+            /* Três colunas cabem no celular: continua tabela, sem virar
+               um cartão por cliente. */
+            <div className="tabela-wrap">
+              <table className="history-table history-table-compacta">
+                <thead>
+                  <tr>
+                    <th>Placa</th>
+                    <th>Usos</th>
+                    <th>Gasto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {clientes.slice(0, 6).map((c) => (
+                    <tr key={c.placa}>
+                      <td data-label="Placa">
+                        <Placa placa={c.placa} tamanho="pequena" />
+                      </td>
+                      <td data-label="Usos">{c.acessos}</td>
+                      <td data-label="Gasto" className="money">
+                        {formatarMoeda(c.total)}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {clientes.slice(0, 6).map((c) => (
-                      <tr key={c.placa}>
-                        <td data-label="Placa">
-                          <Placa placa={c.placa} tamanho="pequena" />
-                        </td>
-                        <td data-label="Usos">{c.acessos}</td>
-                        <td data-label="Gasto" className="money">
-                          {formatarMoeda(c.total)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ---------- Movimentações ----------
+          De ponta a ponta: na coluna da esquerda, as seis colunas da tabela
+          espremiam a data e a hora em duas linhas no computador. */}
+      <div className="card painel-movimentacoes">
+        <div className="card-head-row">
+          <h2 style={{ marginBottom: 0, background: "none", paddingBottom: 0 }}>
+            Movimentações
+          </h2>
+          <input
+            type="search"
+            className="input-busca"
+            placeholder="Buscar placa..."
+            value={busca}
+            onChange={(e) => {
+              setBusca(e.target.value.toUpperCase());
+              setLinhasVisiveis(LINHAS_INICIAIS);
+            }}
+            aria-label="Buscar por placa"
+          />
+        </div>
+
+        {loading ? (
+          <div className="skeleton-lista">
+            {[0, 1, 2, 3].map((i) => (
+              <div className="skeleton-linha" key={i} />
+            ))}
+          </div>
+        ) : movimentacoes.length === 0 ? (
+          <p className="empty-state">
+            {busca
+              ? `Nenhuma movimentação da placa "${busca}" neste período.`
+              : "Nenhuma movimentação neste período."}
+          </p>
+        ) : (
+          <>
+            {/* Em telas médias a tabela rola de lado: com foco, o teclado
+                também consegue rolar. */}
+            <div
+              className="tabela-wrap tabela-cards"
+              tabIndex={0}
+              role="region"
+              aria-label="Movimentações"
+            >
+              <table className="history-table responsive-table tabela-lista lista-patio">
+                <thead>
+                  <tr>
+                    <th>Placa</th>
+                    <th>Vaga</th>
+                    <th>Entrada</th>
+                    <th>Saída</th>
+                    <th>Duração</th>
+                    <th>Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {movimentacoes.slice(0, linhasVisiveis).map((item) => (
+                    <tr key={item.id}>
+                      <td data-label="Placa" className="col-placa">
+                        <Placa placa={item.placa} tamanho="pequena" />
+                      </td>
+                      <td data-label="Vaga" className="col-vaga">{item.vaga}</td>
+                      <td data-label="Entrada" className="col-entrada">
+                        {formatarDataHora(item.entrada)}
+                      </td>
+                      <td data-label="Saída" className="col-saida">
+                        {formatarDataHora(item.saida)}
+                      </td>
+                      <td data-label="Duração" className="col-duracao">
+                        {formatarDuracao(item.duracaoMinutos)}
+                      </td>
+                      <td data-label="Valor" className="money col-valor">
+                        <span className="valor-com-marca">
+                          {formatarMoeda(item.valorCobrado)}
+                          {valorPendente(item) > 0 && (
+                            <span
+                              className="status-pill warning pill-pendente"
+                              title={`${formatarMoeda(valorPendente(item))} não coberto pelo saldo`}
+                            >
+                              pendente
+                            </span>
+                          )}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {movimentacoes.length > linhasVisiveis && (
+              <div className="tabela-mais">
+                <p className="muted-note">
+                  Mostrando as {linhasVisiveis} mais recentes de {movimentacoes.length}. O CSV
+                  leva todas.
+                </p>
+                <button
+                  className="btn btn-outline btn-sm"
+                  type="button"
+                  onClick={() => setLinhasVisiveis((atual) => atual + LINHAS_POR_CLIQUE)}
+                >
+                  Ver mais
+                </button>
               </div>
             )}
-          </div>
-
-        </div>
+          </>
+        )}
       </div>
     </div>
   );

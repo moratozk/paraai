@@ -113,6 +113,19 @@ de rolagem do mapa e a placa das vagas ao vivo (abaixo).
 - **Estacionamentos e comprovante:** a faixa com o "P" de cada cartão fica
   mais baixa no celular, e o endereço do comprovante não começa linha com
   "· SP".
+- **Painel do dono no computador:** receita e melhores clientes lado a lado,
+  da mesma altura, e as movimentações embaixo, de ponta a ponta (na coluna
+  da esquerda, data e hora quebravam em duas linhas). O mapa de vagas fica
+  centralizado, com até dez vagas por fileira e largura de vaga (um pátio de
+  12 vagas ocupava só a metade da esquerda); acima de dez, segue na linha de
+  baixo, como antes. No celular, os melhores clientes vêm antes da lista
+  longa de movimentações.
+- **Configuração do pátio:** o cartão ganhou espaço antes do período, e
+  Salvar e Cancelar ficam lado a lado, como nos outros formulários (os
+  botões usavam uma regra da tela de cadastro e mudavam de jeito conforme o
+  caminho até o painel).
+- **Perfil do dono:** o selo diz "Dono de estacionamento" (era "Operador"),
+  e no computador o estacionamento e os totens ficam lado a lado.
 
 Sem mudança nas regras do Firestore. Só o site precisa ser publicado.
 

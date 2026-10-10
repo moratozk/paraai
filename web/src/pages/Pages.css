@@ -140,6 +140,14 @@
 
 .dashboard-col { display: grid; gap: var(--gap); align-content: start; }
 
+/* Painel do dono: receita e melhores clientes lado a lado, da mesma altura
+   (o gráfico cresce até o fim do cartão), e as movimentações embaixo, de
+   ponta a ponta. */
+.painel-graficos { align-items: stretch; }
+.painel-graficos > .card { display: flex; flex-direction: column; }
+.painel-graficos .chart-bars { flex: 1 0 auto; }
+.painel-movimentacoes { margin-top: var(--gap); }
+
 .profile-grid {
   display: grid;
   grid-template-columns: 300px 1fr;
@@ -693,10 +701,11 @@
 .vehicle-card > .error-text,
 .vehicle-card > .success-text { width: 100%; }
 
-/* Cartões do motorista no Perfil: no computador, o carro e os ajustes de um
-   lado e o extrato do outro (com tudo numa coluna de 1.200 px, o rótulo e o
-   valor de cada linha ficavam longe demais); no celular, um embaixo do
-   outro, com o extrato, o mais longo, por último. */
+/* Cartões de baixo do Perfil: no computador, em duas colunas (com tudo numa
+   coluna de 1.200 px, o rótulo e o valor de cada linha ficavam longe
+   demais). Motorista: o carro e os ajustes de um lado, o extrato do outro.
+   Dono: o estacionamento de um lado, os totens do outro. No celular, um
+   embaixo do outro. */
 .perfil-colunas {
   display: grid;
   gap: var(--gap);
@@ -938,7 +947,12 @@
 .config-exclusao .field { margin-bottom: 0; }
 /* Lado a lado quando cabem; no celular, um embaixo do outro. */
 .config-exclusao .acoes-form .btn { flex: 1 1 12rem; }
-.config-rapida { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.config-rapida {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: var(--gap);
+}
 .config-rapida > form,
 .config-rapida > p { flex: 1 1 100%; min-width: 0; }
 

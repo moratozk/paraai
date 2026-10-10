@@ -273,7 +273,7 @@ export default function Perfil() {
           {role === "admin" ? (
             <span className="status-pill warning">Administrador</span>
           ) : role === "operador" ? (
-            <span className="status-pill warning">Operador</span>
+            <span className="status-pill warning">Dono de estacionamento</span>
           ) : (
             placa && (
               <>
@@ -338,7 +338,7 @@ export default function Perfil() {
         </div>
       ) : role === "operador" ? (
         estId ? (
-        <>
+        <div className="perfil-colunas duas">
         <div className="card vehicle-card">
           <h2>Meu estacionamento</h2>
 
@@ -408,7 +408,7 @@ export default function Perfil() {
             erroLista={erroTotem}
           />
         </div>
-        </>
+        </div>
         ) : null
       ) : (
         <div className={`perfil-colunas ${placa ? "duas" : ""}`}>
@@ -661,8 +661,8 @@ export default function Perfil() {
           </h2>
           <p className="muted-note" style={{ marginTop: 0 }}>
             {role === "operador"
-              ? "Sua conta já é de operador. Falta apenas vincular o estacionamento para liberar o painel."
-              : "Cadastre seu estacionamento para automatizar o pátio e acompanhar faturamento, acessos e ocupação. Sua conta passará a ser de operador."}
+              ? "Sua conta já é de dono de estacionamento. Falta só vincular o estacionamento para liberar o painel."
+              : "Cadastre seu estacionamento para automatizar o pátio e acompanhar faturamento, acessos e ocupação. Sua conta passará a ser de dono de estacionamento."}
           </p>
 
           {msgEst && (
