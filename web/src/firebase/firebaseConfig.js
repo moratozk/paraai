@@ -1,5 +1,11 @@
 import { initializeApp } from "firebase/app";
-import { connectAuthEmulator, getAuth } from "firebase/auth";
+import {
+  browserLocalPersistence,
+  browserSessionPersistence,
+  connectAuthEmulator,
+  indexedDBLocalPersistence,
+  initializeAuth,
+} from "firebase/auth";
 import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
 
 export const firebaseConfig = {
@@ -15,7 +21,13 @@ export const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-export const auth = getAuth(app);
+// O mesmo que getAuth(app), menos o suporte a entrar com Google por janela ou
+// redirecionamento, que o site não usa. Sem ele, o celular não baixa o
+// script de apis.google.com e a página escondida do login a cada visita.
+// A sessão continua guardada no mesmo lugar (IndexedDB, como antes).
+export const auth = initializeAuth(app, {
+  persistence: [indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence],
+});
 export const db = getFirestore(app);
 
 // Teste do fluxo completo e demonstração sem internet (e2e/): com estas duas

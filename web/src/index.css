@@ -6,16 +6,18 @@
    num monitor cansa a vista.
    ========================================================================== */
 
-@import url("https://fonts.googleapis.com/css2?family=Anton&family=Archivo:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap");
+/* As fontes vêm do próprio site (pacotes @fontsource, importados no main.jsx),
+   e não do Google: abrem junto com a página e também sem internet, no app
+   instalado e na demonstração da banca. */
 
 /* .ilha-escura: trecho que fica escuro mesmo no tema claro (faixas e
    painéis de asfalto da Home). Recebe os mesmos tokens do tema escuro. */
 :root,
 .ilha-escura {
   /* ---- Tipografia ---- */
-  --font-main: "Archivo", system-ui, sans-serif;
+  --font-main: "Archivo Variable", "Archivo", system-ui, sans-serif;
   --font-display: "Anton", "Arial Narrow", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
 
   /* ---- Superfícies: asfalto e concreto ---- */
   --bg-primary: #0a0c11;

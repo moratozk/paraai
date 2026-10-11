@@ -261,7 +261,7 @@ export default function Home() {
           <Surge className="porque-visual">
             <div className="porque-cartao ilha-escura">
               {/* A logo oficial (o arquivo), só como marca d'água. */}
-              <img src="/logo.png" alt="" className="porque-logo" draggable="false" />
+              <img src="/logo.webp" alt="" className="porque-logo" draggable="false" />
               <span className="chip-local">
                 {ICONES.local}
                 Rede ParaAí
