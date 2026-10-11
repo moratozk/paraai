@@ -88,6 +88,57 @@ de rolagem do mapa e a placa das vagas ao vivo (abaixo).
   760 px, a faixa âmbar do corredor some (`Auth.css`), porque o cartão ocupa
   quase toda a largura e dela só sobravam dois tracinhos nas bordas.
 
+- **Placas como as de verdade (`components/Placa.jsx`):** o formato decide
+  o desenho. Mercosul (ABC1D23) branca com a faixa azul em cima; antiga
+  (ABC1234) cinza, com o hífen só na tela (o banco e o totem seguem sem
+  hífen) e a tarja da cidade em branco, porque o site não sabe de onde é o
+  carro. Na grande (Perfil, painel do motorista e comprovante), a faixa da
+  Mercosul leva "BRASIL". Vale em todas as telas que mostram placa; as cores
+  são as da placa e não mudam com o tema. A tela do totem não mudou.
+- **Painel do motorista:** "Meu carro" abre com a placa e o modelo; com o
+  carro no pátio, um bloco "Estacionado agora" junta o local e a vaga, o
+  tempo correndo e o custo estimado (antes eram cinco linhas de rótulo e
+  valor). "Vai estacionar?" some com o carro estacionado e vira botão
+  secundário quando há aviso de saldo ou reserva. Nos últimos acessos, a
+  estadia com pendência diz "pendente" ao lado da data (antes só a cor do
+  valor dizia).
+- **Perfil e linhas de informação:** no celular, rótulo e valor ficam na
+  mesma linha (`.info-row`), como nos ajustes do iPhone; os cartões do Perfil
+  têm o traço âmbar reto dos indicadores. No computador, o carro, o modelo e
+  a vaga especial ficam numa coluna e o extrato na outra; no celular, o
+  extrato vem por último.
+- **Mapa de vagas do motorista:** no celular, cada fileira fica em linhas do
+  mesmo tamanho (num pátio de 12 vagas, 3 + 3 por lado; antes, 5 + 1).
+- **Configurações:** ícones de traço nas abas, no lugar dos emojis.
+- **Estacionamentos e comprovante:** a faixa com o "P" de cada cartão fica
+  mais baixa no celular, e o endereço do comprovante não começa linha com
+  "· SP".
+- **Painel do dono no computador:** receita e melhores clientes lado a lado,
+  da mesma altura, e as movimentações embaixo, de ponta a ponta (na coluna
+  da esquerda, data e hora quebravam em duas linhas). O mapa de vagas fica
+  centralizado, com até dez vagas por fileira e largura de vaga (um pátio de
+  12 vagas ocupava só a metade da esquerda); acima de dez, segue na linha de
+  baixo, como antes. No celular, os melhores clientes vêm antes da lista
+  longa de movimentações.
+- **Configuração do pátio:** o cartão ganhou espaço antes do período, e
+  Salvar e Cancelar ficam lado a lado, como nos outros formulários (os
+  botões usavam uma regra da tela de cadastro e mudavam de jeito conforme o
+  caminho até o painel).
+- **Perfil do dono:** o selo diz "Dono de estacionamento" (era "Operador"),
+  e no computador o estacionamento e os totens ficam lado a lado.
+- **Mapas de vagas (dono e vagas ao vivo):** o pátio ocupa o cartão e só
+  rola quando as vagas não cabem. Antes, com 900 px fixos, as vagas ao vivo
+  rolavam em qualquer tela (e o mapa do dono, até 1.024 px), com o aviso
+  "Role para o lado" mesmo com as 12 vagas à vista, só para mostrar asfalto
+  e a placa de saída. Nas vagas ao vivo, até dez vagas por fileira,
+  centralizadas, e na tela cheia elas crescem até 200 px.
+- **Painel da rede:** no formulário de estacionamento, os campos curtos ficam
+  lado a lado no celular (vagas e tarifa, número e bairro, cidade e UF; antes
+  eram nove caixas empilhadas), a tarifa diz "(R$)" e, no computador, a
+  cidade fecha a última linha. Na vaga selecionada das vagas ao vivo, a
+  placa aparece desenhada. O Perfil do administrador diz "Administrador da
+  rede", como em Configurações (dizia "do sistema").
+
 Sem mudança nas regras do Firestore. Só o site precisa ser publicado.
 
 ## Roteiro da apresentação e demonstração sem internet (09/10/2026)

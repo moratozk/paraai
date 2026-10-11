@@ -9,8 +9,10 @@ import {
   lerValorEmReais,
   normalizarPlaca,
   normalizarTelefone,
+  placaParaExibir,
   saldoEmPendencia,
   telefoneValido,
+  tipoPlaca,
   valorPendente,
   valorRecebido,
 } from "../src/utils/format.js";
@@ -23,6 +25,17 @@ test("placa: o campo tira hífen e espaço e passa para maiúsculas", () => {
   assert.equal(normalizarPlaca(" abc 1234 "), "ABC1234");
   assert.equal(normalizarPlaca("ABC1234XYZ"), "ABC1234");
   assert.equal(normalizarPlaca(null), "");
+});
+
+test("placa: o formato decide o desenho, e a antiga ganha o hífen só na tela", () => {
+  assert.equal(tipoPlaca("ABC1D23"), "mercosul");
+  assert.equal(tipoPlaca("ABC1234"), "antiga");
+  assert.equal(tipoPlaca("SEM PLACA"), null);
+  assert.equal(tipoPlaca(undefined), null);
+  assert.equal(placaParaExibir("ABC1234"), "ABC-1234");
+  assert.equal(placaParaExibir("ABC1D23"), "ABC1D23");
+  assert.equal(placaParaExibir("SEM PLACA"), "SEM PLACA");
+  assert.equal(placaParaExibir(null), "");
 });
 
 test("celular: máscara enquanto digita e DDD com nono dígito", () => {

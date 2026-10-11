@@ -48,12 +48,18 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+/* Quatro colunas no computador e duas no celular, com os campos curtos
+   lado a lado (vagas e tarifa, número e bairro, cidade e UF): um campo por
+   linha, eram nove caixas empilhadas. Rótulo de duas linhas não desalinha
+   as caixas: elas se alinham pela base. */
 .admin-form-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: end;
   gap: 0 0.8rem;
 }
-.admin-span-2 { grid-column: span 2; }
+.admin-span-2,
+.admin-cidade { grid-column: span 2; }
 
 .admin-estacionamentos {
   display: grid;
@@ -196,12 +202,12 @@
 
 @media (max-width: 850px) {
   .admin-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-cep { grid-column: span 2; }
+  .admin-cidade { grid-column: span 1; }
   .admin-estacionamentos { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 620px) {
-  .admin-form-grid { grid-template-columns: 1fr; }
-  .admin-span-2 { grid-column: span 1; }
 
   /* Botão ao lado do título, compacto: "+ Novo". */
   .page-header.admin-cabecalho {
@@ -242,4 +248,7 @@
 
 @media (max-width: 360px) {
   .admin-filtros { grid-template-columns: 1fr; }
+  .admin-form-grid { grid-template-columns: 1fr; }
+  .admin-span-2,
+  .admin-cep { grid-column: span 1; }
 }

@@ -13,11 +13,49 @@ import { reservaAtiva } from "../services/reservas";
 import { formatarMoeda, formatarTelefone, telefoneValido } from "../utils/format";
 import "./Pages.css";
 
+// Ícones de traço, os mesmos do menu, no lugar de emojis (que mudam de
+// desenho e de cor em cada aparelho).
 const ABAS = [
-  { id: "perfil", rotulo: "Perfil", icone: "👤" },
-  { id: "email", rotulo: "E-mail", icone: "✉️" },
-  { id: "senha", rotulo: "Senha", icone: "🔒" },
-  { id: "privacidade", rotulo: "Privacidade", icone: "🛡️" },
+  {
+    id: "perfil",
+    rotulo: "Perfil",
+    icone: (
+      <>
+        <circle cx="12" cy="8" r="3.8" />
+        <path d="M4.5 20.5a7.5 7.5 0 0 1 15 0" />
+      </>
+    ),
+  },
+  {
+    id: "email",
+    rotulo: "E-mail",
+    icone: (
+      <>
+        <rect x="3.5" y="5.5" width="17" height="13" rx="2" />
+        <path d="m4.5 7.5 7.5 5.5 7.5-5.5" />
+      </>
+    ),
+  },
+  {
+    id: "senha",
+    rotulo: "Senha",
+    icone: (
+      <>
+        <rect x="5" y="10.5" width="14" height="10" rx="2" />
+        <path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" />
+      </>
+    ),
+  },
+  {
+    id: "privacidade",
+    rotulo: "Privacidade",
+    icone: (
+      <>
+        <path d="M12 3.5 5.5 6v5.2c0 4 2.7 7.5 6.5 8.8 3.8-1.3 6.5-4.8 6.5-8.8V6z" />
+        <path d="m9.2 12 2 2 3.6-3.8" />
+      </>
+    ),
+  },
 ];
 
 export default function Configuracoes() {
@@ -201,7 +239,10 @@ export default function Configuracoes() {
                 setErro("");
               }}
             >
-              <span aria-hidden="true">{a.icone}</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                   strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                {a.icone}
+              </svg>
               {a.rotulo}
             </button>
           ))}

@@ -9,6 +9,7 @@ import {
   valorPendente,
   valorRecebido,
 } from "../utils/format";
+import Placa from "./Placa";
 import "./ModalRecarga.css";
 import "./ComprovanteEstadia.css";
 
@@ -51,7 +52,9 @@ export default function ComprovanteEstadia({ estadia, estacionamento, aoFechar }
   const endereco = [estacionamento?.logradouro, estacionamento?.numero, estacionamento?.bairro]
     .filter(Boolean)
     .join(", ");
-  const cidade = [estacionamento?.cidade, estacionamento?.uf].filter(Boolean).join(" · ");
+  // Espaço que não quebra antes do "·": no celular, a linha não começa com
+  // "· SP" (o mesmo cuidado de montarEnderecoLinha).
+  const cidade = [estacionamento?.cidade, estacionamento?.uf].filter(Boolean).join("\u00a0· ");
 
   return createPortal(
     <div className={`modal-overlay comprovante-raiz ${saindo ? "saindo" : ""}`} onClick={fechar}>
@@ -84,7 +87,7 @@ export default function ComprovanteEstadia({ estadia, estacionamento, aoFechar }
           </h2>
           {(endereco || cidade) && (
             <p className="comprovante-endereco">
-              {[endereco, cidade].filter(Boolean).join(" · ")}
+              {[endereco, cidade].filter(Boolean).join("\u00a0· ")}
             </p>
           )}
         </div>
@@ -93,7 +96,7 @@ export default function ComprovanteEstadia({ estadia, estacionamento, aoFechar }
           <div>
             <dt>Placa</dt>
             <dd>
-              <span className="placa-tag placa-tag-sm">{estadia.placa}</span>
+              <Placa placa={estadia.placa} tamanho="grande" />
             </dd>
           </div>
           <div>

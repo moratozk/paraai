@@ -5,6 +5,7 @@ import { useEstacionamento, useVagas, useVagasPublicas } from "../hooks/useParki
 import { useTelaCheia } from "../hooks/useTelaCheia";
 import { combinarVagasDoPatio, resumirVagas } from "../utils/mapaVagas";
 import Maquete from "../components/maquete/Maquete";
+import Placa from "../components/Placa";
 import "./Pages.css";
 import "./MaqueteVirtual.css";
 
@@ -151,7 +152,7 @@ export default function MaqueteVirtual() {
                       <time dateTime={new Date(m.quando).toISOString()}>
                         {horaDoMovimento(m.quando)}
                       </time>
-                      <span className="placa-tag placa-tag-sm">{m.placa || "SEM PLACA"}</span>
+                      <Placa placa={m.placa || "SEM PLACA"} tamanho="pequena" />
                       <span>
                         {m.tipo === "entrada" ? "entrou na vaga" : "saiu da vaga"} {dois(m.numero)}
                       </span>

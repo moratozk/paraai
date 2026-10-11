@@ -31,6 +31,7 @@ import {
   resumirEstadias,
 } from "../utils/relatorios";
 import { TOTEM_OFFLINE_APOS_SEGUNDOS } from "../utils/constants";
+import Placa from "../components/Placa";
 import "./Pages.css";
 import "./Admin.css";
 
@@ -336,7 +337,7 @@ export default function PainelAdmin() {
               />
             </label>
             <label className="field">
-              <span>Tarifa por hora</span>
+              <span>Tarifa por hora (R$)</span>
               <input
                 required
                 type="number"
@@ -346,7 +347,7 @@ export default function PainelAdmin() {
                 onChange={(event) => atualizarCampo("tarifaHora", event.target.value)}
               />
             </label>
-            <label className="field">
+            <label className="field admin-cep">
               <span>CEP</span>
               <div className="input-com-acao">
                 <input
@@ -379,7 +380,7 @@ export default function PainelAdmin() {
                 onChange={(event) => atualizarCampo("bairro", event.target.value)}
               />
             </label>
-            <label className="field">
+            <label className="field admin-cidade">
               <span>Cidade</span>
               <input
                 value={form.cidade}
@@ -690,7 +691,7 @@ export default function PainelAdmin() {
                         {nomesPorEstacionamento[h.estacionamentoId] || h.estacionamentoId || "—"}
                       </td>
                       <td data-label="Placa" className="col-placa">
-                        <span className="placa-tag placa-tag-sm">{h.placa}</span>
+                        <Placa placa={h.placa} tamanho="pequena" />
                       </td>
                       <td data-label="Vaga" className="col-vaga">{h.vaga}</td>
                       <td data-label="Saída" className="col-saida">{formatarDataHora(h.saida)}</td>

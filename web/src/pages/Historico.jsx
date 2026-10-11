@@ -14,6 +14,7 @@ import {
   valorPendente,
   valorRecebido,
 } from "../utils/format";
+import Placa from "../components/Placa";
 import "./Pages.css";
 
 // Situação de um recibo. Registros da estadia pelo app da versão anterior
@@ -145,7 +146,7 @@ export default function Historico() {
                       <tr key={item.id}>
                         {role === "operador" && (
                           <td data-label="Placa" className="col-placa">
-                            <span className="placa-tag placa-tag-sm">{item.placa}</span>
+                            <Placa placa={item.placa} tamanho="pequena" />
                           </td>
                         )}
                         {role === "motorista" && (

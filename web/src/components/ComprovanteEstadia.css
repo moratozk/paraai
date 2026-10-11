@@ -128,7 +128,8 @@
   }
   .comprovante .modal-fechar,
   .comprovante-acoes { display: none; }
-  .comprovante .placa-tag-sm {
+  .comprovante .placa-carro,
+  .comprovante .placa-carro-faixa {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }

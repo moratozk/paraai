@@ -34,8 +34,11 @@
   scrollbar-color: var(--border-strong) transparent;
 }
 
+/* Ocupa o cartão e só passa dele (e rola) quando as vagas não cabem: com
+   900 px fixos, num tablet o mapa rolava só para mostrar asfalto. */
 .mapa-patio {
-  min-width: 900px;
+  width: fit-content;
+  min-width: 100%;
   padding: clamp(0.8rem, 2vw, 1.25rem);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
@@ -45,9 +48,14 @@
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.015);
 }
 
+/* No computador, até dez vagas por fileira, centralizadas e com largura de
+   vaga: com dez colunas fixas, um pátio de 12 vagas ocupava só a metade da
+   esquerda do mapa, e o resto parecia faltar. Acima de dez por fileira, as
+   vagas seguem na linha de baixo, como antes. */
 .mapa-fileira {
   display: grid;
-  grid-template-columns: repeat(10, minmax(72px, 1fr));
+  grid-template-columns: repeat(var(--colunas-mapa, 10), minmax(72px, 112px));
+  justify-content: center;
   gap: 0.55rem;
 }
 

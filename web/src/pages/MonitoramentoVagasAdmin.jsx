@@ -17,6 +17,7 @@ import {
   resumirVagas,
   TIPOS_VAGA_EDITAVEIS,
 } from "../utils/mapaVagas";
+import Placa from "../components/Placa";
 import "./Pages.css";
 import "./MonitoramentoVagasAdmin.css";
 
@@ -349,7 +350,13 @@ export default function MonitoramentoVagasAdmin() {
               aria-label="Mapa das vagas"
               aviso="Role para o lado para ver todas as vagas."
             >
-              <div className="monitor-patio" style={{ "--vagas-na-fileira": Math.max(metade, 1) }}>
+              <div
+                className="monitor-patio"
+                style={{
+                  "--vagas-na-fileira": Math.max(metade, 1),
+                  "--colunas-mapa": Math.min(Math.max(metade, 1), 10),
+                }}
+              >
                 <div className="monitor-fileira">
                   {vagasComVisibilidade.slice(0, metade).map(renderizarVaga)}
                 </div>
@@ -383,7 +390,16 @@ export default function MonitoramentoVagasAdmin() {
                 <dl>
                   {selecionada.ocupada && (
                     <>
-                      <div><dt>Placa</dt><dd>{selecionada.placa || "Não informada"}</dd></div>
+                      <div>
+                        <dt>Placa</dt>
+                        <dd>
+                          {selecionada.placa ? (
+                            <Placa placa={selecionada.placa} tamanho="pequena" />
+                          ) : (
+                            "Não informada"
+                          )}
+                        </dd>
+                      </div>
                       <div>
                         <dt>Veículo</dt>
                         <dd>
@@ -493,7 +509,7 @@ export default function MonitoramentoVagasAdmin() {
                     <strong>Vaga {String(vaga.numero).padStart(2, "0")}</strong>
                     {/* A reserva ainda não tem carro: no lugar da placa, o estado. */}
                     {vaga.placa ? (
-                      <span className="placa-tag placa-tag-sm">{vaga.placa}</span>
+                      <Placa placa={vaga.placa} tamanho="pequena" />
                     ) : (
                       <span className="status-pill warning monitor-sem-placa">Reservada</span>
                     )}
