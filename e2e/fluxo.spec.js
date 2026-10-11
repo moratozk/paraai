@@ -7,7 +7,15 @@
 // de tudo.
 import { expect, test } from "@playwright/test";
 import { formatarDuracao, formatarMoeda } from "../web/src/utils/format.js";
-import { abrirEmuladores, criarConta, lerSemRegras, prepararPatio, totemSimulado, uidDaConta } from "./patio.js";
+import {
+  abrirEmuladores,
+  criarConta,
+  lerSemRegras,
+  prepararAdministrador,
+  prepararPatio,
+  totemSimulado,
+  uidDaConta,
+} from "./patio.js";
 
 const SENHA = "Teste1234";
 const EST = "EST-BANCA";
@@ -222,4 +230,79 @@ test("motorista e dono: do cadastro à cobrança, com o totem pelas regras", asy
   // Nenhum erro nas telas do motorista e do dono.
   expect(motorista.erros).toEqual([]);
   expect(dono.erros).toEqual([]);
+});
+
+// Estacionamento novo na rede: quem tem o pátio pede pelo site, a equipe
+// aprova no painel da rede e a conta vira dona, com o pátio no mapa. O CEP é
+// respondido aqui mesmo (nada sai para a internet).
+const CANDIDATA = { nome: "Carla Souza", email: "carla@paraai.test", celular: "41998765432" };
+const EQUIPE = { nome: "Equipe ParaAí", email: "equipe@paraai.test" };
+const PATIO_NOVO = "Pátio da Carla";
+
+test("estacionamento novo: pedido pelo site, aprovação na rede e painel de dono", async ({ browser }, info) => {
+  const { viewport, userAgent, deviceScaleFactor, isMobile, hasTouch, baseURL, locale, timezoneId } =
+    info.project.use;
+  const opcoes = { viewport, userAgent, deviceScaleFactor, isMobile, hasTouch, baseURL, locale, timezoneId };
+  await prepararAdministrador(env, { ...EQUIPE, senha: SENHA });
+  const candidata = await novaPagina(browser, opcoes);
+  await candidata.route(/^https:\/\/viacep\.com\.br\//, (rota) =>
+    rota.fulfill({
+      json: { cep: "80010-000", logradouro: "Rua XV de Novembro", bairro: "Centro", localidade: "Curitiba", uf: "PR" },
+    }));
+  let equipe;
+
+  await test.step("pedido em três etapas no cadastro", async () => {
+    await candidata.goto("/");
+    await expect(candidata.getByRole("link", { name: "Cadastrar meu estacionamento" }))
+      .toHaveAttribute("href", "/cadastro?perfil=estacionamento");
+    await candidata.goto("/cadastro?perfil=estacionamento");
+    await expect(candidata.getByRole("heading", { name: "Cadastre seu estacionamento" })).toBeVisible();
+    await candidata.locator("#name").fill(CANDIDATA.nome);
+    await candidata.locator("#email").fill(CANDIDATA.email);
+    await candidata.locator("#telefone").fill(CANDIDATA.celular);
+    await candidata.locator("#password").fill(SENHA);
+    await candidata.locator("#confirmPassword").fill(SENHA);
+    await candidata.getByRole("button", { name: "Continuar" }).click();
+
+    await candidata.locator("#nomeEstacionamento").fill(PATIO_NOVO);
+    await candidata.locator("#cep").fill("80010000");
+    await expect(candidata.getByText("✓ Endereço localizado")).toBeVisible();
+    await candidata.locator("#numero").fill("100");
+    await candidata.getByRole("button", { name: "Continuar" }).click();
+
+    await candidata.locator("#numVagas").fill("12");
+    await candidata.locator("#tarifa").fill("7,50");
+    await candidata.locator("#mensagem").fill("Abrimos das 7h às 22h.");
+    await candidata.getByLabel("Li e aceito a política de privacidade").check();
+    await candidata.getByRole("button", { name: "Enviar pedido" }).click();
+    await expect(candidata).toHaveURL(/\/dashboard$/);
+    await expect(candidata.getByRole("heading", { name: "Pedido em análise" })).toBeVisible();
+    await expect(candidata.locator(".pedido-resumo")).toContainText(moeda(7.5));
+  });
+
+  await test.step("a equipe aprova no painel da rede", async () => {
+    equipe = await novaPagina(browser, opcoes);
+    await entrar(equipe, EQUIPE.email);
+    const pedido = equipe.locator(".pedido-rede").filter({ hasText: PATIO_NOVO });
+    await expect(pedido).toContainText(CANDIDATA.nome);
+    await pedido.getByRole("button", { name: "Aprovar e publicar" }).click();
+    await pedido.getByRole("button", { name: "Confirmar aprovação" }).click();
+    await expect(equipe.locator(".pedido-rede")).toHaveCount(0);
+    await expect(equipe.locator(".admin-estacionamento").filter({ hasText: PATIO_NOVO }))
+      .toContainText("Publicado");
+  });
+
+  await test.step("a conta vira dona e o painel troca sozinho", async () => {
+    await expect(candidata.getByRole("heading", { name: PATIO_NOVO, level: 1 })).toBeVisible();
+    const uid = await uidDaConta(CANDIDATA.email, SENHA);
+    const conta = await lerNoBanco(`users/${uid}`);
+    expect(conta.role).toBe("operador");
+    const estacionamento = await lerNoBanco(`estacionamentos/${conta.estacionamentoId}`);
+    expect(estacionamento.ownerUid).toBe(uid);
+    expect(estacionamento.tarifaHora).toBe(7.5);
+    expect((await lerNoBanco(`catalogoEstacionamentos/${conta.estacionamentoId}`)).nome).toBe(PATIO_NOVO);
+  });
+
+  expect(candidata.erros).toEqual([]);
+  expect(equipe.erros).toEqual([]);
 });

@@ -115,7 +115,7 @@ export default function MarketplaceEstacionamentos() {
     });
   }, [preparados, termo, filtro, ordem]);
 
-  if (["operador", "admin"].includes(userData?.role)) {
+  if (["operador", "admin", "candidato"].includes(userData?.role)) {
     return <Navigate to="/dashboard" replace />;
   }
 

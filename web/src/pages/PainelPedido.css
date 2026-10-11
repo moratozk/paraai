@@ -1,0 +1,222 @@
+/* ==========================================================================
+   PEDIDO PARA ENTRAR NA REDE (conta de estacionamento em análise)
+   ========================================================================== */
+.pedido-pagina .page-header .rotulo { margin-bottom: 0.55rem; }
+
+/* ---- trilha: enviado → análise → painel ---- */
+.pedido-trilha {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--esp-3);
+}
+
+.pedido-passo {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 0.3rem;
+  padding-top: 3rem;
+  min-width: 0;
+}
+.pedido-passo strong {
+  font-size: var(--t-apoio);
+  color: var(--text-primary);
+}
+.pedido-passo > span:last-child {
+  font-size: var(--t-legenda);
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+/* Linha entre as marcas, como a faixa pintada entre duas vagas. */
+.pedido-passo:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 1.15rem;
+  left: 3rem;
+  right: 0.5rem;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--border);
+}
+.pedido-passo.feito:not(:last-child)::after { background: var(--success); }
+
+.pedido-marca {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2.3rem;
+  height: 2.3rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 2px solid var(--border-strong);
+  background: var(--bg-solid);
+  font-family: var(--font-mono);
+  font-size: var(--t-apoio);
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.pedido-marca svg { width: 1.05rem; height: 1.05rem; }
+
+.pedido-passo.feito .pedido-marca {
+  border-color: var(--success);
+  background: var(--success);
+  color: var(--success-contrast);
+}
+.pedido-passo.atual .pedido-marca {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+.pedido-passo.recusado .pedido-marca {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: var(--danger-contrast);
+}
+.pedido-passo.recusado strong { color: var(--danger); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .pedido-passo.atual .pedido-marca { animation: pedido-pulso 2.4s ease-in-out infinite; }
+}
+@keyframes pedido-pulso {
+  0%, 100% { box-shadow: 0 0 0 4px var(--accent-soft); }
+  50% { box-shadow: 0 0 0 9px transparent; }
+}
+
+/* ---- recusa: o motivo em destaque, com o caminho de volta ---- */
+.pedido-recusa {
+  display: grid;
+  justify-items: start;
+  gap: 0.5rem;
+  padding: 1rem 1.1rem;
+  border-radius: var(--radius-sm);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger);
+  border-left-width: 3px;
+}
+.pedido-recusa .stat-label { color: var(--danger); }
+.pedido-recusa p {
+  color: var(--text-primary);
+  font-size: var(--t-corpo);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.pedido-recusa .btn { margin-top: 0.2rem; }
+
+/* ---- resumo do pedido ---- */
+.pedido-resumo { display: grid; gap: 0.75rem; }
+.card.pedido-resumo h2 {
+  font-size: var(--t-titulo);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.pedido-endereco {
+  color: var(--text-secondary);
+  font-size: var(--t-apoio);
+  overflow-wrap: anywhere;
+}
+.pedido-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.pedido-recado {
+  margin: 0.25rem 0 0;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  border-left: 3px solid var(--accent);
+}
+.pedido-recado p {
+  margin-top: 0.3rem;
+  font-size: var(--t-apoio);
+  line-height: 1.5;
+  color: var(--text-secondary);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.pedido-resumo .acoes-form { margin-top: 0.35rem; }
+.pedido-desistencia {
+  display: grid;
+  gap: 0.75rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+}
+.pedido-desistencia p { font-size: var(--t-apoio); color: var(--text-secondary); }
+
+/* ---- formulário (primeiro envio e correção) ---- */
+/* Numa coluna só (celular), o espaço entre os campos já vem do .field. */
+.pedido-form .field-row { row-gap: 0; }
+.pedido-form textarea { min-height: 6.5rem; resize: vertical; }
+.pedido-form .field-hint { overflow-wrap: anywhere; }
+
+/* ---- depois da aprovação ---- */
+.pedido-depois ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.95rem;
+  counter-reset: pedido-depois;
+}
+.pedido-depois li {
+  position: relative;
+  padding-left: 2.6rem;
+  font-size: var(--t-apoio);
+  line-height: 1.5;
+  color: var(--text-secondary);
+  counter-increment: pedido-depois;
+}
+.pedido-depois li::before {
+  content: counter(pedido-depois, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  top: 0.05rem;
+  font-family: var(--font-mono);
+  font-size: var(--t-apoio);
+  font-weight: 700;
+  color: var(--accent-text);
+}
+.pedido-depois strong { display: block; color: var(--text-primary); }
+
+/* ---- contato ---- */
+.pedido-contato dl { display: grid; gap: 0.6rem; margin: 0 0 0.8rem; }
+.pedido-contato dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: var(--t-apoio);
+}
+.pedido-contato dt { color: var(--text-muted); }
+.pedido-contato dd {
+  margin: 0;
+  font-weight: 600;
+  text-align: right;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+/* ==========================================================================
+   CELULAR: trilha na vertical
+   ========================================================================== */
+@media (max-width: 620px) {
+  .pedido-trilha { grid-template-columns: 1fr; gap: 1.1rem; }
+  .pedido-passo {
+    padding: 0.15rem 0 0 3.1rem;
+    min-height: 2.3rem;
+  }
+  .pedido-passo:not(:last-child)::after {
+    top: 2.6rem;
+    bottom: -0.9rem;
+    left: 1.1rem;
+    right: auto;
+    width: 2px;
+    height: auto;
+  }
+  .pedido-resumo .acoes-form { flex-direction: column; }
+  .pedido-contato dl > div { flex-direction: column; gap: 0.1rem; }
+  .pedido-contato dd { text-align: left; }
+}

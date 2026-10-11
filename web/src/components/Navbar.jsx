@@ -192,9 +192,11 @@ export default function Navbar() {
 
   const operador = userData?.role === "operador";
   const admin = userData?.role === "admin";
+  // Conta de estacionamento com o pedido para entrar na rede em análise.
+  const candidato = userData?.role === "candidato";
   const nome = userData?.name || user?.displayName || "Usuário";
   const inicial = nome[0].toUpperCase();
-  const papel = admin ? "Administrador" : operador ? "Estacionamento" : "Motorista";
+  const papel = admin ? "Administrador" : operador || candidato ? "Estacionamento" : "Motorista";
   const foto = userData?.photoURL || user?.photoURL;
   // Foto da conta ou a inicial do nome: no botão da conta, no botão do menu
   // do celular e no topo dos dois menus.
@@ -213,6 +215,8 @@ export default function Navbar() {
           { to: "/dashboard", label: "Painel", icone: "painel" },
           { to: "/historico", label: "Movimentações", icone: "historico" },
         ]
+      : candidato
+      ? [{ to: "/dashboard", label: "Meu pedido", icone: "painel" }]
       : [
           { to: "/dashboard", label: "Painel", icone: "painel" },
           { to: "/estacionamentos", label: "Estacionamentos", icone: "local" },

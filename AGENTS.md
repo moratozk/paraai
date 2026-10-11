@@ -39,10 +39,12 @@ componente não pode quebrar os outros.
 - Use somente `web/.env.example` e `firmware/totem/Credenciais.example.h` como
   modelos.
 - Não enfraqueça `firebase/firestore.rules`. Motoristas acessam apenas os próprios
-  dados, operadores antigos apenas o próprio estacionamento, administradores
-  gerenciam a rede e totens executam somente as ações necessárias do
-  equipamento autorizado. Contas `admin` nunca podem ser criadas ou promovidas
-  pelo cliente web.
+  dados, donos de estacionamento (`operador`) apenas o próprio estacionamento,
+  contas em análise (`candidato`) apenas o próprio pedido, administradores
+  gerenciam a rede e aprovam os pedidos, e totens executam somente as ações
+  necessárias do equipamento autorizado. Contas `admin` nunca podem ser criadas
+  ou promovidas pelo cliente web, e uma conta só vira `operador` no lote em que
+  a administração aprova o pedido dela.
 - O Firebase App Check deve permanecer em modo de monitoramento enquanto o
   ESP32 não tiver uma integração compatível.
 - Não publique no Firebase nem grave o ESP32 sem solicitação explícita do

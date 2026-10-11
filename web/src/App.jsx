@@ -58,7 +58,9 @@ export default function App() {
                 <Routes>
                 <Route path="/" element={<PublicRoute><Home /></PublicRoute>} />
                 <Route path="/login" element={<PublicRoute><Titulo nome="Entrar"><Login /></Titulo></PublicRoute>} />
-                <Route path="/cadastro" element={<PublicRoute><Titulo nome="Criar conta"><Cadastro /></Titulo></PublicRoute>} />
+                {/* O cadastro decide sozinho quando ir para o painel: a conta de
+                    estacionamento nasce antes do pedido (ver Cadastro.jsx). */}
+                <Route path="/cadastro" element={<Titulo nome="Criar conta"><Cadastro /></Titulo>} />
                 <Route path="/recuperar-senha" element={<PublicRoute><Titulo nome="Recuperar senha"><RecuperarSenha /></Titulo></PublicRoute>} />
                 <Route path="/redefinir-senha" element={<PublicRoute><Titulo nome="Criar nova senha"><RedefinirSenha /></Titulo></PublicRoute>} />
                 {/* Links dos e-mails do Firebase; vale logado ou não (ver AcaoConta). */}
@@ -70,7 +72,7 @@ export default function App() {
                   path="/dashboard"
                   element={
                     <PrivateRoute>
-                      <Titulo nome={(papel) => (papel === "admin" ? "Administração" : "Painel")}>
+                      <Titulo nome={(papel) => (papel === "admin" ? "Administração" : papel === "candidato" ? "Seu pedido" : "Painel")}>
                         <Dashboard />
                       </Titulo>
                     </PrivateRoute>

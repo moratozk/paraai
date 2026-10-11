@@ -28,6 +28,7 @@ O plano B roda o sistema inteiro no notebook, sem internet.
    | Motorista pronto | Usar se o cadastro ao vivo falhar | Placa, modelo e cor no Perfil e uma recarga simulada de R$ 50 |
    | Motorista com direito 60+ (ou PCD) | Mostrar o totem levando a pessoa para a vaga especial | Outra placa e o direito declarado no Perfil |
    | Administrador | Painel da rede, vagas ao vivo e maquete | A conta de vocês com `role: "admin"`, trocado no console do Firebase (o site não cria administrador) |
+   | Estacionamento em análise | Mostrar a aprovação de um pátio novo | Cadastro em "Tenho um estacionamento" com outro e-mail; o pedido fica esperando no painel da rede. Depois da banca, oculte o pátio dos motoristas |
    | Cadastro ao vivo | Mostrar o cadastro na frente da banca | Um e-mail ainda sem conta; no Gmail, `seunome+banca@gmail.com` chega na mesma caixa |
 
 4. **Marcar "Não é spam".** O e-mail de recuperação de senha ainda sai no
@@ -73,7 +74,8 @@ O plano B roda o sistema inteiro no notebook, sem internet.
 | 9 | Totem | SAÍDA, digitar a placa, CONFIRMAR | Valor pelo tempo exato, com a tarifa congelada na entrada |
 | 10 | Celular | Painel "Na rua", o comprovante (Imprimir ou salvar PDF) e o extrato no Perfil | Débito, recibo e vaga livre gravados juntos |
 | 11 | Projetor (administrador) | Painel da rede: recebido no período, totens online, movimentações e o CSV | Visão da rede inteira de estacionamentos |
-| 12 | GitHub (opcional) | Actions verdes: contratos, regras e fluxo completo | A conta da cobrança é a mesma no site, no totem e nas regras, testada em cada PR |
+| 12 | Projetor (administrador) | "Pedidos para entrar na rede": aprovar o estacionamento em análise; depois, entrar com a conta dele | Só a equipe aprova; na hora, o pátio entra no mapa e a conta ganha o painel de dono |
+| 13 | GitHub (opcional) | Actions verdes: contratos, regras e fluxo completo | A conta da cobrança é a mesma no site, no totem e nas regras, testada em cada PR |
 
 Com pouco tempo, fique com 2, 5, 6, 7, 9 e 10.
 
@@ -111,6 +113,7 @@ exemplo, o Temurin 21), rode `npm ci` em `web/` e em `e2e/` e depois
 | `dono@paraai.test` | Painel do Pátio da Banca e movimentações |
 | `marina@paraai.test` | Placa TCC2E26, Gol prata, saldo na carteira |
 | `antonio@paraai.test` | Placa BRA2E19, Uno branco, direito a vaga 60+ |
+| `ana@paraai.test` | Pedido do Estacionamento Central, esperando a aprovação no painel da rede |
 | Qualquer e-mail novo | Para o cadastro ao vivo |
 
 | No terminal | O totem faz |
@@ -123,7 +126,9 @@ exemplo, o Temurin 21), rode `npm ci` em `web/` e em `e2e/` e depois
 
 A placa GHI7J89 ficou com uma estadia sem saldo: a entrada dela é recusada,
 como acontece com quem está em dívida. Placa nova é cadastrada no totem, sem
-dono, como no CONFIRMAR da tela.
+dono, como no CONFIRMAR da tela. O cadastro de estacionamento ao vivo precisa
+de internet, porque o endereço vem do CEP; sem ela, mostre a aprovação com o
+pedido da `ana@paraai.test`.
 
 Limites: só abre no próprio notebook (para a tela de celular, use o modo de
 dispositivo do navegador, no F12) e o totem é simulado; diga isso à banca.
@@ -140,6 +145,12 @@ entre R$ 0,01 e R$ 1.000. O teste das regras tenta e é recusado
 como num estacionamento de ticket. As saídas estudadas são um código de
 entrada gerado no app (a recomendada), um PIN pessoal ou a aprovação no
 celular. Fica como trabalho futuro.
+
+**Qualquer um pode pôr um estacionamento na rede?** Não. O dono se cadastra
+e manda um pedido, e só a administração aprova. A aprovação cria o pátio no
+nome de quem pediu, publica no mapa e libera o painel de dono num lote só, que
+as regras conferem inteiro. Enquanto isso, a conta em análise só vê o próprio
+pedido.
 
 **Como o totem se autentica?** Cada totem tem uma conta própria. As regras
 deixam cada um fazer só o que o atendimento precisa (entrada, saída, placa

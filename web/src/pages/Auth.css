@@ -259,6 +259,23 @@
 .role-titulo, .auth-check strong { font-size: var(--t-apoio); font-weight: 700; }
 .role-desc, .auth-check span { font-size: var(--t-legenda); color: var(--text-muted); line-height: 1.4; }
 
+/* Vagas e preço da hora lado a lado; numa coluna só (celular), o espaço
+   entre os campos já vem do .field. */
+.auth-card .field-row { row-gap: 0; }
+
+/* ---- como funciona o pedido de estacionamento ---- */
+.cadastro-como-funciona {
+  margin: -0.4rem 0 1.4rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  font-size: var(--t-apoio);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
 /* ---- resumo antes de confirmar ---- */
 .resumo-cadastro {
   padding: 1.1rem 1.2rem;
@@ -402,6 +419,10 @@
   margin-bottom: 0.2rem;
 }
 .endereco-linha { font-size: var(--t-apoio); }
+/* Respiro entre um par rótulo/valor e o próximo, para não ler o valor com o rótulo de baixo. */
+.endereco-linha + .endereco-linha { margin-top: 0.8rem; }
+/* No resumo do computador cada par cabe numa linha só. */
+.resumo-cadastro .endereco-linha + .endereco-linha { margin-top: 0.45rem; }
 
 .input-spinner {
   width: 18px;
@@ -450,6 +471,8 @@
     flex-direction: column;
     gap: 0.15rem;
   }
+  .resumo-cadastro .endereco-linha { gap: 0; }
+  .resumo-cadastro .endereco-linha + .endereco-linha { margin-top: 0.8rem; }
 
   .resumo-cadastro strong,
   .resumo-cadastro dd { overflow-wrap: anywhere; }

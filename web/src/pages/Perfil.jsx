@@ -261,7 +261,9 @@ export default function Perfil() {
             ? "Sua conta administrativa do sistema ParaAí."
             : role === "operador"
               ? "Sua conta e seu estacionamento no ParaAí."
-              : "Sua conta e seu veículo no ParaAí."}
+              : role === "candidato"
+                ? "Sua conta e o pedido do seu estacionamento."
+                : "Sua conta e seu veículo no ParaAí."}
         </p>
       </div>
 
@@ -274,6 +276,8 @@ export default function Perfil() {
             <span className="status-pill warning">Administrador</span>
           ) : role === "operador" ? (
             <span className="status-pill warning">Dono de estacionamento</span>
+          ) : role === "candidato" ? (
+            <span className="status-pill warning">Estacionamento em análise</span>
           ) : (
             placa && (
               <>
@@ -313,13 +317,17 @@ export default function Perfil() {
                 ? "Administrador da rede"
                 : role === "operador"
                   ? "Dono de estacionamento"
-                  : "Motorista"}
+                  : role === "candidato"
+                    ? "Estacionamento em análise"
+                    : "Motorista"}
             </span>
           </div>
           <div className="info-row">
             <span className="label">Privacidade</span>
             <Link to="/configuracoes?aba=privacidade" className="field-link">
-              {role === "motorista" ? "Baixar ou excluir dados" : "Baixar seus dados"}
+              {role === "motorista" || role === "candidato"
+                ? "Baixar ou excluir dados"
+                : "Baixar seus dados"}
             </Link>
           </div>
         </div>
@@ -410,6 +418,18 @@ export default function Perfil() {
         </div>
         </div>
         ) : null
+      ) : role === "candidato" ? (
+        <div className="card vehicle-card">
+          <h2>Seu estacionamento</h2>
+          <p className="muted-note" style={{ marginTop: 0 }}>
+            O pedido para pôr o seu pátio na rede fica no painel. Com a
+            aprovação da equipe do ParaAí, esta conta vira a dona do
+            estacionamento.
+          </p>
+          <Link to="/dashboard" className="btn btn-primary">
+            Acompanhar o pedido
+          </Link>
+        </div>
       ) : (
         <div className={`perfil-colunas ${placa ? "duas" : ""}`}>
         <div className="perfil-coluna">

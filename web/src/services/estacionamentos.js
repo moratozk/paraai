@@ -32,7 +32,17 @@ function gerarIdEstacionamento() {
   return `EST-${sufixo}`;
 }
 
-function dadosPublicos(estacionamento) {
+// Id ainda sem estacionamento (a administração cria e aprova pedidos).
+export async function idLivreDeEstacionamento() {
+  let id = gerarIdEstacionamento();
+  while ((await getDoc(doc(db, "estacionamentos", id))).exists()) {
+    id = gerarIdEstacionamento();
+  }
+  return id;
+}
+
+// Vitrine dos motoristas (catalogoEstacionamentos): só os campos públicos.
+export function dadosPublicos(estacionamento) {
   const tarifa = Number(estacionamento.tarifaHora);
   const dados = {
     nome: String(estacionamento.nome || "").trim(),
@@ -204,10 +214,7 @@ export async function criarEstacionamentoAdmin({
   }
   if (!Number.isFinite(hora) || hora < 0) throw new Error("Tarifa por hora inválida.");
 
-  let id = gerarIdEstacionamento();
-  while ((await getDoc(doc(db, "estacionamentos", id))).exists()) {
-    id = gerarIdEstacionamento();
-  }
+  const id = await idLivreDeEstacionamento();
 
   const estacionamento = {
     nome: String(nome).trim(),

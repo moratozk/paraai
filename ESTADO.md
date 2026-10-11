@@ -32,6 +32,54 @@ em 06/10/2026** a partir da `main` (`26a97e5`); o site no ar é o build dessa
 versão. **O firmware da `main` foi gravado no totem no mesmo dia** e testado:
 uma placa sem direito declarado recebeu a primeira vaga comum livre.
 
+## Estacionamento novo por pedido, com aprovação (11/10/2026)
+
+Decisão do dono do projeto em 11/10/2026: três tipos de conta (motorista,
+dono de estacionamento e a equipe do ParaAí, que é o administrador) e, para
+pôr um estacionamento na rede, **pedido pelo site com aprovação da equipe**,
+em vez de cadastro direto ou só contato. O cadastro público continua sem criar
+dono nem administrador.
+
+- **Cadastro do dono** (`pages/Cadastro.jsx`, em "Tenho um estacionamento" ou
+  `/cadastro?perfil=estacionamento`, também no botão "Cadastrar meu
+  estacionamento" da página inicial): três etapas (conta; nome, CEP e número;
+  vagas, preço da hora e um recado opcional). A conta nasce com o papel
+  `candidato` e o pedido vai para `pedidosEstacionamento/{uid}` com
+  `status: "pendente"`. Se a conta for criada e o pedido não chegar, a tela
+  avisa e deixa reenviar sem criar outra conta.
+- **Acompanhamento** (`pages/PainelPedido.jsx`, o painel da conta em análise):
+  trilha de três passos (enviado, análise, painel), o resumo do pedido, corrigir
+  os dados e desistir. Recusado, mostra o motivo da equipe e "Corrigir e
+  reenviar". Aprovado, a conta vira dona e o painel troca sozinho para o do
+  estacionamento, sem recarregar (o `AuthContext` acompanha o perfil ao vivo).
+  Quem não mandou o pedido no cadastro manda pelo próprio painel. No menu, a
+  conta em análise tem só "Meu pedido" no lugar dos links do motorista.
+- **Painel da rede** (`components/PedidosEstacionamento.jsx`): a seção
+  "Pedidos para entrar na rede" só aparece quando há pedido esperando, com os
+  dados do pátio, o contato de quem pediu (e-mail e WhatsApp) e o recado.
+  "Aprovar e publicar" grava num lote só: o estacionamento novo no nome de quem
+  pediu (já publicado), a vitrine dos motoristas, a conta virando `operador` com
+  esse `estacionamentoId` e o pedido como `aprovado` (`services/pedidos.js`).
+  "Recusar" pede o motivo (até 300 caracteres), que a pessoa vê no painel.
+- **Regras** (`firebase/firestore.rules`): a conta `candidato` nasce só com o
+  contato e não se promove; só ela cria o próprio pedido, com o e-mail da conta
+  e os campos conferidos (CEP, UF, 1 a 200 vagas, preço da hora até
+  R$ 10.000, recado até 500 caracteres); leem o pedido só quem pediu e a
+  administração; quem pediu corrige, reenvia ou desiste, mas não aprova nem
+  recusa; recusa e aprovação são só da administração, e a aprovação só passa
+  com o lote inteiro coerente (pátio novo, sem reaproveitar um existente, no
+  nome de quem pediu, com a vitrine e a promoção para o mesmo pátio). Promoção
+  a `operador` só existe nesse lote; `admin` continua fora do alcance do site.
+- **Privacidade:** a conta em análise baixa o perfil e o pedido e pode se
+  excluir pelo site, o que apaga perfil e pedido juntos. Pedido aprovado não se
+  apaga, porque já virou o cadastro do pátio.
+- **Testes:** sete testes novos das regras (117 no total) e o teste do fluxo
+  completo "estacionamento novo" (cadastro, aprovação pela equipe e painel de
+  dono), no celular e no computador.
+- **Demonstração sem internet:** `ana@paraai.test` tem um pedido esperando a
+  aprovação. O cadastro de estacionamento ao vivo precisa de internet, porque o
+  endereço vem do CEP.
+
 ## Link, buscadores e velocidade (11/10/2026)
 
 Medido no Lighthouse em modo celular, na página inicial (média de duas
@@ -1103,6 +1151,14 @@ usa o Firebase de produção.
     publicar, só o site. Depois, mandar o link num chat do WhatsApp para ver
     a prévia e abrir um endereço que não existe, como `/teste`.
 
+15. **Estacionamento novo por pedido (11/10/2026, PR próprio).** Publicar as
+    regras (`firebase deploy --only firestore`) antes do site: com o site
+    novo e as regras antigas, o cadastro de estacionamento é recusado e a conta
+    não é criada. As regras novas não mudam nada para o site antigo. Para
+    conferir: cadastrar um estacionamento com um e-mail de teste, aprovar no
+    painel da rede com a conta de administrador, ver a conta virar dona e
+    depois ocultar o pátio de teste dos motoristas.
+
 ---
 
 ## Decisões já tomadas (não refazer sem motivo)
@@ -1160,12 +1216,14 @@ quem entra quer estacionar, não conhecer o hardware.
 **Modo claro não usa branco puro.** Cansa a vista. A base é um cinza
 levemente quente; o contraste vem da hierarquia, não do brilho.
 
-**Motorista e administrador são contas separadas.** O cadastro público cria
-somente motoristas. Administradores usam `users/{uid}.role = "admin"`, são
-promovidos apenas pelo Firebase Console/Admin SDK e gerenciam a rede inteira.
-Contas `operador` antigas continuam funcionando para não quebrar instalações,
-mas não são mais oferecidas no cadastro público. Não permitir autopromoção de
-papel no cliente.
+**Motorista, dono de estacionamento e administrador são contas separadas.**
+O cadastro público cria motoristas e contas de estacionamento em análise
+(`candidato`), que só veem o próprio pedido. Conta de dono (`operador`) só
+nasce quando a administração aprova o pedido (11/10/2026, ver "Estacionamento
+novo por pedido"); as contas `operador` antigas continuam funcionando.
+Administradores usam `users/{uid}.role = "admin"`, são promovidos apenas pelo
+Firebase Console/Admin SDK e gerenciam a rede inteira. Não permitir
+autopromoção de papel no cliente.
 
 **O marketplace usa uma projeção pública autenticada.** Motoristas leem
 `catalogoEstacionamentos`, nunca o documento operacional completo. Novos
@@ -1203,8 +1261,9 @@ informar previamente a duração. Não apresentar esse fluxo como pagamento real
 **Excluir a conta não apaga as estadias (09/10/2026).** Elas são o registro
 de entradas, saídas e faturamento do estacionamento e ficam só com a placa,
 sem nome, e-mail ou celular. O que é só da pessoa (perfil, extrato, reserva,
-modelo, cor e vaga especial) é apagado. Só o motorista se exclui pelo site;
-dono de estacionamento e administrador são encerrados pela administração.
+modelo, cor e vaga especial) é apagado. Só o motorista e a conta de
+estacionamento em análise se excluem pelo site; dono de estacionamento e
+administrador são encerrados pela administração.
 
 **Modelo e cor vêm do cadastro do motorista, não de consulta pela placa
 (08/10/2026).** Não há consulta oficial gratuita (a do SINESP saiu do ar e a

@@ -15,6 +15,7 @@ import {
   prepararAdministrador,
   prepararMotorista,
   prepararPatio,
+  prepararPedido,
   registrarEstadiasAnteriores,
   totemSimulado,
 } from "./patio.js";
@@ -27,6 +28,16 @@ const TARIFA = 8.5;
 const TOTEM = { uid: "totem-banca", nome: "Totem da entrada", email: "totem-banca@dispositivo.paraai.test" };
 const ADMIN = { nome: "Administração ParaAí", email: "admin@paraai.test" };
 const DONO = { nome: "Otávio Lima", email: "dono@paraai.test" };
+// Pedido de um estacionamento novo, esperando a aprovação no painel da rede.
+// O cadastro de estacionamento ao vivo precisa de internet para achar o CEP.
+const PEDIDO = {
+  nome: "Ana Ribeiro", email: "ana@paraai.test", telefone: "(19) 99321-0987",
+  estacionamento: {
+    nomeEstacionamento: "Estacionamento Central", cep: "13465-000", logradouro: "Rua Dom Pedro II",
+    numero: "512", bairro: "Centro", cidade: "Americana", uf: "SP", numVagas: 24, tarifaHora: 9,
+    mensagem: "Abrimos de segunda a sábado, das 7h às 20h.",
+  },
+};
 // Marina e Antônio são as contas da apresentação; as outras dão movimento ao
 // pátio. Antônio declarou direito a vaga 60+, e o totem o leva para a 9.
 const MOTORISTAS = [
@@ -149,7 +160,9 @@ Contas, todas com a senha ${SENHA}:
   Dono do pátio   ${DONO.email.padEnd(21)} mapa do ${NOME_EST} e movimentações
   Motorista       ${marina.email.padEnd(21)} ${marina.placa}, ${marina.modelo} ${marina.cor}, saldo ${await saldo(marina.placa)}
   Motorista 60+   ${antonio.email.padEnd(21)} ${antonio.placa}, ${antonio.modelo} ${antonio.cor}, saldo ${await saldo(antonio.placa)}
-  No cadastro ao vivo, use qualquer e-mail (por exemplo banca@paraai.test).
+  Pedido novo     ${PEDIDO.email.padEnd(21)} ${PEDIDO.estacionamento.nomeEstacionamento}, esperando a aprovação no painel da rede
+  No cadastro ao vivo, use qualquer e-mail (por exemplo banca@paraai.test). O de
+  estacionamento precisa de internet para achar o CEP; sem ela, aprove o pedido acima.
 
 Totem do ${NOME_EST}, simulado aqui com as gravações do firmware:
   entrada PLACA   registra a entrada (usa a vaga reservada no app, se houver)
@@ -180,6 +193,7 @@ async function preparar() {
     totem: TOTEM,
   });
   for (const motorista of MOTORISTAS) await prepararMotorista(env, { ...motorista, senha: SENHA });
+  await prepararPedido(env, { ...PEDIDO, senha: SENHA });
   // Só o que já terminou: estadias de hoje com saída até meia hora atrás.
   const limite = Math.floor(Date.now() / 1000) - 30 * 60;
   await registrarEstadiasAnteriores(env, {

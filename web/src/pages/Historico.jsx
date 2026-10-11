@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import ComprovanteEstadia from "../components/ComprovanteEstadia";
 import {
@@ -60,6 +60,9 @@ export default function Historico() {
   const totalPendente = registros.reduce((soma, item) => soma + valorPendente(item), 0);
 
   const semVinculo = role === "motorista" ? !placa : !estId;
+
+  // Conta de estacionamento em análise ainda não tem movimentações.
+  if (role === "candidato") return <Navigate to="/dashboard" replace />;
 
   return (
     <div className="page container">

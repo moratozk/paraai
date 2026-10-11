@@ -1,0 +1,77 @@
+/* ==========================================================================
+   PEDIDOS PARA ENTRAR NA REDE (painel da rede)
+   Usa os cartões de estacionamento de pages/Admin.css.
+   ========================================================================== */
+.pedidos-rede { margin-bottom: calc(var(--gap) * 1.5); }
+
+.pedidos-rede-cabeca {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.8rem;
+  margin: calc(var(--gap) * 1.5) 0 var(--gap);
+}
+.pedidos-rede-cabeca .admin-secao { margin: 0; }
+
+.pedidos-rede-lista {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--gap);
+  align-items: start;
+}
+
+/* Pedido novo: a aresta âmbar chama a atenção sem mudar o cartão. */
+.card.pedido-rede { border-left: 3px solid var(--accent); }
+
+.pedido-rede-contato { display: grid; gap: 0.3rem; }
+.pedido-rede-contato > strong { overflow-wrap: anywhere; }
+.pedido-rede-canais {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.3rem;
+}
+.pedido-rede-telefone {
+  font-family: var(--font-mono);
+  font-size: var(--t-apoio);
+  color: var(--text-secondary);
+}
+
+.pedido-rede-recado {
+  margin: 0;
+  padding: 0.8rem 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  border-left: 3px solid var(--border-strong);
+}
+.pedido-rede-recado p {
+  margin-top: 0.3rem;
+  font-size: var(--t-apoio);
+  line-height: 1.5;
+  color: var(--text-secondary);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.pedido-rede-confirmacao {
+  display: grid;
+  gap: 0.75rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+}
+.pedido-rede-confirmacao > p {
+  font-size: var(--t-apoio);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.pedido-rede-confirmacao .field { margin-bottom: 0; }
+.pedido-rede-confirmacao textarea { min-height: 5.5rem; resize: vertical; }
+
+@media (max-width: 850px) {
+  .pedidos-rede-lista { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .pedido-rede-acoes,
+  .pedido-rede-confirmacao .acoes-form { flex-direction: column; }
+}
