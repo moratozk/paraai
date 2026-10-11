@@ -472,23 +472,135 @@ service cloud.firestore {
         || dados.entrada >= math.ceil(veiculo.historicoDesde.toMillis() / 1000.0);
     }
 
+    // ---------------------------------------------------------------------
+    // Pedido para pôr um estacionamento na rede. Quem tem um pátio cria pelo
+    // site uma conta "candidato", que só enxerga o próprio pedido. A
+    // administração aprova num lote só: cria o estacionamento no nome de
+    // quem pediu, publica a vitrine, marca o pedido como aprovado e
+    // transforma a conta em "operador" (dono). Ou recusa, dizendo o motivo,
+    // e a pessoa corrige e reenvia.
+    // ---------------------------------------------------------------------
+    function contaCandidata(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid))
+        && get(/databases/$(database)/documents/users/$(uid)).data.get('role', '') == 'candidato';
+    }
+
+    function textoAte(valor, maximo) {
+      return valor is string && valor.size() <= maximo;
+    }
+
+    function textoPreenchido(valor, maximo) {
+      return textoAte(valor, maximo) && valor.trim().size() > 0;
+    }
+
+    // Conta de quem pede: só os dados de contato, sem placa nem pátio.
+    function perfilCandidatoValido(dados) {
+      return dados.keys().hasOnly([
+          'role', 'name', 'email', 'telefone', 'photoURL', 'privacidadeAceitaEm',
+          'versaoPrivacidade', 'createdAt'
+        ]);
+    }
+
+    // O que a própria pessoa escreve no pedido. O e-mail é o da conta, para a
+    // administração responder a quem pediu de verdade.
+    function pedidoDoCandidatoValido(dados) {
+      return dados.keys().hasOnly([
+          'status', 'nome', 'email', 'telefone', 'nomeEstacionamento', 'cep',
+          'logradouro', 'numero', 'bairro', 'cidade', 'uf', 'numVagas',
+          'tarifaHora', 'mensagem', 'criadoEm', 'atualizadoEm'
+        ])
+        && dados.keys().hasAll([
+          'status', 'nome', 'email', 'telefone', 'nomeEstacionamento', 'cep',
+          'logradouro', 'numero', 'bairro', 'cidade', 'uf', 'numVagas',
+          'tarifaHora', 'criadoEm', 'atualizadoEm'
+        ])
+        && dados.status == 'pendente'
+        && textoPreenchido(dados.nome, 80)
+        && dados.email == request.auth.token.email
+        && dados.telefone is string && dados.telefone.matches('^[0-9() +-]{8,20}$')
+        && textoPreenchido(dados.nomeEstacionamento, 60)
+        && dados.cep is string && dados.cep.matches('^[0-9]{5}-?[0-9]{3}$')
+        && textoAte(dados.logradouro, 120)
+        && textoPreenchido(dados.numero, 10)
+        && textoAte(dados.bairro, 80)
+        && textoPreenchido(dados.cidade, 80)
+        && dados.uf is string && dados.uf.matches('^[A-Z]{2}$')
+        && dados.numVagas is int && dados.numVagas >= 1 && dados.numVagas <= 200
+        && dados.tarifaHora is number && dados.tarifaHora >= 0 && dados.tarifaHora <= 10000
+        && (!('mensagem' in dados) || textoAte(dados.mensagem, 500))
+        && dados.atualizadoEm == request.time;
+    }
+
+    function recusaDaAdministracao() {
+      return adminDoSistema()
+        && resource.data.status == 'pendente'
+        && request.resource.data.status == 'recusado'
+        && textoPreenchido(request.resource.data.motivoRecusa, 300)
+        && request.resource.data.analisadoEm == request.time
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'motivoRecusa', 'analisadoEm']);
+    }
+
+    // A aprovação só vale com o resto do lote: um estacionamento novo no nome
+    // de quem pediu, a vitrine publicada e a conta já como dono dele.
+    function aprovacaoDaAdministracao(uid) {
+      let estId = request.resource.data.get('estacionamentoId', '');
+      let caminho = /databases/$(database)/documents/estacionamentos/$(estId);
+      let conta = getAfter(/databases/$(database)/documents/users/$(uid)).data;
+      return adminDoSistema()
+        && resource.data.status == 'pendente'
+        && request.resource.data.status == 'aprovado'
+        && estId is string && estId != ''
+        && request.resource.data.analisadoEm == request.time
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'estacionamentoId', 'analisadoEm'])
+        && !exists(caminho)
+        && getAfter(caminho).data.ownerUid == uid
+        && existsAfter(/databases/$(database)/documents/catalogoEstacionamentos/$(estId))
+        && conta.role == 'operador'
+        && conta.estacionamentoId == estId;
+    }
+
+    // A conta candidata vira dono (operador) no mesmo lote da aprovação. É o
+    // único papel que a administração dá pelo site: "admin" nunca.
+    function promocaoPeloPedidoAprovado(uid) {
+      let estId = request.resource.data.get('estacionamentoId', '');
+      let pedido = getAfter(/databases/$(database)/documents/pedidosEstacionamento/$(uid)).data;
+      return adminDoSistema()
+        && resource.data.get('role', '') == 'candidato'
+        && !('estacionamentoId' in resource.data)
+        && request.resource.data.role == 'operador'
+        && estId is string && estId != ''
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['role', 'estacionamentoId'])
+        && pedido.status == 'aprovado'
+        && pedido.estacionamentoId == estId
+        && getAfter(/databases/$(database)/documents/estacionamentos/$(estId)).data.ownerUid == uid;
+    }
+
     match /users/{uid} {
       allow read: if signedIn() && request.auth.uid == uid;
-      // Exclusão da conta pelo próprio motorista (LGPD), no mesmo lote que
-      // libera a placa e apaga a reserva. Estacionamento e administração são
-      // encerrados pela administração da rede, fora do site.
+      // Exclusão da conta pela própria pessoa (LGPD): o motorista, no mesmo
+      // lote que libera a placa e apaga a reserva; quem pediu para entrar na
+      // rede, junto com o pedido ainda não aprovado. Estacionamento e
+      // administração são encerrados pela administração da rede, fora do site.
       allow delete: if signedIn() && request.auth.uid == uid
-        && resource.data.get('role', 'motorista') == 'motorista'
+        && resource.data.get('role', 'motorista') in ['motorista', 'candidato']
         && !('estacionamentoId' in resource.data)
         && placaLiberadaDepois(resource.data.get('placa', ''))
-        && !existsAfter(/databases/$(database)/documents/reservas/$(uid));
-      // O cadastro público cria somente motoristas. Contas administrativas
-      // são promovidas fora do cliente, e operadores antigos são preservados.
+        && !existsAfter(/databases/$(database)/documents/reservas/$(uid))
+        && !existsAfter(/databases/$(database)/documents/pedidosEstacionamento/$(uid));
+      // O cadastro público cria motoristas e contas candidatas (quem pede
+      // para pôr um estacionamento na rede). Dono só com o pedido aprovado
+      // pela administração; contas administrativas são promovidas fora do
+      // cliente, e operadores antigos são preservados.
       allow create: if signedIn() && request.auth.uid == uid
-        && request.resource.data.role == 'motorista'
+        && (request.resource.data.role == 'motorista'
+          || (request.resource.data.role == 'candidato'
+            && perfilCandidatoValido(request.resource.data)))
         && direitoVagaValido(request.resource.data)
         && aceitePrivacidadeValido(request.resource.data);
-      allow update: if signedIn() && request.auth.uid == uid
+      allow update: if (signedIn() && request.auth.uid == uid
         && (
           (request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'name', 'email', 'telefone', 'photoURL', 'vagaEspecial'
@@ -496,7 +608,28 @@ service cloud.firestore {
             && direitoVagaValido(request.resource.data))
           || placaDeMotoristaValida()
           || vinculoInicialDeEstacionamentoValido(uid)
-        );
+        ))
+        || promocaoPeloPedidoAprovado(uid);
+    }
+
+    match /pedidosEstacionamento/{uid} {
+      allow read: if adminDoSistema() || (signedIn() && request.auth.uid == uid);
+      allow create: if signedIn() && request.auth.uid == uid
+        && contaCandidata(uid)
+        && pedidoDoCandidatoValido(request.resource.data)
+        && request.resource.data.criadoEm == request.time;
+      // A pessoa corrige o pedido enquanto ele espera e, se foi recusado,
+      // reenvia (volta a "pendente", sem o motivo da recusa).
+      allow update: if (signedIn() && request.auth.uid == uid
+          && contaCandidata(uid)
+          && resource.data.status in ['pendente', 'recusado']
+          && pedidoDoCandidatoValido(request.resource.data)
+          && request.resource.data.criadoEm == resource.data.criadoEm)
+        || recusaDaAdministracao()
+        || aprovacaoDaAdministracao(uid);
+      // Desistir do pedido (ou excluir a conta): só antes da aprovação.
+      allow delete: if signedIn() && request.auth.uid == uid
+        && resource.data.status != 'aprovado';
     }
 
     match /estacionamentos/{estId} {

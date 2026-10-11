@@ -15,6 +15,7 @@ import {
 } from "../services/estacionamentos";
 import { buscarCep, cepCompleto, formatarCep } from "../services/cep";
 import GerenciarTotens from "../components/GerenciarTotens";
+import PedidosEstacionamento from "../components/PedidosEstacionamento";
 import GraficoReceita from "../components/GraficoReceita";
 import {
   formatarDataHora,
@@ -402,6 +403,9 @@ export default function PainelAdmin() {
           </button>
         </form>
       )}
+
+      {/* Só aparece quando alguém pediu para pôr um estacionamento na rede. */}
+      <PedidosEstacionamento adminUid={user?.uid} />
 
       <div className="toolbar">
         <div className="segmented" role="tablist" aria-label="Período">

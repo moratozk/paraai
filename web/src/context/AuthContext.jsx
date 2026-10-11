@@ -18,7 +18,7 @@ import {
 } from "firebase/auth";
 import { doc, onSnapshot, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
-import { apagarDadosDoMotorista, VERSAO_PRIVACIDADE } from "../services/conta";
+import { apagarDadosDaConta, VERSAO_PRIVACIDADE } from "../services/conta";
 
 const AuthContext = createContext();
 
@@ -60,10 +60,11 @@ export function AuthProvider({ children }) {
   // e não para o login, quando o acesso acaba (ver PrivateRoute).
   const [contaExcluida, setContaExcluida] = useState(false);
 
-  // O cadastro público cria apenas motoristas. Papéis privilegiados são
-  // provisionados fora do cliente e nunca aceitos neste método.
+  // O cadastro público cria motoristas e contas candidatas (quem pede para
+  // pôr um estacionamento na rede). Dono só nasce da aprovação do pedido, no
+  // painel da rede, e administrador é provisionado fora do cliente.
   async function register(name, email, password, role = "motorista", telefone = "", vagaEspecial = "") {
-    if (role !== "motorista") {
+    if (!["motorista", "candidato"].includes(role)) {
       throw new Error("Contas administrativas não podem ser criadas pelo cadastro público.");
     }
     cadastroEmAndamento.current = true;
@@ -217,8 +218,8 @@ export function AuthProvider({ children }) {
     await verifyBeforeUpdateEmail(auth.currentUser, novoEmail);
   }
 
-  // Exclusão da conta pelo motorista (LGPD): confere a senha, apaga os dados
-  // (services/conta.js) e por último o acesso. O auto-reparo fica desligado
+  // Exclusão da conta pelo motorista ou pela conta candidata (LGPD): confere
+  // a senha, apaga os dados (services/conta.js) e por último o acesso. O auto-reparo fica desligado
   // para esta conta: sem isso, o listener abaixo recriaria na hora o perfil
   // que acabou de ser apagado.
   async function excluirConta(senhaAtual) {
@@ -226,7 +227,7 @@ export function AuthProvider({ children }) {
     if (!u) throw new Error("Sessão inválida. Entre novamente.");
     await reautenticar(senhaAtual);
     reparoTentado.current.add(u.uid);
-    await apagarDadosDoMotorista(u.uid);
+    await apagarDadosDaConta(u.uid);
     setContaExcluida(true);
     try {
       await deleteUser(u);

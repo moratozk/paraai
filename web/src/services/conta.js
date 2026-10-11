@@ -1,5 +1,6 @@
 // =========================================================================
-// Privacidade (LGPD): cópia dos dados da conta e exclusão pelo motorista.
+// Privacidade (LGPD): cópia dos dados da conta e exclusão pelo motorista
+// (ou por quem pediu para pôr um estacionamento na rede e ainda espera).
 // A política fica em pages/Privacidade.jsx; o que as regras deixam apagar,
 // em firebase/firestore.rules (liberacaoDaPlacaValida e vizinhas).
 // =========================================================================
@@ -48,19 +49,31 @@ async function veiculoDaConta(placa, uid) {
 // caber no primeiro, junto com o perfil, a placa e a reserva.
 const ESCRITAS_POR_LOTE = 450;
 
-// Apaga do Firestore o que é do motorista. A placa fica livre (sem saldo,
-// modelo, cor ou vaga especial, e com o limite do histórico para o próximo
-// dono); o extrato, a reserva e o perfil saem no mesmo lote. Uma reserva
-// ativa é cancelada antes, para a vaga voltar ao mapa. O acesso (login) é
-// apagado depois, em AuthContext.excluirConta.
-export async function apagarDadosDoMotorista(uid) {
+// Apaga do Firestore o que é da conta. Do motorista, a placa fica livre (sem
+// saldo, modelo, cor ou vaga especial, e com o limite do histórico para o
+// próximo dono); o extrato, a reserva e o perfil saem no mesmo lote. Uma
+// reserva ativa é cancelada antes, para a vaga voltar ao mapa. Da conta
+// candidata, o pedido sai junto com o perfil. O acesso (login) é apagado
+// depois, em AuthContext.excluirConta.
+export async function apagarDadosDaConta(uid) {
   const perfilRef = doc(db, "users", uid);
   const perfil = await getDoc(perfilRef);
   // Uma tentativa anterior já apagou o perfil: só falta encerrar o acesso.
   if (!perfil.exists()) return;
   const dados = perfil.data();
-  if ((dados.role || "motorista") !== "motorista" || dados.estacionamentoId) {
+  const role = dados.role || "motorista";
+  if (!["motorista", "candidato"].includes(role) || dados.estacionamentoId) {
     throw new Error("Esta conta é encerrada pela administração da rede.");
+  }
+
+  if (role === "candidato") {
+    const pedidoRef = doc(db, "pedidosEstacionamento", uid);
+    const pedido = await getDoc(pedidoRef);
+    const lote = writeBatch(db);
+    if (pedido.exists()) lote.delete(pedidoRef);
+    lote.delete(perfilRef);
+    await lote.commit();
+    return;
   }
 
   // Primeiro o que impede a exclusão, para não cancelar a reserva à toa.
@@ -223,6 +236,11 @@ export async function copiaDosDados(user) {
     }
     const reserva = await getDoc(doc(db, "reservas", uid));
     if (reserva.exists()) copia.reserva = legivel(reserva.data());
+  }
+
+  if (role === "candidato") {
+    const pedido = await getDoc(doc(db, "pedidosEstacionamento", uid));
+    if (pedido.exists()) copia.pedidoDeEstacionamento = legivel(pedido.data());
   }
 
   if (role === "operador" && perfil.estacionamentoId) {

@@ -102,14 +102,18 @@ const LADOS = [
   },
   {
     icone: "painel",
-    titulo: "Para quem administra",
+    titulo: "Para quem tem estacionamento",
     itens: [
       "Quanto entrou hoje, na hora",
       "Quais vagas estão ocupadas agora",
       "Preço da hora ajustável quando quiser",
       "Histórico de tudo que entrou e saiu",
     ],
-    acao: { texto: "Acesso administrativo", href: "/login?perfil=admin", classe: "btn-outline" },
+    acao: {
+      texto: "Cadastrar meu estacionamento",
+      href: "/cadastro?perfil=estacionamento",
+      classe: "btn-outline",
+    },
   },
 ];
 
@@ -447,6 +451,7 @@ export default function Home() {
           <nav className="rodape-coluna" aria-label="Conta">
             <h2>Conta</h2>
             <Link to="/cadastro">Criar conta</Link>
+            <Link to="/cadastro?perfil=estacionamento">Cadastrar estacionamento</Link>
             <Link to="/login">Entrar</Link>
             <Link to="/recuperar-senha">Esqueci a senha</Link>
           </nav>

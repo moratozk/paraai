@@ -11,9 +11,12 @@ pátios da rede — veja o [README da raiz](../README.md) para a visão geral.
 explicando a experiência para donos de estacionamento e motoristas.
 
 **Conta de operador (dono de estacionamento)**
-- Autocadastro em etapas: conta, endereço preenchido pelo CEP e nº de vagas;
-  recebe um `ESTACIONAMENTO_ID` (formato `EST-XXXXXX`) para o totem. A tarifa
-  é definida depois e pode ser alterada no painel.
+- Cadastro em etapas (conta; endereço preenchido pelo CEP; vagas e preço da
+  hora) que vira um pedido para a equipe do ParaAí. Em análise, a conta
+  acompanha o pedido, corrige os dados ou desiste; aprovado no painel da rede,
+  o pátio entra no mapa dos motoristas e a conta recebe o painel e um
+  `ESTACIONAMENTO_ID` (formato `EST-XXXXXX`) para o totem. A tarifa pode ser
+  alterada no painel.
 - Painel: valores recebidos (hoje / 7 dias / 30 dias / total), acessos,
   ocupação vaga a vaga ao vivo, status do totem, movimentações com valores.
 - Mapa de vagas em tempo real.

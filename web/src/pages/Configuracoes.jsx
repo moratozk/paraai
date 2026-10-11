@@ -92,6 +92,9 @@ export default function Configuracoes() {
   // --- privacidade (cópia dos dados e exclusão da conta) ---
   const role = userData?.role || "motorista";
   const motorista = role === "motorista";
+  // Quem pediu para pôr um estacionamento na rede também apaga a conta (e o
+  // pedido) sozinho, enquanto o pedido não é aprovado.
+  const candidato = role === "candidato";
   const placa = motorista ? userData?.placa || null : null;
   const naPrivacidade = aba === "privacidade";
   const { veiculo } = useVeiculo(naPrivacidade ? placa : null);
@@ -432,7 +435,9 @@ export default function Configuracoes() {
                     ? "Baixe uma cópia de tudo o que o ParaAí guarda sobre você: perfil, carro, carteira, extrato, estadias e reserva."
                     : role === "operador"
                       ? "Baixe uma cópia do seu perfil e do cadastro do seu estacionamento."
-                      : "Baixe uma cópia do seu perfil."}
+                      : candidato
+                        ? "Baixe uma cópia do seu perfil e do pedido do seu estacionamento."
+                        : "Baixe uma cópia do seu perfil."}
                 </p>
                 <button
                   type="button"
@@ -454,7 +459,7 @@ export default function Configuracoes() {
 
               <div className="card config-privacidade">
                 <h2>Excluir conta</h2>
-                {!motorista ? (
+                {!motorista && !candidato ? (
                   <p className="config-texto">
                     {role === "operador"
                       ? "A conta de um estacionamento é encerrada pela administração da rede, porque o pátio, os totens e as movimentações dependem dela."
@@ -463,9 +468,11 @@ export default function Configuracoes() {
                 ) : (
                   <>
                     <p className="config-texto">
-                      Apaga o seu perfil, a carteira, o extrato e a reserva, e
-                      encerra o acesso ao ParaAí. Não dá para desfazer.
+                      {candidato
+                        ? "Apaga o seu perfil e o pedido do estacionamento, e encerra o acesso ao ParaAí. Não dá para desfazer."
+                        : "Apaga o seu perfil, a carteira, o extrato e a reserva, e encerra o acesso ao ParaAí. Não dá para desfazer."}
                     </p>
+                    {motorista && (
                     <ul className="config-lista">
                       {placa && (
                         <li>
@@ -481,6 +488,7 @@ export default function Configuracoes() {
                         <li>O saldo simulado de {formatarMoeda(saldo)} não é devolvido.</li>
                       )}
                     </ul>
+                    )}
 
                     {impedimento === "estacionado" ? (
                       <p className="destaque-aviso">
@@ -576,9 +584,13 @@ const TIPOS_DE_CONTA = {
     nome: "Dono de estacionamento",
     descricao: "Sua conta administra um estacionamento da rede.",
   },
+  candidato: {
+    nome: "Estacionamento em análise",
+    descricao: "O pedido para pôr o seu estacionamento na rede está com a equipe do ParaAí.",
+  },
   motorista: {
     nome: "Motorista",
-    descricao: "Estacionamentos são cadastrados pela administração da rede ParaAí.",
+    descricao: "Sua conta estaciona em qualquer pátio da rede ParaAí.",
   },
 };
 

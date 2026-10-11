@@ -11,7 +11,8 @@ const DADOS = [
   {
     dado: "Nome, e-mail e celular",
     finalidade: "Criar e proteger a sua conta, recuperar a senha e avisar sobre ela.",
-    quemVe: "Só você.",
+    quemVe:
+      "Só você. Se você pedir para pôr um estacionamento na rede, a administração da rede também vê esses dados, no pedido.",
   },
   {
     dado: "Placa do carro",
@@ -43,6 +44,12 @@ const DADOS = [
     dado: "Reserva de vaga",
     finalidade: "Segurar a vaga por 30 minutos até você chegar.",
     quemVe: "Você, o totem do estacionamento reservado e a administração da rede.",
+  },
+  {
+    dado: "Pedido de estacionamento",
+    finalidade: "Avaliar a entrada do seu pátio na rede e falar com você sobre o pedido.",
+    quemVe:
+      "Você e a administração da rede. Com a aprovação, o nome, o endereço e a tarifa do pátio aparecem para os motoristas no mapa.",
   },
 ];
 
@@ -182,6 +189,10 @@ export default function Privacidade() {
                 art. 7º, V).
               </li>
               <li>
+                Para analisar o pedido de quem quer pôr um estacionamento na rede
+                (procedimento preliminar ao contrato, a pedido seu, art. 7º, V).
+              </li>
+              <li>
                 Para proteger a conta e a cobrança, como impedir uma nova entrada
                 com pendência de saldo (legítimo interesse, art. 7º, IX).
               </li>
@@ -199,7 +210,8 @@ export default function Privacidade() {
               </li>
               <li>
                 <strong>Corrigir:</strong> nome e celular em Configurações; modelo,
-                cor e vaga especial no Perfil.
+                cor e vaga especial no Perfil; o pedido de estacionamento no
+                painel, enquanto ele está em análise.
               </li>
               <li>
                 <strong>Excluir a conta:</strong> Configurações, aba Privacidade,
@@ -230,6 +242,11 @@ export default function Privacidade() {
               devolvido. Com o carro estacionado ou com uma pendência, registre a
               saída ou regularize o saldo antes.
             </p>
+            <p>
+              Numa conta de estacionamento em análise, apagamos o perfil e o pedido
+              juntos. Depois da aprovação, a conta do estacionamento é encerrada
+              pela administração da rede, porque o pátio depende dela.
+            </p>
           </section>
 
           <section className="card" id="onde" aria-labelledby="priv-onde">
@@ -239,8 +256,9 @@ export default function Privacidade() {
               guardada pelo serviço de login do Google: nem os autores a veem. A
               conexão é sempre criptografada, e regras de acesso testadas
               automaticamente fazem cada um ler só o que é seu: o motorista vê os
-              próprios dados, o estacionamento só o próprio pátio e o totem só o
-              que precisa para a entrada e a saída.
+              próprios dados, quem pede para entrar na rede só o próprio pedido, o
+              estacionamento só o próprio pátio e o totem só o que precisa para a
+              entrada e a saída.
             </p>
             <p>Guardamos os dados enquanto a conta existir.</p>
           </section>

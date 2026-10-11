@@ -664,7 +664,7 @@ test('mapa público: motorista lê sem placa e não muda ocupação nem tipo; ad
   await assertFails(updateDoc(ref('admin', 'estacionamentos/EST-A/vagas/2'), { placa: 'XYZ1234', ocupada: true }));
 });
 
-test('cadastro público cria só motorista; admin edita estacionamento de outra conta', async () => {
+test('cadastro público não cria dono nem administrador; admin edita estacionamento de outra conta', async () => {
   await assertFails(setDoc(ref('novo-operador', 'users/novo-operador'), { role: 'operador' }));
   await assertFails(setDoc(ref('novo-admin', 'users/novo-admin'), { role: 'admin' }));
   await assertSucceeds(setDoc(ref('novo-motorista', 'users/novo-motorista'), { role: 'motorista' }));
@@ -1092,4 +1092,157 @@ test('placa liberada continua entrando pelo totem, como placa sem dono', async (
   batch.update(doc(d, 'veiculos/XYZ1234'), { vagaAtual: 2, horaEntrada: agora, estacionamentoId: 'EST-A', tarifaHoraEntrada: 8.5 });
   batch.update(doc(d, 'estacionamentos/EST-A/vagas/2'), vagaLogica('XYZ1234'));
   await assertSucceeds(batch.commit());
+});
+
+// ---------------------------------------------------------------------------
+// Pedido para pôr um estacionamento na rede: conta candidata, aprovação ou
+// recusa pela administração e a conta virando dona do pátio.
+// ---------------------------------------------------------------------------
+const EMAIL_CARLA = 'carla@exemplo.com';
+const dbCandidata = (uid = 'candidata', email = EMAIL_CARLA) =>
+  env.authenticatedContext(uid, { email }).firestore();
+const perfilCandidato = { role: 'candidato', name: 'Carla', email: EMAIL_CARLA,
+  telefone: '(41) 99999-8888', versaoPrivacidade: '2026-10-09' };
+const pedido = (extra = {}) => ({ status: 'pendente', nome: 'Carla', email: EMAIL_CARLA,
+  telefone: '(41) 99999-8888', nomeEstacionamento: 'Pátio da Carla', cep: '80010-000',
+  logradouro: 'Rua XV de Novembro', numero: '100', bairro: 'Centro', cidade: 'Curitiba',
+  uf: 'PR', numVagas: 12, tarifaHora: 7.5, mensagem: 'Abrimos das 7h às 22h.',
+  criadoEm: serverTimestamp(), atualizadoEm: serverTimestamp(), ...extra });
+
+async function prepararCandidata(uid = 'candidata', { comPedido = true } = {}) {
+  await env.withSecurityRulesDisabled(async c => {
+    await setDoc(doc(c.firestore(), `users/${uid}`), { ...perfilCandidato, privacidadeAceitaEm: Timestamp.now() });
+    if (comPedido) {
+      await setDoc(doc(c.firestore(), `pedidosEstacionamento/${uid}`),
+        pedido({ criadoEm: Timestamp.now(), atualizadoEm: Timestamp.now() }));
+    }
+  });
+}
+
+// Lote que o painel da rede manda ao aprovar o pedido.
+function loteAprovacao(uid = 'candidata', { estId = 'EST-NOVO', quem = 'admin', papel = 'operador',
+  dono = uid, semConta = false, semEstacionamento = false, semVitrine = false, semPedido = false } = {}) {
+  const d = db(quem), batch = writeBatch(d);
+  const dados = { nome: 'Pátio da Carla', numVagas: 12, tarifaHora: 7.5, ativo: true };
+  if (!semEstacionamento) batch.set(doc(d, `estacionamentos/${estId}`), { ...estacionamento, ...dados, ownerUid: dono });
+  if (!semVitrine) batch.set(doc(d, `catalogoEstacionamentos/${estId}`), { ...vitrine, ...dados });
+  if (!semConta) batch.update(doc(d, `users/${uid}`), { role: papel, estacionamentoId: estId });
+  if (!semPedido) batch.update(doc(d, `pedidosEstacionamento/${uid}`),
+    { status: 'aprovado', estacionamentoId: estId, analisadoEm: serverTimestamp() });
+  return batch;
+}
+
+test('pedido de estacionamento: a conta candidata nasce só com o contato e não se promove', async () => {
+  const d = dbCandidata();
+  const perfil = { ...perfilCandidato, privacidadeAceitaEm: serverTimestamp() };
+  await assertFails(setDoc(doc(d, 'users/candidata'), { ...perfil, placa: 'ABC1D23' }));
+  await assertFails(setDoc(doc(d, 'users/candidata'), { ...perfil, estacionamentoId: 'EST-A' }));
+  await assertSucceeds(setDoc(doc(d, 'users/candidata'), perfil));
+  await assertFails(updateDoc(doc(d, 'users/candidata'), { role: 'operador' }));
+  await assertFails(updateDoc(doc(d, 'users/candidata'), { role: 'admin' }));
+  await assertFails(updateDoc(doc(d, 'users/candidata'), { estacionamentoId: 'EST-A' }));
+  await assertFails(setDoc(doc(d, 'estacionamentos/EST-C'), { ...estacionamento, ownerUid: 'candidata' }));
+  await assertFails(setDoc(doc(d, 'catalogoEstacionamentos/EST-C'), vitrine));
+  await assertSucceeds(updateDoc(doc(d, 'users/candidata'), { telefone: '(41) 98888-7777' }));
+});
+
+test('pedido de estacionamento: só a conta candidata pede, para si e com dados válidos', async () => {
+  await prepararCandidata('candidata', { comPedido: false });
+  const d = dbCandidata(), meu = doc(d, 'pedidosEstacionamento/candidata');
+  for (const invalido of [{ status: 'aprovado' }, { numVagas: 0 }, { numVagas: 201 }, { numVagas: 2.5 },
+    { tarifaHora: -1 }, { tarifaHora: '7' }, { uf: 'Paraná' }, { cep: 'abc' }, { nomeEstacionamento: '  ' },
+    { numero: '' }, { email: 'outra@exemplo.com' }, { mensagem: 'x'.repeat(501) }, { ownerUid: 'candidata' },
+    { estacionamentoId: 'EST-A' }, { criadoEm: Timestamp.fromMillis(0) }]) {
+    await assertFails(setDoc(meu, pedido(invalido)));
+  }
+  await assertFails(setDoc(doc(d, 'pedidosEstacionamento/outra'), pedido()));
+  // Motorista e dono não pedem: a conta de estacionamento é separada.
+  await assertFails(setDoc(doc(dbCandidata('motorista-a'), 'pedidosEstacionamento/motorista-a'), pedido()));
+  await assertFails(setDoc(doc(dbCandidata('operador-a'), 'pedidosEstacionamento/operador-a'), pedido()));
+  const semMensagem = pedido();
+  delete semMensagem.mensagem;
+  await assertSucceeds(setDoc(meu, semMensagem));
+});
+
+test('pedido de estacionamento: quem pediu e a administração leem; mais ninguém', async () => {
+  await prepararCandidata();
+  await prepararCandidata('candidato-b');
+  await assertSucceeds(getDoc(doc(dbCandidata(), 'pedidosEstacionamento/candidata')));
+  for (const uid of ['candidato-b', 'motorista-a', 'operador-a', 'totem-a']) {
+    await assertFails(getDoc(ref(uid, 'pedidosEstacionamento/candidata')));
+  }
+  const pendentes = d => getDocs(query(collection(d, 'pedidosEstacionamento'), where('status', '==', 'pendente')));
+  assert.equal((await assertSucceeds(pendentes(db('admin')))).size, 2);
+  await assertFails(pendentes(dbCandidata()));
+});
+
+test('pedido de estacionamento: quem pediu corrige e desiste, mas não decide', async () => {
+  await prepararCandidata();
+  const d = dbCandidata(), meu = doc(d, 'pedidosEstacionamento/candidata');
+  await assertSucceeds(updateDoc(meu, { numVagas: 15, atualizadoEm: serverTimestamp() }));
+  await assertFails(updateDoc(meu, { numVagas: 16 }));
+  await assertFails(updateDoc(meu, { criadoEm: serverTimestamp(), atualizadoEm: serverTimestamp() }));
+  await assertFails(updateDoc(meu, { status: 'aprovado', atualizadoEm: serverTimestamp() }));
+  await assertFails(updateDoc(meu, { estacionamentoId: 'EST-A', atualizadoEm: serverTimestamp() }));
+  await assertFails(updateDoc(meu, { status: 'recusado', motivoRecusa: 'Desisti', analisadoEm: serverTimestamp() }));
+  await assertFails(deleteDoc(ref('candidato-b', 'pedidosEstacionamento/candidata')));
+  await assertSucceeds(deleteDoc(meu));
+});
+
+test('recusa: só a administração, com o motivo; quem pediu corrige e reenvia', async () => {
+  await prepararCandidata();
+  const meu = 'pedidosEstacionamento/candidata';
+  const recusa = { status: 'recusado', motivoRecusa: 'Faltou o número do endereço.', analisadoEm: serverTimestamp() };
+  await assertFails(updateDoc(ref('operador-a', meu), recusa));
+  await assertFails(updateDoc(ref('admin', meu), { ...recusa, motivoRecusa: ' ' }));
+  await assertFails(updateDoc(ref('admin', meu), { ...recusa, numVagas: 3 }));
+  await assertSucceeds(updateDoc(ref('admin', meu), recusa));
+  // Recusado não é aprovado direto: antes volta a esperar.
+  await assertFails(loteAprovacao().commit());
+  const d = dbCandidata();
+  await assertFails(updateDoc(doc(d, meu), { status: 'pendente', numero: '120', atualizadoEm: serverTimestamp() }));
+  await assertSucceeds(updateDoc(doc(d, meu), { status: 'pendente', numero: '120',
+    motivoRecusa: deleteField(), analisadoEm: deleteField(), atualizadoEm: serverTimestamp() }));
+  await assertSucceeds(loteAprovacao().commit());
+});
+
+test('aprovação: um lote cria o pátio no nome de quem pediu e faz dela a dona', async () => {
+  await prepararCandidata();
+  // Lote incompleto ou incoerente é recusado inteiro.
+  for (const opcoes of [{ semConta: true }, { semEstacionamento: true }, { semVitrine: true },
+    { semPedido: true }, { dono: 'admin' }, { papel: 'admin' }, { estId: 'EST-B' },
+    { quem: 'operador-a' }, { quem: 'candidata' }, { quem: 'motorista-a' }]) {
+    await assertFails(loteAprovacao('candidata', opcoes).commit());
+  }
+  // Sem pedido aprovado, a administração não transforma motorista em dono.
+  const a = db('admin'), direto = writeBatch(a);
+  direto.set(doc(a, 'estacionamentos/EST-M'), { ...estacionamento, ownerUid: 'motorista-a' });
+  direto.update(doc(a, 'users/motorista-a'), { role: 'operador', estacionamentoId: 'EST-M' });
+  await assertFails(direto.commit());
+
+  await assertSucceeds(loteAprovacao().commit());
+  const conta = (await lerSemRegras('users/candidata')).data();
+  assert.equal(conta.role, 'operador');
+  assert.equal(conta.estacionamentoId, 'EST-NOVO');
+  await assertSucceeds(getDoc(ref('candidata', 'estacionamentos/EST-NOVO')));
+  await assertFails(getDoc(ref('candidata', 'estacionamentos/EST-A')));
+  await assertSucceeds(getDoc(ref('motorista-a', 'catalogoEstacionamentos/EST-NOVO')));
+  // Aprovado não volta atrás, não some e a conta de dono não se exclui pelo site.
+  const d = dbCandidata();
+  await assertFails(updateDoc(doc(d, 'pedidosEstacionamento/candidata'),
+    { status: 'pendente', atualizadoEm: serverTimestamp() }));
+  await assertFails(deleteDoc(doc(d, 'pedidosEstacionamento/candidata')));
+  await assertFails(deleteDoc(doc(d, 'users/candidata')));
+});
+
+test('exclusão da conta candidata: perfil e pedido saem juntos', async () => {
+  await prepararCandidata();
+  const d = dbCandidata();
+  await assertFails(deleteDoc(doc(d, 'users/candidata')));
+  const lote = writeBatch(d);
+  lote.delete(doc(d, 'pedidosEstacionamento/candidata'));
+  lote.delete(doc(d, 'users/candidata'));
+  await assertSucceeds(lote.commit());
+  assert.equal((await lerSemRegras('pedidosEstacionamento/candidata')).exists(), false);
+  assert.equal((await lerSemRegras('users/candidata')).exists(), false);
 });

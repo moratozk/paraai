@@ -122,16 +122,21 @@ export async function prepararPatio(env, { id, nome, tarifa, tipos, endereco, do
 // Motorista pronto para a demonstração, gravado pela própria conta e pelas
 // regras, como o site faz: perfil com o aceite da política, placa, modelo e
 // cor e uma recarga simulada.
+// Versão da política de privacidade que o cadastro do site grava no aceite.
+async function versaoDaPolitica() {
+  const conta = await readFile(new URL("../web/src/services/conta.js", import.meta.url), "utf8");
+  return /VERSAO_PRIVACIDADE = "([^"]+)"/.exec(conta)[1];
+}
+
 export async function prepararMotorista(env, motorista) {
   const { email, senha, nome, telefone, vagaEspecial = "", placa, marca, modelo, cor, recarga } = motorista;
   const uid = await criarConta({ email, senha, nome });
   const db = env.authenticatedContext(uid, { email }).firestore();
-  const politica = await readFile(new URL("../web/src/services/conta.js", import.meta.url), "utf8");
   await setDoc(doc(db, "users", uid), {
     name: nome, email, telefone, role: "motorista",
     ...(vagaEspecial && { vagaEspecial }),
     privacidadeAceitaEm: serverTimestamp(),
-    versaoPrivacidade: /VERSAO_PRIVACIDADE = "([^"]+)"/.exec(politica)[1],
+    versaoPrivacidade: await versaoDaPolitica(),
     createdAt: serverTimestamp(),
   });
   const veiculo = doc(db, "veiculos", placa);
@@ -153,6 +158,25 @@ export async function prepararMotorista(env, motorista) {
     });
     await credito.commit();
   }
+  return uid;
+}
+
+// Quem pediu para pôr um estacionamento na rede e espera a administração: a
+// conta nasce como "candidato" e o pedido fica pendente, gravados como no
+// cadastro do site e conferidos pelas regras.
+export async function prepararPedido(env, { email, senha, nome, telefone, estacionamento }) {
+  const uid = await criarConta({ email, senha, nome });
+  const db = env.authenticatedContext(uid, { email }).firestore();
+  await setDoc(doc(db, "users", uid), {
+    name: nome, email, telefone, role: "candidato",
+    privacidadeAceitaEm: serverTimestamp(),
+    versaoPrivacidade: await versaoDaPolitica(),
+    createdAt: serverTimestamp(),
+  });
+  await setDoc(doc(db, "pedidosEstacionamento", uid), {
+    status: "pendente", nome, email, telefone, ...estacionamento,
+    criadoEm: serverTimestamp(), atualizadoEm: serverTimestamp(),
+  });
   return uid;
 }
 

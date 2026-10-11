@@ -1,10 +1,15 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
-import { criarEstacionamento } from "../services/estacionamentos";
+import { enviarPedido, LIMITE_MENSAGEM, problemaNoPedido } from "../services/pedidos";
 import { buscarCep, cepCompleto, formatarCep } from "../services/cep";
-import { formatarTelefone, telefoneValido } from "../utils/format";
+import {
+  formatarMoeda,
+  formatarTelefone,
+  lerValorEmReais,
+  telefoneValido,
+} from "../utils/format";
 import { LogoMark } from "../components/Logo";
 import CampoDireitoVaga from "../components/CampoDireitoVaga";
 import "./Auth.css";
@@ -28,11 +33,17 @@ function IconeEstacionamento() {
   );
 }
 
-// O cadastro público cria apenas motoristas. O acesso administrativo substitui
-// o antigo cadastro aberto de donos de estacionamento e é provisionado fora
-// do cliente para não permitir autopromoção de privilégios.
+// O cadastro público cria motoristas e contas de estacionamento. Quem tem um
+// pátio manda aqui o pedido para entrar na rede (conta "candidato"); a
+// equipe do ParaAí aprova no painel da rede, e só então a conta vira dona do
+// estacionamento. O acesso administrativo é provisionado fora do cliente,
+// para não permitir autopromoção de privilégios.
 export default function Cadastro() {
-  const [role, setRole] = useState("motorista");
+  const [searchParams] = useSearchParams();
+  const [role, setRole] = useState(
+    searchParams.get("perfil") === "estacionamento" ? "estacionamento" : "motorista"
+  );
+  const estacionamento = role === "estacionamento";
   const [etapa, setEtapa] = useState(1);
 
   // etapa 1 — conta
@@ -55,18 +66,24 @@ export default function Cadastro() {
   const [erroCep, setErroCep] = useState("");
 
   // etapa 3 — operação
-  const [numVagas, setNumVagas] = useState(4);
+  const [numVagas, setNumVagas] = useState("");
+  const [tarifa, setTarifa] = useState("");
+  const [mensagem, setMensagem] = useState("");
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // Conta criada nesta tela. Se só o pedido falhar, o botão tenta de novo
+  // sem criar outra conta (o e-mail já estaria em uso).
+  const [contaCriada, setContaCriada] = useState(null);
 
-  const { register } = useAuth();
+  const { register, user } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
 
   const forcaSenha = calcularForcaSenha(password);
-  const totalEtapas = role === "operador" ? 3 : 1;
+  const totalEtapas = estacionamento ? 3 : 1;
   const nomesEtapas = ["Conta", "Estacionamento", "Operação"];
+  const tarifaLida = lerValorEmReais(tarifa);
 
   function trocarPapel(novo) {
     setRole(novo);
@@ -118,12 +135,26 @@ export default function Cadastro() {
     }
   }
 
+  function dadosDoPedido() {
+    return {
+      nome: name,
+      telefone,
+      nomeEstacionamento,
+      cep,
+      endereco,
+      numero,
+      numVagas,
+      tarifaHora: tarifa,
+      mensagem,
+    };
+  }
+
   async function finalizar(e) {
     e?.preventDefault();
     setError("");
 
     // motorista: validações da etapa única
-    if (role === "motorista") {
+    if (!estacionamento) {
       if (!telefoneValido(telefone))
         return setError("Informe um celular válido com DDD. Ex.: (41) 99999-8888");
       if (password !== confirmPassword)
@@ -137,56 +168,47 @@ export default function Cadastro() {
     if (!aceitouPrivacidade)
       return setError("Para criar a conta, aceite a política de privacidade.");
 
-    if (role === "operador") {
-      const vagas = Number(numVagas);
-      if (!Number.isInteger(vagas) || vagas < 1 || vagas > 200) {
-        return setError("Informe um número de vagas entre 1 e 200.");
-      }
+    if (estacionamento) {
+      const problema = problemaNoPedido(dadosDoPedido());
+      if (problema) return setError(problema);
     }
 
     setLoading(true);
 
-    let cred;
-    try {
-      cred = await register(
-        name,
-        email,
-        password,
-        role,
-        telefone,
-        role === "motorista" ? vagaEspecial : ""
-      );
-    } catch (err) {
-      const ehFirestore = `${err?.code || ""}`.includes("permission");
-      setError(
-        ehFirestore
-          ? err.cadastroRevertido
-            ? `Não foi possível concluir o cadastro: ${traduzErroFirestore(err)} A conta incompleta foi removida; você pode tentar novamente.`
-            : `A conta foi criada, mas o perfil não pôde ser salvo: ${traduzErroFirestore(err)}`
-          : mapAuthError(err.code)
-      );
-      setLoading(false);
-      return;
+    let uid = contaCriada;
+    if (!uid) {
+      try {
+        const cred = await register(
+          name,
+          email,
+          password,
+          estacionamento ? "candidato" : "motorista",
+          telefone,
+          estacionamento ? "" : vagaEspecial
+        );
+        uid = cred.user.uid;
+      } catch (err) {
+        const ehFirestore = `${err?.code || ""}`.includes("permission");
+        setError(
+          ehFirestore
+            ? err.cadastroRevertido
+              ? `Não foi possível concluir o cadastro: ${traduzErroFirestore(err)} A conta incompleta foi removida; você pode tentar novamente.`
+              : `A conta foi criada, mas o perfil não pôde ser salvo: ${traduzErroFirestore(err)}`
+            : mapAuthError(err.code)
+        );
+        setLoading(false);
+        return;
+      }
     }
 
-    if (role === "operador") {
+    if (estacionamento) {
+      setContaCriada(uid);
       try {
-        await criarEstacionamento({
-          uid: cred.user.uid,
-          nome: nomeEstacionamento.trim(),
-          numVagas,
-          cep,
-          logradouro: endereco.logradouro,
-          numero: numero.trim(),
-          bairro: endereco.bairro,
-          cidade: endereco.cidade,
-          uf: endereco.uf,
-        });
+        await enviarPedido(uid, dadosDoPedido());
       } catch (err) {
-        console.error("Falha ao criar estacionamento:", err);
         setError(
-          `Sua conta foi criada, mas o estacionamento não: ${traduzErroFirestore(err)} ` +
-            "Você já está logado — cadastre-o na página Perfil."
+          `Sua conta foi criada, mas o pedido não chegou: ${traduzErroFirestore(err)} ` +
+            "Toque em Enviar pedido para tentar de novo."
         );
         setLoading(false);
         return;
@@ -194,11 +216,17 @@ export default function Cadastro() {
     }
 
     toast.sucesso(
-      role === "operador"
-        ? "Estacionamento cadastrado! Defina sua tarifa no painel."
+      estacionamento
+        ? "Pedido enviado! A equipe do ParaAí vai analisar."
         : "Conta criada! Bem-vindo ao ParaAí."
     );
     navigate("/dashboard");
+  }
+
+  // Quem já entrou vai para o painel, menos durante o envio desta tela (a
+  // conta nasce antes do pedido) ou quando só o pedido falhou.
+  if (user && !loading && !contaCriada) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (
@@ -207,15 +235,17 @@ export default function Cadastro() {
         <div className="auth-logo">
           <LogoMark size={54} />
         </div>
-        <h1 className="auth-title">Criar conta</h1>
+        <h1 className="auth-title">
+          {estacionamento ? "Cadastre seu estacionamento" : "Criar conta"}
+        </h1>
         <p className="subtitle">
-          {role === "operador"
+          {estacionamento
             ? `Etapa ${etapa} de ${totalEtapas} · ${nomesEtapas[etapa - 1]}`
             : "Comece agora, leva menos de um minuto"}
         </p>
 
-        {/* trilha de etapas (só operador) */}
-        {role === "operador" && (
+        {/* trilha de etapas (só estacionamento) */}
+        {estacionamento && (
           <div className="etapas-trilha" aria-hidden="true">
             {nomesEtapas.map((rot, i) => {
               const n = i + 1;
@@ -235,25 +265,39 @@ export default function Cadastro() {
         )}
 
         {/* seletor de papel (some depois da primeira etapa) */}
-        {etapa === 1 && (
+        {etapa === 1 && !contaCriada && (
           <div className="role-switch" role="radiogroup" aria-label="Tipo de conta">
             <button
               type="button"
               role="radio"
-              aria-checked={role === "motorista"}
-              className={`role-option ${role === "motorista" ? "active" : ""}`}
+              aria-checked={!estacionamento}
+              className={`role-option ${!estacionamento ? "active" : ""}`}
               onClick={() => trocarPapel("motorista")}
             >
               <span className="role-icone"><IconeMotorista /></span>
               <span className="role-titulo">Sou motorista</span>
               <span className="role-desc">Estacionar na rede</span>
             </button>
-            <Link className="role-option role-option-link" to="/login?perfil=admin">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={estacionamento}
+              className={`role-option ${estacionamento ? "active" : ""}`}
+              onClick={() => trocarPapel("estacionamento")}
+            >
               <span className="role-icone"><IconeEstacionamento /></span>
-              <span className="role-titulo">Sou administrador</span>
-              <span className="role-desc">Gerenciar a rede de estacionamentos</span>
-            </Link>
+              <span className="role-titulo">Tenho um estacionamento</span>
+              <span className="role-desc">Pôr o meu pátio na rede</span>
+            </button>
           </div>
+        )}
+
+        {estacionamento && etapa === 1 && (
+          <p className="cadastro-como-funciona">
+            Você manda o pedido em três etapas. A equipe do ParaAí confere os
+            dados e, com o pedido aprovado, o seu pátio entra no mapa dos
+            motoristas e a sua conta ganha o painel do estacionamento.
+          </p>
         )}
 
         {error && <p className="error-text">{error}</p>}
@@ -261,7 +305,7 @@ export default function Cadastro() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (role === "operador" && etapa < 3) avancar();
+            if (estacionamento && etapa < 3) avancar();
             else finalizar(e);
           }}
         >
@@ -318,7 +362,7 @@ export default function Cadastro() {
                 )}
               </div>
 
-              {role === "motorista" && (
+              {!estacionamento && (
                 <CampoDireitoVaga
                   id="vagaEspecial"
                   valor={vagaEspecial}
@@ -453,22 +497,49 @@ export default function Cadastro() {
           {/* ---------- ETAPA 3: OPERAÇÃO ---------- */}
           {etapa === 3 && (
             <>
+              <div className="field-row">
+                <div className="field">
+                  <label htmlFor="numVagas">Quantas vagas?</label>
+                  <input
+                    id="numVagas"
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={200}
+                    required
+                    autoFocus
+                    value={numVagas}
+                    onChange={(e) => setNumVagas(e.target.value)}
+                    placeholder="Ex.: 20"
+                  />
+                  <span className="field-hint">De 1 a 200. Dá para mudar depois.</span>
+                </div>
+
+                <div className="field">
+                  <label htmlFor="tarifa">Preço da hora (R$)</label>
+                  <input
+                    id="tarifa"
+                    type="text"
+                    inputMode="decimal"
+                    required
+                    value={tarifa}
+                    onChange={(e) => setTarifa(e.target.value)}
+                    placeholder="Ex.: 8,00"
+                  />
+                  <span className="field-hint">O motorista paga pelo tempo, hora a hora.</span>
+                </div>
+              </div>
+
               <div className="field">
-                <label htmlFor="numVagas">Quantas vagas o pátio tem?</label>
-                <input
-                  id="numVagas"
-                  type="number"
-                  min={1}
-                  max={200}
-                  required
-                  autoFocus
-                  value={numVagas}
-                  onChange={(e) => setNumVagas(e.target.value)}
+                <label htmlFor="mensagem">Recado para a equipe (opcional)</label>
+                <textarea
+                  id="mensagem"
+                  rows={3}
+                  maxLength={LIMITE_MENSAGEM}
+                  value={mensagem}
+                  onChange={(e) => setMensagem(e.target.value)}
+                  placeholder="Ex.: horário de funcionamento, se o pátio é coberto, melhor horário para falar com você."
                 />
-                <span className="field-hint">
-                  É o número de vagas que o painel vai monitorar. Dá para
-                  alterar depois.
-                </span>
               </div>
 
               <div className="resumo-cadastro">
@@ -491,13 +562,15 @@ export default function Cadastro() {
                 </div>
                 <div className="endereco-linha">
                   <span className="endereco-label">Vagas</span>
-                  <strong>{numVagas}</strong>
+                  <strong>{numVagas || "—"}</strong>
+                </div>
+                <div className="endereco-linha">
+                  <span className="endereco-label">Hora</span>
+                  <strong>
+                    {tarifa && Number.isFinite(tarifaLida) ? formatarMoeda(tarifaLida) : "—"}
+                  </strong>
                 </div>
               </div>
-
-              <p className="field-hint" style={{ marginBottom: 18 }}>
-                A tarifa por hora você define no painel, logo após entrar.
-              </p>
             </>
           )}
 
@@ -525,7 +598,8 @@ export default function Cadastro() {
 
           {/* ---------- AÇÕES ---------- */}
           <div className={etapa > 1 ? "acoes-etapa" : ""}>
-            {etapa > 1 && (
+            {/* Com a conta já criada, os dados de acesso não voltam a ser editados. */}
+            {etapa > (contaCriada ? 2 : 1) && (
               <button
                 type="button"
                 className="btn btn-ghost"
@@ -545,18 +619,22 @@ export default function Cadastro() {
               disabled={loading}
             >
               {loading
-                ? "Criando conta..."
-                : role === "motorista"
+                ? estacionamento
+                  ? "Enviando pedido..."
+                  : "Criando conta..."
+                : !estacionamento
                   ? "Criar minha conta"
                   : etapa < 3
                     ? "Continuar"
-                    : "Finalizar cadastro"}
+                    : "Enviar pedido"}
             </button>
           </div>
         </form>
 
         <p className="auth-footer">
           Já tem conta? <Link to="/login">Entrar</Link>
+          <br />
+          Faz parte da equipe? <Link to="/login?perfil=admin">Acesso administrativo</Link>
         </p>
       </div>
     </div>

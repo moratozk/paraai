@@ -60,14 +60,22 @@ em computadores e contas do Codex diferentes sem sobrescrever alterações. Leia
 [`AGENTS.md`](AGENTS.md) para os acordos técnicos compartilhados pelos
 assistentes.
 
-## Os dois papéis
+## Os três papéis
 
 **Administrador do sistema** — usa um painel central para cadastrar, editar,
-publicar ou ocultar todos os estacionamentos da rede. Cada local também possui
+publicar ou ocultar todos os estacionamentos da rede e para aprovar ou recusar
+os pedidos de quem quer pôr um estacionamento na rede. Cada local também possui
 uma central dedicada de vagas em tempo real, com ocupação, reservas, placas e
 detalhes da permanência para acompanhamento da equipe de segurança. Contas
 administrativas são promovidas pelo Firebase Console/Admin SDK e nunca pelo cadastro público.
-As contas antigas de operador continuam compatíveis com o próprio pátio.
+
+**Dono de estacionamento** — cadastra-se pelo site em "Tenho um
+estacionamento" e manda um pedido com o endereço (preenchido pelo CEP), as
+vagas e o preço da hora. Enquanto a equipe analisa, a conta acompanha o
+pedido, corrige os dados ou desiste. Com a aprovação, o pátio entra no mapa
+dos motoristas e a conta ganha o painel do estacionamento: valores recebidos,
+vagas ao vivo, movimentações e os acessos dos totens. As contas antigas de
+operador continuam compatíveis com o próprio pátio.
 
 **Motorista** — cadastra a placa (padrão antigo ABC1234 ou Mercosul ABC1D23),
 recarrega a carteira e usa qualquer estacionamento da rede: digita a placa no
@@ -123,7 +131,13 @@ totems/{FIREBASE_AUTH_UID}
   estacionamentoId, nome, email, ativo       -- identidade do equipamento
 
 users/{uid}
-  name, email, role ("motorista"|"operador"|"admin"), placa?, estacionamentoId?
+  name, email, role ("motorista"|"candidato"|"operador"|"admin"), placa?, estacionamentoId?
+                                          -- "candidato": pedido de estacionamento em análise
+
+pedidosEstacionamento/{UID_DE_QUEM_PEDIU}  -- pedido para entrar na rede
+  status: pendente | recusado | aprovado, nome, email, telefone,
+  nomeEstacionamento, endereço, numVagas, tarifaHora, mensagem?,
+  motivoRecusa?, estacionamentoId? (na aprovação), criadoEm, atualizadoEm
 ```
 
 Convenções: timestamps em **segundos Unix**; placas em **maiúsculas, sem
@@ -139,8 +153,9 @@ não mudar retroativamente durante uma estadia.
    `.env.example` → `.env`, preencha e `npm run dev`.
 3. **Promova uma conta administrativa** alterando no Firebase Console o campo
    `users/{UID}.role` para `admin`. Essa operação não é exposta no site.
-4. **Cadastre o estacionamento** no painel administrativo e copie o ID exibido
-   no cartão do local (formato `EST-XXXXXX`).
+4. **Cadastre o estacionamento** no painel administrativo, ou aprove o pedido
+   do dono em "Pedidos para entrar na rede", e copie o ID exibido no cartão do
+   local (formato `EST-XXXXXX`).
 5. Em uma conta de operador existente, **Perfil > Segurança do totem** gera
    uma credencial exclusiva do
    equipamento.
@@ -177,7 +192,8 @@ O fluxo completo segue a ordem da apresentação: cadastro com o aceite da
 política, placa, recarga simulada, reserva no mapa, entrada no totem, mapa do
 dono ao vivo, saída e a cobrança no painel, no comprovante e no extrato. O
 totem é simulado com as mesmas gravações do firmware, que passam pelas regras
-de verdade.
+de verdade. Outro teste faz o caminho de um estacionamento novo: pedido pelo
+site, aprovação no painel da rede e o painel de dono.
 
 O mesmo totem simulado (`e2e/patio.js`) serve à demonstração sem internet, o
 plano B da apresentação: `npm run apresentacao` em `e2e/` sobe o site no
@@ -188,7 +204,8 @@ abre e atende. O roteiro da banca, com o checklist do dia, está em
 ## Limitações conhecidas (transparência acadêmica)
 
 - Cada totem possui uma conta própria no Firebase Authentication. As regras
-  restringem motoristas ao próprio veículo, operadores ao próprio pátio e
+  restringem motoristas ao próprio veículo, operadores ao próprio pátio,
+  contas em análise ao próprio pedido e
   equipamentos autorizados às operações necessárias de entrada e saída.
 - A recarga de saldo é **simulada** (crédito direto no banco), sem gateway de
   pagamento.
