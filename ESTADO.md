@@ -76,6 +76,17 @@ de rolagem do mapa e a placa das vagas ao vivo (abaixo).
   "Veículos e reservas agora" do tamanho dela (esticada, virava uma faixa
   branca, também no computador).
 - **Estacionamentos:** o endereço não começa mais uma linha com "· SP".
+- **App instalado (iPhone):** aberta pela tela inicial, a barra do topo
+  ficava logo abaixo da hora e da bateria, e a marca e o botão do tema eram
+  difíceis de tocar. No app, a barra desce 12 px (`--respiro-app`, ligado
+  por `display-mode: standalone` e, no iPhone, pela classe `.app-instalado`
+  que o `index.html` põe); no navegador nada muda. Na Home, acima da pílula,
+  o conteúdo some num degradê em vez de passar nítido rente ao topo.
+- **Páginas públicas:** Início, entrar, criar conta, recuperar e redefinir a
+  senha e Privacidade conferidas de 360 a 430 px e no computador, nos dois
+  temas, sem nada saindo da tela. Só o fundo das telas de entrada mudou: até
+  760 px, a faixa âmbar do corredor some (`Auth.css`), porque o cartão ocupa
+  quase toda a largura e dela só sobravam dois tracinhos nas bordas.
 
 Sem mudança nas regras do Firestore. Só o site precisa ser publicado.
 

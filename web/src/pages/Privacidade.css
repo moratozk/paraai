@@ -40,7 +40,7 @@
   .privacidade-indice a { min-height: 44px; }
 }
 /* O link do índice para a seção abaixo da barra fixa do topo. */
-.privacidade-texto > section { scroll-margin-top: 88px; }
+.privacidade-texto > section { scroll-margin-top: calc(88px + var(--respiro-app)); }
 
 .privacidade-grade .card > h2 { margin-bottom: var(--esp-3); }
 

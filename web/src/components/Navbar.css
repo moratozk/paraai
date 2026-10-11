@@ -6,6 +6,7 @@
   position: sticky;
   top: 0;
   z-index: 100;
+  padding-top: var(--respiro-app);
   background: transparent;
   border-bottom: 1px solid transparent;
   transition: background 0.3s, border-color 0.3s, backdrop-filter 0.3s;
@@ -52,6 +53,17 @@
 }
 @supports not (backdrop-filter: blur(1px)) {
   .navbar-home.navbar-rolou .navbar-inner { background: var(--bg-solid); }
+}
+/* Acima da pílula o conteúdo some num degradê, em vez de passar nítido
+   entre ela e o topo da tela (no app, entre ela e a hora do celular). */
+.navbar-home.navbar-rolou::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: -1;
+  height: calc(var(--respiro-app) + 2rem);
+  background: linear-gradient(var(--bg-primary) 35%, transparent);
+  pointer-events: none;
 }
 
 /* Na Home o traço do link ativo cresce do centro quando a seção muda. */
@@ -387,7 +399,7 @@ html.menu-mobile-aberto body { overflow: hidden; }
   top: 100%;
   left: 0;
   right: 0;
-  max-height: calc(100dvh - 64px);
+  max-height: calc(100dvh - 64px - var(--respiro-app));
   overflow-y: auto;
   overscroll-behavior: contain;
   background: var(--bg-solid);

@@ -6,7 +6,7 @@
 /* clip (não hidden): corta enfeites que vazam sem virar contêiner de
    rolagem, então a coluna fixa de "Como funciona" continua funcionando. */
 .home { position: relative; overflow-x: clip; }
-.home [id] { scroll-margin-top: 84px; }
+.home [id] { scroll-margin-top: calc(84px + var(--respiro-app)); }
 
 /* Entrada dos blocos ao aparecerem na tela */
 .surge {
@@ -81,7 +81,7 @@
   position: relative;
   display: grid;
   align-items: center;
-  min-height: calc(100svh - 64px);
+  min-height: calc(100svh - 64px - var(--respiro-app));
   padding-block: clamp(2.5rem, 7vh, 5rem) clamp(4rem, 9vh, 6rem);
   overflow: hidden;
   isolation: isolate;
@@ -450,7 +450,7 @@
 /* Coluna fixa enquanto os passos rolam ao lado. */
 .como-fixo {
   position: sticky;
-  top: calc(64px + 2.5rem);
+  top: calc(64px + 2.5rem + var(--respiro-app));
 }
 .como-fixo .btn { margin-top: 1.8rem; }
 .como-fixo .btn svg { width: 18px; height: 18px; }

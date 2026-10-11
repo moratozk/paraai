@@ -30,6 +30,7 @@
    esticava o fundo; preso à viewport o enquadramento é sempre o mesmo. */
 .auth-page::before {
   --vaga: color-mix(in srgb, var(--text-primary) 15%, transparent);
+  --faixa: color-mix(in srgb, var(--accent) 60%, transparent);
   content: "";
   position: fixed;
   inset: 0;
@@ -38,10 +39,15 @@
   background:
     repeating-linear-gradient(90deg, var(--vaga) 0 3px, transparent 3px 112px) 0 0 / 100% 22vh no-repeat,
     repeating-linear-gradient(90deg, var(--vaga) 0 3px, transparent 3px 112px) 0 100% / 100% 22vh no-repeat,
-    repeating-linear-gradient(90deg, color-mix(in srgb, var(--accent) 60%, transparent) 0 46px, transparent 46px 80px) 0 50% / 100% 4px no-repeat,
+    repeating-linear-gradient(90deg, var(--faixa) 0 46px, transparent 46px 80px) 0 50% / 100% 4px no-repeat,
     linear-gradient(var(--dash-paint) 1px, transparent 1px) 0 0 / 56px 56px,
     linear-gradient(90deg, var(--dash-paint) 1px, transparent 1px) 0 0 / 56px 56px;
   opacity: 0.75;
+}
+/* No celular o cartão ocupa quase toda a largura, e da faixa do corredor só
+   sobravam dois tracinhos nas bordas dele, que pareciam defeito. */
+@media (max-width: 760px) {
+  .auth-page::before { --faixa: transparent; }
 }
 
 /* Brilho âmbar atrás do cartão */

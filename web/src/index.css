@@ -179,6 +179,16 @@
 
 .ilha-escura { color: var(--text-primary); }
 
+/* App aberto pela tela inicial do celular: a hora e a bateria ficam logo
+   acima da página, e a barra do ParaAí colada nelas fica difícil de tocar.
+   No app, a barra desce um pouco (Navbar.css e quem conta com a altura
+   dela). No iPhone, o index.html também marca o app com .app-instalado. */
+:root { --respiro-app: 0px; }
+@media (display-mode: standalone) {
+  :root { --respiro-app: 0.75rem; }
+}
+:root.app-instalado { --respiro-app: 0.75rem; }
+
 /* ==========================================================================
    RESET
    ========================================================================== */
