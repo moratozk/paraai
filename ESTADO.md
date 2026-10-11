@@ -1,7 +1,7 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **10/10/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **11/10/2026**.
 
 ---
 
@@ -31,6 +31,49 @@ revisão visual e nova tela inicial). **Regras do Firestore e site publicados
 em 06/10/2026** a partir da `main` (`26a97e5`); o site no ar é o build dessa
 versão. **O firmware da `main` foi gravado no totem no mesmo dia** e testado:
 uma placa sem direito declarado recebeu a primeira vaga comum livre.
+
+## Link, buscadores e velocidade (11/10/2026)
+
+Medido no Lighthouse em modo celular, na página inicial (média de duas
+medições, com o build rodando no computador): desempenho de 75 para 90, boas
+práticas de 96 para 100 e buscadores (SEO) de 92 para 100; o título aparece
+em 3,3 s em vez de 4,6 s e a página caiu de cerca de 550 para 370 KB. Sem
+mudança nas regras nem no firmware.
+
+- **Prévia do link:** `index.html` tem as etiquetas Open Graph, e quem manda
+  o link no WhatsApp ou nas redes vê imagem, título e descrição.
+  `public/og.jpg` (1200×630) é a captura da própria página inicial, sem o
+  menu, os botões e a dica do pátio, com o endereço do site embaixo do texto.
+  Se o endereço mudar (domínio próprio), trocar a imagem e as URLs do
+  `index.html`, do `robots.txt` e do `sitemap.xml`.
+- **Buscadores:** `public/robots.txt` libera as páginas públicas e deixa de
+  fora as do painel e os links de e-mail; `public/sitemap.xml` lista as
+  quatro públicas. Antes, `/robots.txt` caía no `index.html`.
+- **Nome de cada página na aba** (`hooks/useTituloDaPagina.js` e o `Titulo`
+  do `App.jsx`): "Entrar · ParaAí", "Meus acessos · ParaAí" e assim por
+  diante, com os mesmos nomes do menu. O leitor de tela anuncia o nome ao
+  trocar de página (WCAG 2.4.2).
+- **Página não encontrada** (`pages/NaoEncontrada.jsx`): endereço que não
+  existe mostra "Página não encontrada" e um botão para o início (ou para o
+  painel, com a conta aberta), em vez de voltar calado para o início. Ela pede
+  aos buscadores que não a guardem (`noindex`).
+- **Logo leve:** a logo aparece com no máximo 54 px, mas o site baixava a
+  `logo.png` de 512 px e 210 KB em toda página. Agora usa `logo-192.webp`
+  (4 KB) e, na marca d'água da página inicial, `logo.webp` (10 KB): a própria
+  `logo.png` reduzida e comprimida, sem redesenho.
+- **Fontes no próprio site:** Anton, Archivo e JetBrains Mono vêm dos pacotes
+  `@fontsource` (importados no `main.jsx`), e não mais do Google. A página não
+  espera outro servidor para aparecer, e o app instalado e a demonstração sem
+  internet mostram a fonte da marca. Comparadas as capturas de antes e depois:
+  o texto ficou igual.
+- **Login sem o código de "entrar com Google":** o `getAuth` do Firebase traz
+  junto o login por janela do Google, que o ParaAí não usa. No celular e no
+  Safari, ele baixava um script de `apis.google.com` e uma página escondida
+  antes de dizer se havia sessão aberta, e o site ficava vazio esperando. O
+  `firebaseConfig.js` usa `initializeAuth` com a mesma persistência de antes
+  (a sessão aberta continua valendo). O acesso temporário que cria a conta do
+  totem (`services/totems.js`) passou a guardar a sessão só na memória: antes
+  ela ficava salva no navegador de quem criou o totem.
 
 ## Painéis no celular (10/10/2026)
 
@@ -1055,6 +1098,10 @@ usa o Firebase de produção.
     no notebook da apresentação (Node 22, Java 21 e `npm ci` em `web/` e
     `e2e/`, com internet) e abri-la uma vez antes do dia.
 
+14. **Link, buscadores e velocidade (11/10/2026, PR próprio).** Para
+    publicar, só o site. Depois, mandar o link num chat do WhatsApp para ver
+    a prévia e abrir um endereço que não existe, como `/teste`.
+
 ---
 
 ## Decisões já tomadas (não refazer sem motivo)
@@ -1066,7 +1113,10 @@ projeto, que preferiu voltar ao original. Não sugerir de novo.
 **A logo é um arquivo, não código.** `web/public/logo.png`. Já se tentou
 redesenhá-la em SVG por aproximação e o resultado nunca bateu. Para trocar,
 substitua o arquivo. A única exceção é a tela do totem, onde não dá para
-carregar PNG e a marca é reconstruída com retângulos e círculos.
+carregar PNG e a marca é reconstruída com retângulos e círculos. O site mostra
+cópias reduzidas dela (`logo-192.webp`, `logo.webp`, `logo-192.png`, os
+ícones do app e a prévia do link, `og.jpg`): ao trocar a logo, gerar de novo
+essas cópias a partir do arquivo novo.
 
 **Reserva no app, totem decide (02/10/2026).** O app só reserva (grátis, 30
 min). Quem registra a estadia e cobra é o totem. Não reintroduzir cobrança

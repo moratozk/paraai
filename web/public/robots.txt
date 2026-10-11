@@ -1,0 +1,14 @@
+# ParaAí: os buscadores leem as páginas públicas. As do painel pedem login e
+# os links de e-mail valem uma vez só, então ficam de fora.
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /historico
+Disallow: /estacionamentos
+Disallow: /perfil
+Disallow: /configuracoes
+Disallow: /admin/
+Disallow: /acao
+Disallow: /redefinir-senha
+
+Sitemap: https://paraai.web.app/sitemap.xml
