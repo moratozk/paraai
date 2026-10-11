@@ -17,6 +17,7 @@ import {
   query,
   where,
 } from "firebase/firestore";
+import { useRelogioDosDados } from "../conexao";
 import { db } from "../firebase/firebaseConfig";
 import { consultaHistoricoDaPlaca, inicioDoHistorico } from "../services/historico";
 import { TOTAL_VAGAS, TOTEM_OFFLINE_APOS_SEGUNDOS } from "../utils/constants";
@@ -27,6 +28,7 @@ import { TOTAL_VAGAS, TOTEM_OFFLINE_APOS_SEGUNDOS } from "../utils/constants";
 export function useEstacionamento(estId) {
   const [snapState, setSnapState] = useState({ id: null, dados: null });
   const [agora, setAgora] = useState(() => Math.floor(Date.now() / 1000));
+  const relogio = useRelogioDosDados(agora);
 
   useEffect(() => {
     if (!estId) return undefined;
@@ -55,7 +57,7 @@ export function useEstacionamento(estId) {
   const ultimaAtualizacao = Number(dados?.ultimaAtualizacao) || 0;
   const online =
     ultimaAtualizacao > 0 &&
-    agora - ultimaAtualizacao < TOTEM_OFFLINE_APOS_SEGUNDOS;
+    relogio - ultimaAtualizacao < TOTEM_OFFLINE_APOS_SEGUNDOS;
 
   return {
     estacionamento: dados ? { id: estId, ...dados } : null,

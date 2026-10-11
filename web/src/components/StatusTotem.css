@@ -29,6 +29,18 @@
   background: linear-gradient(120deg, var(--danger-soft), var(--bg-solid) 55%);
 }
 
+/* Sem internet no aparelho: neutro, porque o totem pode estar bem. */
+.totem-aviso-sem-internet {
+  border-left-color: var(--border-strong);
+}
+.totem-aviso-sem-internet .totem-aviso-topo { margin-bottom: 0; }
+.totem-aviso-sem-internet .totem-aviso-icone svg {
+  display: block;
+  width: 1.6rem;
+  height: 1.6rem;
+  color: var(--text-muted);
+}
+
 .totem-aviso-topo {
   display: flex;
   align-items: flex-start;

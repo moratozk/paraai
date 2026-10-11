@@ -640,6 +640,8 @@
   color: var(--success);
   white-space: nowrap;
 }
+/* Sem internet no aparelho, os dados param de chegar: nada de "ao vivo". */
+.live-dot.sem-internet { color: var(--text-muted); }
 
 .pulsa { animation: pulsar 1.8s ease-in-out infinite; }
 @keyframes pulsar { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }

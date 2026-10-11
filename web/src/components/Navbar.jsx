@@ -5,6 +5,7 @@ import { useTheme } from "../context/ThemeContext";
 import { useToast } from "../context/ToastContext";
 import { useRolagem, useSecaoAtiva } from "../hooks/useScrollFX";
 import { instalarApp, useInstalacaoApp } from "../pwa";
+import AvisoSemInternet from "./AvisoSemInternet";
 import Logo from "./Logo";
 import "./Navbar.css";
 
@@ -373,6 +374,9 @@ export default function Navbar() {
           </span>
         </button>
       </div>
+
+      {/* Presa ao menu, a faixa do "sem internet" continua à vista ao rolar. */}
+      <AvisoSemInternet />
 
       {/* ---- menu mobile ---- */}
       {/* Véu sobre a página: escurece o que ficou atrás e fecha ao tocar. */}

@@ -1,0 +1,40 @@
+/* Faixa do "sem internet", embaixo do menu (que fica preso no topo). */
+.aviso-conexao {
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-solid));
+}
+.aviso-conexao.voltou {
+  background: color-mix(in srgb, var(--success) 12%, var(--bg-solid));
+}
+
+.aviso-conexao-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding-block: 0.55rem;
+}
+.aviso-conexao svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+  color: var(--accent-text);
+}
+.aviso-conexao.voltou svg { color: var(--success); }
+
+.aviso-conexao p {
+  margin: 0;
+  font-size: var(--t-apoio);
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+.aviso-conexao strong { color: var(--text-primary); }
+
+/* Com a faixa, o menu do celular começa mais abaixo: desconta a altura dela. */
+.navbar:has(.aviso-conexao) .menu-mobile {
+  max-height: calc(100dvh - 64px - var(--respiro-app) - 2.6rem);
+}
+
+/* No celular, uma linha só: o detalhe fica para telas maiores. */
+@media (max-width: 560px) {
+  .aviso-conexao-detalhe { display: none; }
+}

@@ -32,6 +32,27 @@ em 06/10/2026** a partir da `main` (`26a97e5`); o site no ar é o build dessa
 versão. **O firmware da `main` foi gravado no totem no mesmo dia** e testado:
 uma placa sem direito declarado recebeu a primeira vaga comum livre.
 
+## Aviso de "sem internet" (11/10/2026)
+
+Antes, com o celular sem sinal, o painel do dono dizia em dois minutos e meio
+que o totem tinha parado ("Totem sem resposta"), quando quem estava sem
+internet era o aparelho, e o mapa seguia marcado "AO VIVO".
+
+- **Faixa embaixo do menu** (`components/AvisoSemInternet.jsx`): "Sem
+  internet neste aparelho" enquanto a conexão estiver fora e "Conexão de
+  volta" por alguns segundos quando ela volta. Presa ao menu, fica à vista ao
+  rolar; no celular, só a primeira frase.
+- **O totem não leva a culpa** (`conexao.js`): o navegador avisa quando a
+  conexão cai e volta, e o relógio que julga o último sinal do totem para no
+  momento da queda (`useRelogioDosDados`). O painel do dono, o painel da rede
+  e a lista de estacionamentos mantêm a última situação recebida. No painel do
+  dono, o alerta vermelho do totem vira um aviso neutro; "AO VIVO" vira "SEM
+  INTERNET" no mapa do dono, nas vagas ao vivo e na maquete.
+- **Limite:** o navegador só percebe quando o aparelho fica sem rede. Wi-Fi
+  conectado mas sem internet de verdade continua parecendo conexão normal.
+- **Teste:** novo teste no `e2e/` derruba e devolve a conexão com o painel do
+  dono aberto, no computador e no celular.
+
 ## Estacionamento novo por pedido, com aprovação (11/10/2026)
 
 Decisão do dono do projeto em 11/10/2026: três tipos de conta (motorista,
@@ -1158,6 +1179,10 @@ usa o Firebase de produção.
     conferir: cadastrar um estacionamento com um e-mail de teste, aprovar no
     painel da rede com a conta de administrador, ver a conta virar dona e
     depois ocultar o pátio de teste dos motoristas.
+
+16. **Aviso de "sem internet" (11/10/2026, PR próprio).** Para publicar, só
+    o site. Para conferir: abrir o painel do dono no celular, ligar o modo
+    avião e ver a faixa e o aviso do totem; desligar e ver "Conexão de volta".
 
 ---
 
