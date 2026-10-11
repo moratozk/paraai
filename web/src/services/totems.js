@@ -2,7 +2,8 @@ import { deleteApp, initializeApp } from "firebase/app";
 import {
   createUserWithEmailAndPassword,
   deleteUser,
-  getAuth,
+  inMemoryPersistence,
+  initializeAuth,
 } from "firebase/auth";
 import {
   collection,
@@ -55,7 +56,11 @@ export async function criarCredencialTotem({ estId, nome = "Totem principal" }) 
     firebaseConfig,
     `provisionar-totem-${Date.now()}-${bytesAleatorios(2)}`
   );
-  const authTemporario = ligarAuthAoEmulador(getAuth(appTemporario));
+  // Sessão só na memória: a conta do totem não fica guardada no navegador
+  // de quem a criou depois que o app temporário é apagado.
+  const authTemporario = ligarAuthAoEmulador(
+    initializeAuth(appTemporario, { persistence: inMemoryPersistence })
+  );
   let conta;
 
   try {

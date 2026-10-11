@@ -127,8 +127,7 @@ dono, como no CONFIRMAR da tela.
 
 Limites: só abre no próprio notebook (para a tela de celular, use o modo de
 dispositivo do navegador, no F12) e o totem é simulado; diga isso à banca.
-Sem internet nenhuma, o site aparece com a fonte do sistema no lugar da fonte
-da marca.
+As fontes da marca vêm junto com o site, então aparecem mesmo sem internet.
 
 ## Perguntas que a banca costuma fazer
 

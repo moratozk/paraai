@@ -21,7 +21,7 @@ import { cancelarReserva } from "./reservas";
 
 // Data da versão da política. Mudou o texto de um jeito que importa para quem
 // já tem conta? Troque a data: o cadastro grava a versão aceita.
-export const VERSAO_PRIVACIDADE = "2026-10-09";
+export const VERSAO_PRIVACIDADE = "2026-10-11";
 
 // O que impede excluir a conta agora. Estadia aberta e dívida não somem com
 // a conta (as regras recusam), então a tela explica antes de pedir a senha.

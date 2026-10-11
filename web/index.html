@@ -10,6 +10,26 @@
       name="description"
       content="ParaAí liga motoristas e estacionamentos: vagas livres ao vivo, entrada e saída pelo totem com a placa do carro e a estadia calculada pelo tempo exato."
     />
+    <!-- Prévia do link no WhatsApp, nas redes e nos buscadores. A imagem é a
+         página inicial em 1200x630, sem o menu e os botões (ver ESTADO.md). -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ParaAí" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:url" content="https://paraai.web.app/" />
+    <meta property="og:title" content="ParaAí — Digite a placa. Estacione. Vá embora." />
+    <meta
+      property="og:description"
+      content="Vagas livres ao vivo, entrada e saída pelo totem com a placa do carro e a estadia calculada pelo tempo exato."
+    />
+    <meta property="og:image" content="https://paraai.web.app/og.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Página inicial do ParaAí: Digite a placa. Estacione. Vá embora. Ao lado, um estacionamento visto de cima com a vaga indicada."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
     <!-- App instalável: manifesto, ícone do iPhone e nome curto na tela inicial. -->
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -31,9 +51,6 @@
         document.documentElement.classList.add("app-instalado");
       }
     </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   </head>
   <body>
     <div id="root"></div>
