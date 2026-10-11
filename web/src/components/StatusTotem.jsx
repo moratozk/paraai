@@ -1,3 +1,5 @@
+import { useConexao } from "../conexao";
+import { IconeConexao } from "./AvisoSemInternet";
 import { TOTEM_OFFLINE_APOS_SEGUNDOS } from "../utils/constants";
 import "./StatusTotem.css";
 
@@ -14,8 +16,12 @@ import "./StatusTotem.css";
  *  - online          → recebeu heartbeat há pouco. Discreto, só confirma.
  *  - offline         → já funcionou antes, mas parou de responder. Precisa
  *                      chamar atenção e sugerir o que verificar.
+ *
+ * Sem internet neste aparelho, nada disso dá para saber: a tela diz que quem
+ * está sem conexão é o aparelho, em vez de acusar o totem.
  */
 export default function StatusTotem({ estacionamento, online, onCopiarId }) {
+  const conexao = useConexao();
   const ultimaAtualizacao = Number(estacionamento?.ultimaAtualizacao) || 0;
   const nuncaConectou = ultimaAtualizacao === 0;
 
@@ -67,6 +73,27 @@ export default function StatusTotem({ estacionamento, online, onCopiarId }) {
         <p className="totem-nota">
           O Wi-Fi precisa ser de 2,4 GHz: o totem não se conecta a redes de 5 GHz.
         </p>
+      </section>
+    );
+  }
+
+  /* ---------------- sem internet neste aparelho ---------------- */
+  if (conexao === "sem") {
+    return (
+      <section className="totem-aviso totem-aviso-sem-internet" role="status">
+        <div className="totem-aviso-topo">
+          <span className="totem-aviso-icone" aria-hidden="true">
+            <IconeConexao cortada />
+          </span>
+          <div>
+            <h3>Sem internet neste aparelho</h3>
+            <p>
+              A situação do totem e das vagas volta a aparecer quando a conexão
+              voltar. Último contato do totem recebido{" "}
+              {formatarQuando(ultimaAtualizacao)}.
+            </p>
+          </div>
+        </div>
       </section>
     );
   }

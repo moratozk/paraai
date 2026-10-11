@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
+import { useRelogioDosDados } from "../conexao";
 import { useAuth } from "../context/AuthContext";
 import { useCatalogoEstacionamentos, useVeiculo } from "../hooks/useParkingData";
 import { montarEnderecoLinha } from "../services/cep";
@@ -90,10 +91,12 @@ export default function MarketplaceEstacionamentos() {
     return () => clearInterval(timer);
   }, []);
 
+  // Sem internet, as vagas livres ficam como chegaram por último (ver conexao.js).
+  const relogio = useRelogioDosDados(agora);
   const termo = normalizarBusca(busca);
   const preparados = useMemo(
-    () => estacionamentos.map((item) => prepararEstacionamento(item, agora)),
-    [estacionamentos, agora]
+    () => estacionamentos.map((item) => prepararEstacionamento(item, relogio)),
+    [estacionamentos, relogio]
   );
 
   const resultados = useMemo(() => {

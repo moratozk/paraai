@@ -306,3 +306,31 @@ test("estacionamento novo: pedido pelo site, aprovação na rede e painel de don
   expect(candidata.erros).toEqual([]);
   expect(equipe.erros).toEqual([]);
 });
+
+test("sem internet: o painel do dono avisa e não culpa o totem", async ({ browser }, info) => {
+  const { viewport, userAgent, deviceScaleFactor, isMobile, hasTouch, baseURL, locale, timezoneId } =
+    info.project.use;
+  const opcoes = { viewport, userAgent, deviceScaleFactor, isMobile, hasTouch, baseURL, locale, timezoneId };
+  const dono = await novaPagina(browser, opcoes);
+  expect(await totem.sinal()).toBe(true);
+  await entrar(dono, DONO.email);
+  await expect(dono.getByText("Totem online")).toBeVisible();
+
+  await test.step("a conexão do aparelho cai", async () => {
+    await dono.context().setOffline(true);
+    await expect(dono.locator(".aviso-conexao")).toContainText("Sem internet neste aparelho.");
+    await expect(dono.getByRole("heading", { name: "Sem internet neste aparelho" })).toBeVisible();
+    await expect(dono.getByText("Totem sem resposta")).toHaveCount(0);
+    await expect(dono.locator(".mapa-vagas-card .live-dot")).toHaveText("SEM INTERNET");
+  });
+
+  await test.step("a conexão volta", async () => {
+    await dono.context().setOffline(false);
+    await expect(dono.locator(".aviso-conexao")).toContainText("Conexão de volta.");
+    await expect(dono.getByText("Totem online")).toBeVisible();
+    await expect(dono.locator(".mapa-vagas-card .live-dot")).toHaveText("AO VIVO");
+    await expect(dono.locator(".aviso-conexao")).toHaveCount(0, { timeout: 8000 });
+  });
+
+  expect(dono.erros).toEqual([]);
+});

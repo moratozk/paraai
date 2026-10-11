@@ -31,6 +31,7 @@ import {
   inicioDoPeriodo,
   resumirEstadias,
 } from "../utils/relatorios";
+import { useRelogioDosDados } from "../conexao";
 import { TOTEM_OFFLINE_APOS_SEGUNDOS } from "../utils/constants";
 import Placa from "../components/Placa";
 import "./Pages.css";
@@ -114,7 +115,8 @@ export default function PainelAdmin() {
   const [totensAbertos, setTotensAbertos] = useState(null);
   const [linhasVisiveis, setLinhasVisiveis] = useState(LINHAS_INICIAIS);
 
-  const agora = useAgora(30000);
+  // Sem internet, o relógio para quando a conexão caiu (ver conexao.js).
+  const agora = useRelogioDosDados(useAgora(30000));
   const {
     historico,
     loading: carregandoHistorico,

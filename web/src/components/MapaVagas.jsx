@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useConexao } from "../conexao";
 import { iconeAoLadoDoRotulo, obterTipoVaga } from "../utils/mapaVagas";
 import { descreverVeiculo } from "../utils/veiculo";
 import { formatarHora } from "../utils/format";
@@ -70,6 +71,7 @@ function Vaga({ vaga, selecionada, onSelecionar }) {
 // dentro travaria a saída).
 export default function MapaVagas({ vagas, nomeEstacionamento }) {
   const [vagaSelecionada, setVagaSelecionada] = useState(null);
+  const semInternet = useConexao() === "sem";
 
   const vagaAtual = vagaSelecionada
     ? vagas.find((vaga) => vaga.id === vagaSelecionada) || null
@@ -91,9 +93,15 @@ export default function MapaVagas({ vagas, nomeEstacionamento }) {
           <h2>Mapa de vagas</h2>
           <p>{nomeEstacionamento || "Estacionamento"} · atualizado pelo totem a cada entrada e saída</p>
         </div>
-        <span className="live-dot" title="Atualiza em tempo real">
-          <span className="status-dot online pulsa" />AO VIVO
-        </span>
+        {semInternet ? (
+          <span className="live-dot sem-internet" title="Sem internet neste aparelho">
+            <span className="status-dot offline" />SEM INTERNET
+          </span>
+        ) : (
+          <span className="live-dot" title="Atualiza em tempo real">
+            <span className="status-dot online pulsa" />AO VIVO
+          </span>
+        )}
       </div>
 
       <div className="mapa-legenda" aria-label="Legenda do mapa">

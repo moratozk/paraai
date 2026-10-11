@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
+import { useConexao } from "../conexao";
 import { useAuth } from "../context/AuthContext";
 import { useEstacionamento, useVagas, useVagasPublicas } from "../hooks/useParkingData";
 import { useTelaCheia } from "../hooks/useTelaCheia";
@@ -30,6 +31,7 @@ export default function MaqueteVirtual() {
   const admin = userData?.role === "admin";
   const estId = admin ? rotaEstId : null;
   const { estacionamento, online, loading: carregandoLocal } = useEstacionamento(estId);
+  const semInternet = useConexao() === "sem";
   const { vagas: operacionais, loading: carregandoOcupacao } = useVagas(
     estId,
     estacionamento?.numVagas
@@ -87,9 +89,15 @@ export default function MaqueteVirtual() {
           <p>Os carros entram e saem da maquete conforme os registros feitos no totem.</p>
         </div>
         <div className="maquete-status">
-          <span className="live-dot">
-            <span className="status-dot online pulsa" /> DADOS AO VIVO
-          </span>
+          {semInternet ? (
+            <span className="live-dot sem-internet">
+              <span className="status-dot offline" /> SEM INTERNET
+            </span>
+          ) : (
+            <span className="live-dot">
+              <span className="status-dot online pulsa" /> DADOS AO VIVO
+            </span>
+          )}
           <span className={`maquete-equipamento ${online ? "online" : "offline"}`}>
             Equipamento {online ? "online" : "sem sinal recente"}
           </span>
