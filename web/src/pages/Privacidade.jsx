@@ -252,8 +252,8 @@ export default function Privacidade() {
               claro ou escuro. Com o app instalado, guarda também os arquivos do
               site, para abrir mais rápido e mostrar um aviso quando estiver sem
               internet. Não usamos cookies de publicidade nem ferramentas de
-              rastreamento. As fontes do site vêm do Google Fonts, então o
-              navegador se conecta ao Google para baixá-las.
+              rastreamento. As fontes vêm junto com o próprio site, sem buscar
+              nada no Google Fonts.
             </p>
           </section>
 

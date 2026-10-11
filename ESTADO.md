@@ -65,7 +65,8 @@ mudança nas regras nem no firmware.
   `@fontsource` (importados no `main.jsx`), e não mais do Google. A página não
   espera outro servidor para aparecer, e o app instalado e a demonstração sem
   internet mostram a fonte da marca. Comparadas as capturas de antes e depois:
-  o texto ficou igual.
+  o texto ficou igual. A página de privacidade deixou de dizer que o navegador
+  busca as fontes no Google (política na versão de 11/10/2026).
 - **Login sem o código de "entrar com Google":** o `getAuth` do Firebase traz
   junto o login por janela do Google, que o ParaAí não usa. No celular e no
   Safari, ele baixava um script de `apis.google.com` e uma página escondida
