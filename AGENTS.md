@@ -32,6 +32,32 @@ componente não pode quebrar os outros.
 - Atualize `ESTADO.md` quando mudar arquitetura, configuração, decisões de
   produto, estado do hardware ou pendências relevantes.
 
+## Trabalho em dupla (Claude e Codex)
+
+Os dois autores trabalham ao mesmo tempo, cada um com o próprio assistente: o
+Nicolas (`moratozk`) usa o Claude, que cria branches `claude/...`, e o Lucas
+(`LucasLopes12`) usa o Codex, com branches `codex/...` ou `lucas/...`. Os
+assistentes não enxergam a conversa um do outro; o que mantém os dois em dia é
+o GitHub: a `main`, os pull requests e o `ESTADO.md`. Recado para o outro lado
+vai na descrição ou num comentário do pull request.
+
+- Antes de começar, confira os pull requests abertos. Se a tarefa mexe nos
+  mesmos arquivos ou no mesmo tema de um pull request aberto do outro autor,
+  combine com ele antes.
+- Abra o pull request em rascunho logo no primeiro commit: é por ele que o
+  outro lado sabe o que está em andamento.
+- Branch e pull request pertencem a quem os abriu. Não faça commit, push,
+  rebase nem force-push na branch do outro autor, e não feche, una nem resolva
+  as conversas de revisão do pull request dele por conta própria. Para sugerir
+  uma mudança, comente no pull request ou abra outro a partir da `main`.
+- Resolva conflitos na sua própria branch, trazendo a `main` com merge e
+  mantendo as duas mudanças. Se não estiver claro o que manter, pergunte ao
+  outro autor.
+- No `ESTADO.md`, acrescente a sua seção ou edite só as linhas do seu tema; não
+  reescreva nem apague o que o outro registrou.
+- Mudança em decisão de produto, principalmente no totem, é combinada com o
+  outro autor antes do pull request.
+
 ## Segurança e dados
 
 - Nunca adicione ao Git: `web/.env`, `firmware/totem/Credenciais.h`, senhas de Wi-Fi,

@@ -2,12 +2,14 @@
 
 Este é o guia de entrada para os dois autores do TCC. O código compartilhado
 fica em **https://github.com/moratozk/paraai**. Cada pessoa usa a própria conta
-do GitHub e a própria conta do Codex/ChatGPT.
+do GitHub e o próprio assistente: o Nicolas usa o Claude e o Lucas usa o Codex
+(ChatGPT).
 
 As conversas dos assistentes não são uma conversa única. O que mantém os dois
 sincronizados é o GitHub: código, histórico, branches, revisões e o arquivo
-`ESTADO.md`. O arquivo `AGENTS.md` faz o Codex dos dois seguir os mesmos acordos
-sempre que o projeto for aberto.
+`ESTADO.md`. O arquivo `AGENTS.md` faz os dois assistentes seguirem os mesmos
+acordos sempre que o projeto for aberto, inclusive o de não mexer na branch nem
+no pull request do outro.
 
 ## Primeira configuração no computador do colaborador
 
@@ -64,23 +66,24 @@ git switch -c seu-nome/resumo-da-tarefa
 ```
 
 Exemplos: `lucas/corrige-cadastro`, `morato/painel-financeiro` ou
-`codex/melhora-menu-mobile`.
+`codex/melhora-menu-mobile`. O Claude do Nicolas cria branches `claude/...`.
 
-### 2. Trabalhe com seu próprio Codex
+### 2. Trabalhe com seu próprio assistente
 
 Mensagem recomendada ao começar uma tarefa:
 
 > Leia AGENTS.md, README.md e ESTADO.md por completo. Confira o estado do Git e
-> trabalhe apenas nesta branch. Preserve a integração entre Web, Firebase e
-> ESP32. Implemente a tarefa, teste o que foi alterado e mostre o resultado
-> antes de fazer commit.
+> os pull requests abertos do outro autor, sem mexer neles, e trabalhe apenas
+> nesta branch. Preserve a integração entre Web, Firebase e ESP32. Implemente a
+> tarefa, teste o que foi alterado e mostre o resultado antes de fazer commit.
 
 ### 3. Salve e envie a branch
 
-Peça ao Codex:
+Peça ao assistente:
 
 > Revise as mudanças, rode as verificações necessárias, faça um commit com
-> mensagem clara, envie esta branch ao GitHub e abra um pull request para main.
+> mensagem clara, envie esta branch ao GitHub e abra um pull request para main,
+> ou tire do rascunho o que já estava aberto.
 
 ### 4. O outro integrante revisa
 
@@ -91,6 +94,10 @@ conversem antes de resolver o conflito.
 ## Regras simples que evitam perder trabalho
 
 - Nunca compartilhem a mesma branch para duas tarefas simultâneas.
+- Branch e pull request são de quem os abriu. Para sugerir mudança no pull
+  request do outro, comentem nele ou abram outro a partir de `main`.
+- Abram o pull request em rascunho logo no começo da tarefa, para o outro ver o
+  que está em andamento.
 - Nunca usem `git push --force` em `main`.
 - Não copiem pastas manualmente por WhatsApp, Drive ou pendrive para juntar
   versões; usem branches e pull requests.
