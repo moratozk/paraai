@@ -3,6 +3,11 @@
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
 coisa parou sem precisar reler o histórico. Atualizado em **11/10/2026**.
 
+Em **13/10/2026**, a skill `apple-design` foi instalada somente neste
+repositório, em `.agents/skills/apple-design/`, com a origem registrada em
+`skills-lock.json`. Ela orienta as futuras revisões de interface sem alterar o
+site, o firmware ou a configuração global do Codex.
+
 ---
 
 ## O que é
