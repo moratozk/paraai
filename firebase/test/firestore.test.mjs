@@ -664,6 +664,53 @@ test('mapa público: motorista lê sem placa e não muda ocupação nem tipo; ad
   await assertFails(updateDoc(ref('admin', 'estacionamentos/EST-A/vagas/2'), { placa: 'XYZ1234', ocupada: true }));
 });
 
+test('operador altera vaga manualmente somente com auditoria atômica e imutável', async () => {
+  const d = db('operador-a');
+  const movimento = doc(collection(d, 'movimentacoesVagas'));
+  const lote = writeBatch(d);
+  lote.set(doc(d, 'estacionamentos/EST-A/vagas/2'), {
+    ocupada: true, placa: '', origemOcupacao: 'operador',
+    ultimaMovimentacaoId: movimento.id, alteradaEm: serverTimestamp()
+  }, { merge: true });
+  lote.update(doc(d, 'catalogoEstacionamentos/EST-A/vagas/2'), { ocupada: true });
+  lote.set(movimento, {
+    estacionamentoId: 'EST-A', vaga: 2, estadoAnterior: false,
+    estadoNovo: true, origem: 'operador', operadorUid: 'operador-a', criadoEm: serverTimestamp()
+  });
+  await assertSucceeds(lote.commit());
+
+  assert.equal((await getDoc(ref('operador-a', 'estacionamentos/EST-A/vagas/2'))).data().ocupada, true);
+  assert.equal((await getDoc(ref('operador-a', movimento.path))).data().estadoNovo, true);
+  await assertFails(updateDoc(ref('operador-a', movimento.path), { estadoNovo: false }));
+  await assertFails(deleteDoc(ref('operador-a', movimento.path)));
+  await assertFails(getDoc(ref('operador-b', movimento.path)));
+});
+
+test('operador não altera vaga sem histórico, de outro pátio ou ligada a placa', async () => {
+  await assertFails(updateDoc(ref('operador-a', 'estacionamentos/EST-A/vagas/2'), {
+    ocupada: true, placa: '', origemOcupacao: 'operador',
+    ultimaMovimentacaoId: 'ausente', alteradaEm: serverTimestamp()
+  }));
+
+  const d = db('operador-b');
+  const movimento = doc(collection(d, 'movimentacoesVagas'));
+  const lote = writeBatch(d);
+  lote.update(doc(d, 'estacionamentos/EST-A/vagas/2'), {
+    ocupada: true, placa: '', origemOcupacao: 'operador',
+    ultimaMovimentacaoId: movimento.id, alteradaEm: serverTimestamp()
+  });
+  lote.set(movimento, {
+    estacionamentoId: 'EST-A', vaga: 2, estadoAnterior: false,
+    estadoNovo: true, origem: 'operador', operadorUid: 'operador-b', criadoEm: serverTimestamp()
+  });
+  await assertFails(lote.commit());
+
+  await assertFails(updateDoc(ref('operador-a', 'estacionamentos/EST-A/vagas/1'), {
+    ocupada: false, placa: '', origemOcupacao: 'operador',
+    ultimaMovimentacaoId: 'qualquer', alteradaEm: serverTimestamp()
+  }));
+});
+
 test('cadastro público não cria dono nem administrador; admin edita estacionamento de outra conta', async () => {
   await assertFails(setDoc(ref('novo-operador', 'users/novo-operador'), { role: 'operador' }));
   await assertFails(setDoc(ref('novo-admin', 'users/novo-admin'), { role: 'admin' }));

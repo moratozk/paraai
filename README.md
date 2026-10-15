@@ -127,6 +127,10 @@ historico/{PLACA_horaEntrada}              -- novo firmware: ID da estadia
 historico/{ID_GERADO_PELO_APP}             -- versão anterior (só leitura)
   origem="aplicativo": estadias cobradas pelo app antes da reserva
 
+movimentacoesVagas/{ID_GERADO_PELO_APP}    -- auditoria manual imutável
+  estacionamentoId, vaga, estadoAnterior, estadoNovo,
+  origem="operador", operadorUid, criadoEm
+
 totems/{FIREBASE_AUTH_UID}
   estacionamentoId, nome, email, ativo       -- identidade do equipamento
 

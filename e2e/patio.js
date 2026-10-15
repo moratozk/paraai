@@ -263,7 +263,8 @@ export function totemSimulado(env, { uid, estacionamentoId }) {
       const n = numeroDaVaga(operacional.id);
       const { placa } = operacional.data();
       // Placa que não é texto: na dúvida a vaga não é oferecida.
-      if (n) vagas[n].usada = placa !== undefined && (typeof placa !== "string" || placa !== "");
+      if (n) vagas[n].usada = Boolean(operacional.data().ocupada)
+        || (placa !== undefined && (typeof placa !== "string" || placa !== ""));
     }
     return { capacidade, tarifa: patio.tarifaHora, vagas };
   }

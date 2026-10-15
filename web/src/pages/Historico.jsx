@@ -6,6 +6,7 @@ import {
   useCatalogoEstacionamentos,
   useHistoricoPlaca,
   useHistoricoEstacionamento,
+  useMovimentacoesVagas,
 } from "../hooks/useParkingData";
 import {
   formatarMoeda,
@@ -35,9 +36,11 @@ export default function Historico() {
 
   const porPlaca = useHistoricoPlaca(role === "motorista" ? placa : null);
   const porEst = useHistoricoEstacionamento(role === "operador" ? estId : null);
+  const auditoriaVagas = useMovimentacoesVagas(role === "operador" ? estId : null);
   const { estacionamentos } = useCatalogoEstacionamentos();
 
   const { historico, loading } = role === "operador" ? porEst : porPlaca;
+  const { movimentacoes: movimentacoesVagas, loading: carregandoAuditoria } = auditoriaVagas;
   const [comprovante, setComprovante] = useState(null);
 
   const registros = useMemo(
@@ -70,7 +73,7 @@ export default function Historico() {
         <h1>{role === "operador" ? "Movimentações" : "Meus acessos"}</h1>
         <p>
           {role === "operador"
-            ? "Todas as entradas e saídas registradas pelo seu totem."
+            ? "Entradas, saídas e alterações manuais das vagas do seu estacionamento."
             : "Seus acessos e pagamentos em toda a rede ParaAí."}
         </p>
       </div>
@@ -88,14 +91,14 @@ export default function Historico() {
             <p>Sua conta ainda não tem um estacionamento vinculado.</p>
           )}
         </div>
-      ) : loading ? (
+      ) : loading || (role === "operador" && carregandoAuditoria) ? (
         <div className="card empty-state">Carregando...</div>
-      ) : registros.length === 0 ? (
+      ) : registros.length === 0 && movimentacoesVagas.length === 0 ? (
         <div className="card empty-state">
           <p>Nenhum registro ainda.</p>
           <p className="muted-note">
             {role === "operador"
-              ? "As movimentações aparecem aqui após cada saída registrada no totem."
+              ? "As movimentações aparecem aqui após uma saída no totem ou uma alteração manual de vaga."
               : "Os recibos aparecem aqui automaticamente após cada uso."}
           </p>
         </div>
@@ -208,6 +211,39 @@ export default function Historico() {
             </div>
           </div>
         </>
+      )}
+
+      {role === "operador" && movimentacoesVagas.length > 0 && (
+        <div className="card">
+          <div className="card-head-row">
+            <div>
+              <h2>Histórico de estados das vagas</h2>
+              <p className="muted-note">Registros permanentes das alterações feitas pela equipe do pátio.</p>
+            </div>
+            <span className="status-pill">{movimentacoesVagas.length} registros</span>
+          </div>
+          <div className="tabela-wrap">
+            <table className="history-table responsive-table">
+              <thead>
+                <tr><th>Vaga</th><th>Alteração</th><th>Data e hora</th><th>Origem</th></tr>
+              </thead>
+              <tbody>
+                {movimentacoesVagas.map((item) => (
+                  <tr key={item.id}>
+                    <td data-label="Vaga">Vaga {item.vaga}</td>
+                    <td data-label="Alteração">
+                      <span className={`status-pill ${item.estadoNovo ? "danger" : "success"}`}>
+                        {item.estadoAnterior ? "Ocupada" : "Livre"} → {item.estadoNovo ? "Ocupada" : "Livre"}
+                      </span>
+                    </td>
+                    <td data-label="Data e hora">{formatarDataHora(item.criadoEm?.seconds)}</td>
+                    <td data-label="Origem">Equipe do pátio</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
 
       {comprovante && (

@@ -192,7 +192,7 @@ bool mapaVagas(MapaVagas& mapa, int reservada = 0, paraai::TipoVaga direito = pa
   do {
     if (++paginas > 20) return false;
     if (!Firebase.Firestore.listDocuments(&fb, PROJECT_ID, "", String(PATIO) + "/vagas",
-        16, token.c_str(), "", "placa", false)) return false;
+        16, token.c_str(), "", "placa,ocupada", false)) return false;
     FirebaseJson pagina;
     pagina.setJsonData(fb.payload());
     FirebaseJsonData item;
@@ -218,7 +218,12 @@ bool mapaVagas(MapaVagas& mapa, int reservada = 0, paraai::TipoVaga direito = pa
         estadoVagas[n].usada = true;
         continue;
       }
-      estadoVagas[n].usada = !placa.isEmpty();
+      FirebaseJsonData ocupada;
+      const bool temEstado = pagina.get(ocupada, prefixo + "/fields/ocupada/booleanValue");
+      // A contingência do operador ocupa a vaga sem inventar uma placa. O
+      // campo booleano impede o totem de oferecê-la; documentos antigos sem
+      // esse campo continuam usando a placa como fonte de verdade.
+      estadoVagas[n].usada = temEstado ? ocupada.to<bool>() : !placa.isEmpty();
       if (estadoVagas[n].usada) continue;
       // Revisões só das vagas que podem ser escolhidas: a reservada, a primeira
       // livre do tipo do direito declarado e a primeira comum livre.

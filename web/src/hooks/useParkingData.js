@@ -7,6 +7,7 @@
 //   veiculos/{PLACA}                carteira única do motorista (global)
 //   veiculos/{PLACA}/recargas/{id}  recargas simuladas (extrato)
 //   historico/{id}                  movimentações (campo estacionamentoId)
+//   movimentacoesVagas/{id}         auditoria imutável das alterações manuais
 // =========================================================================
 
 import { useEffect, useMemo, useState } from "react";
@@ -291,6 +292,7 @@ export function useVagas(estId, numVagas = TOTAL_VAGAS) {
           numero: i + 1,
           ocupada: Boolean(data.ocupada),
           placa,
+          origemOcupacao: data.origemOcupacao || "",
           tipo: data.tipo || "",
           // Copiados do veículo pelo totem na entrada (vazios no firmware antigo).
           modelo: placa ? data.modelo || "" : "",
@@ -411,6 +413,32 @@ export function useHistoricoPlaca(placa) {
 
 export function useHistoricoEstacionamento(estId) {
   return useHistoricoPorCampo("estacionamentoId", estId);
+}
+
+export function useMovimentacoesVagas(estId) {
+  const [estado, setEstado] = useState({ id: null, itens: [] });
+
+  useEffect(() => {
+    if (!estId) return undefined;
+    return onSnapshot(
+      query(collection(db, "movimentacoesVagas"), where("estacionamentoId", "==", estId)),
+      (snap) => {
+        const itens = snap.docs.map((item) => ({ id: item.id, ...item.data() }));
+        itens.sort((a, b) => (b.criadoEm?.seconds || 0) - (a.criadoEm?.seconds || 0));
+        setEstado({ id: estId, itens });
+      },
+      (err) => {
+        console.error("[movimentacoes-vagas] erro no listener:", err);
+        setEstado({ id: estId, itens: [] });
+      }
+    );
+  }, [estId]);
+
+  const atualizado = estado.id === estId;
+  return {
+    movimentacoes: atualizado ? estado.itens : [],
+    loading: Boolean(estId) && !atualizado,
+  };
 }
 
 // ---------------------------------------------------------------------
