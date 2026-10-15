@@ -65,12 +65,13 @@ function Vaga({ vaga, selecionada, onSelecionar }) {
   );
 }
 
-// Mapa do operador. Só leitura: a ocupação é registrada pelo totem na
-// entrada e na saída da placa, e a reserva, pelo app do motorista. Marcar uma
-// vaga à mão deixaria vaga e estadia incoerentes (liberar uma vaga com carro
-// dentro travaria a saída).
-export default function MapaVagas({ vagas, nomeEstacionamento }) {
+// Mapa do operador. O totem controla vagas ligadas a uma placa e o app controla
+// reservas. A equipe pode usar a contingência manual apenas nas demais vagas;
+// o serviço e as regras gravam cada mudança com auditoria imutável.
+export default function MapaVagas({ vagas, nomeEstacionamento, onAlterarEstado }) {
   const [vagaSelecionada, setVagaSelecionada] = useState(null);
+  const [alterando, setAlterando] = useState(false);
+  const [erro, setErro] = useState("");
   const semInternet = useConexao() === "sem";
 
   const vagaAtual = vagaSelecionada
@@ -83,7 +84,21 @@ export default function MapaVagas({ vagas, nomeEstacionamento }) {
   const fileiraInferior = vagas.slice(metade);
 
   function selecionarVaga(vaga) {
+    setErro("");
     setVagaSelecionada((atual) => (atual === vaga.id ? null : vaga.id));
+  }
+
+  async function alternarEstado() {
+    if (!vagaAtual || !onAlterarEstado) return;
+    setAlterando(true);
+    setErro("");
+    try {
+      await onAlterarEstado(vagaAtual, !vagaAtual.ocupada);
+    } catch (err) {
+      setErro(err.message || "Não foi possível alterar a vaga.");
+    } finally {
+      setAlterando(false);
+    }
   }
 
   return (
@@ -91,7 +106,7 @@ export default function MapaVagas({ vagas, nomeEstacionamento }) {
       <div className="card-head-row mapa-vagas-cabecalho">
         <div>
           <h2>Mapa de vagas</h2>
-          <p>{nomeEstacionamento || "Estacionamento"} · atualizado pelo totem a cada entrada e saída</p>
+          <p>{nomeEstacionamento || "Estacionamento"} · atualizado pelo totem e pela equipe do pátio</p>
         </div>
         {semInternet ? (
           <span className="live-dot sem-internet" title="Sem internet neste aparelho">
@@ -170,8 +185,29 @@ export default function MapaVagas({ vagas, nomeEstacionamento }) {
             {tipoAtual && tipoAtual.tipo !== "comum" && ` Vaga para ${tipoAtual.rotulo}.`}
           </p>
           <p className="muted-note mapa-editor-nota">
-            A ocupação é registrada pelo totem na entrada e na saída da placa.
+            {vagaAtual.placa
+              ? "A vaga está ligada a uma entrada pelo totem e será liberada na saída do veículo."
+              : situacaoAtual === "reservada"
+                ? "Uma reserva ativa não pode ser substituída por uma ocupação manual."
+                : "Alterações manuais ficam registradas permanentemente em Movimentações."}
           </p>
+          {onAlterarEstado && !vagaAtual.placa && situacaoAtual !== "reservada" && (
+            <div className="mapa-editor-acoes">
+              <button
+                type="button"
+                className={`btn ${vagaAtual.ocupada ? "btn-outline" : "btn-primary"}`}
+                onClick={alternarEstado}
+                disabled={alterando || semInternet}
+              >
+                {alterando
+                  ? "Salvando..."
+                  : vagaAtual.ocupada
+                    ? "Marcar como livre"
+                    : "Marcar como ocupada"}
+              </button>
+            </div>
+          )}
+          {erro && <p className="mapa-editor-erro form-error" role="alert">{erro}</p>}
         </div>
       )}
     </div>

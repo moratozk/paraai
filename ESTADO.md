@@ -1,7 +1,23 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **11/10/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **15/10/2026**.
+
+## Contingência manual de vagas e auditoria (15/10/2026)
+
+- No mapa do painel, o dono pode marcar uma vaga sem placa como ocupada ou
+  livre. Vaga ligada a uma entrada do totem continua sendo liberada somente
+  pela saída, e reserva ativa não pode ser sobrescrita.
+- Cada alteração manual grava, no mesmo lote, a vaga operacional, seu espelho
+  público e um documento imutável em `movimentacoesVagas`. As regras exigem
+  essa ligação atômica, isolam cada pátio e proíbem editar ou apagar a
+  auditoria. O painel mostra os registros em **Movimentações**.
+- O firmware e o totem simulado consideram o booleano `ocupada`, além da
+  placa, ao escolher uma vaga; assim uma ocupação manual sem placa não é
+  oferecida a outro veículo.
+- Para disponibilizar: publicar primeiro as regras, depois o site e, em
+  manutenção autorizada, gravar o firmware. Não houve publicação nem gravação
+  nesta alteração.
 
 ---
 

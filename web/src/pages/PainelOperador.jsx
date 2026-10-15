@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import {
+  alterarEstadoVagaManual,
   atualizarConfiguracao,
   publicarMapaVagas,
   sincronizarCatalogo,
@@ -125,6 +126,11 @@ export default function PainelOperador() {
     } finally {
       setSalvandoConfig(false);
     }
+  }
+
+  async function alterarVaga(vaga, ocupada) {
+    await alterarEstadoVagaManual({ estId, numero: vaga.numero, ocupada });
+    toast.sucesso(`Vaga ${vaga.numero} marcada como ${ocupada ? "ocupada" : "livre"}.`);
   }
 
   // --- recortes do período selecionado ---
@@ -418,7 +424,11 @@ export default function PainelOperador() {
         </div>
       </div>
 
-      <MapaVagas vagas={vagas} nomeEstacionamento={estacionamento?.nome} />
+      <MapaVagas
+        vagas={vagas}
+        nomeEstacionamento={estacionamento?.nome}
+        onAlterarEstado={alterarVaga}
+      />
 
       <div className="dashboard-grid painel-graficos">
         {/* ---------- Gráfico ---------- */}

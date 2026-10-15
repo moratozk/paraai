@@ -16,7 +16,7 @@ import {
   updateDoc,
   writeBatch,
 } from "firebase/firestore";
-import { db } from "../firebase/firebaseConfig";
+import { auth, db } from "../firebase/firebaseConfig";
 import { obterTipoVaga, tipoVagaValido } from "../utils/mapaVagas";
 
 // Tarifa padrão usada até o dono definir a dele no painel.
@@ -303,7 +303,7 @@ export async function publicarMapaVagas(estId) {
   const vagasOcupadas = new Set();
   vagasSnap.forEach((vaga) => {
     const numero = Number(vaga.id);
-    if (numero >= 1 && numero <= numVagas && String(vaga.data().placa || "") !== "") {
+    if (numero >= 1 && numero <= numVagas && Boolean(vaga.data().ocupada)) {
       vagasOcupadas.add(numero);
     }
   });
@@ -367,8 +367,98 @@ export async function atualizarTipoVagaAdmin({ estId, numero, tipo }) {
     const vagaOperacional = await getDoc(
       doc(db, "estacionamentos", estId, "vagas", String(numeroVaga))
     );
-    const ocupada = vagaOperacional.exists() && String(vagaOperacional.data().placa || "") !== "";
+    const ocupada = vagaOperacional.exists() && Boolean(vagaOperacional.data().ocupada);
     await setDoc(vagaPublicaRef, { ocupada, tipo });
   }
   return tipo;
+}
+
+// Contingência do dono para ocorrências que não nasceram de uma estadia no
+// totem. A vaga, a projeção pública e o registro de auditoria são gravados no
+// mesmo lote: nunca existe alteração manual sem seu histórico permanente.
+// Vagas ligadas a uma placa e reservas ativas continuam sob controle do fluxo
+// de entrada/saída, para não separar vaga, cobrança e veículo.
+export async function alterarEstadoVagaManual({ estId, numero, ocupada }) {
+  const numeroVaga = Number(numero);
+  if (!estId || !Number.isInteger(numeroVaga) || numeroVaga < 1 || numeroVaga > 200) {
+    throw new Error("Vaga inválida.");
+  }
+
+  const estacionamentoRef = doc(db, "estacionamentos", estId);
+  const vagaRef = doc(db, "estacionamentos", estId, "vagas", String(numeroVaga));
+  const vagaPublicaRef = doc(db, "catalogoEstacionamentos", estId, "vagas", String(numeroVaga));
+  const [estacionamentoSnap, vagaSnap, vagaPublicaSnap, vagasSnap] = await Promise.all([
+    getDoc(estacionamentoRef),
+    getDoc(vagaRef),
+    getDoc(vagaPublicaRef),
+    getDocs(collection(db, "estacionamentos", estId, "vagas")),
+  ]);
+
+  if (!estacionamentoSnap.exists()) throw new Error("Estacionamento não encontrado.");
+  if (numeroVaga > Number(estacionamentoSnap.data().numVagas || 0)) {
+    throw new Error("A vaga não pertence a este estacionamento.");
+  }
+
+  const vagaAtual = vagaSnap.exists() ? vagaSnap.data() : {};
+  const estadoAnterior = Boolean(vagaAtual.ocupada);
+  const placa = String(vagaAtual.placa || "");
+  if (placa) {
+    throw new Error("Esta vaga está ligada a uma entrada pelo totem e só pode ser liberada na saída do veículo.");
+  }
+  const agora = Math.floor(Date.now() / 1000);
+  const reservadaAte = Number(vagaPublicaSnap.data()?.reservadaAte) || 0;
+  if (ocupada && reservadaAte > agora) {
+    throw new Error("Esta vaga está reservada no aplicativo e não pode ser ocupada manualmente.");
+  }
+  if (estadoAnterior === Boolean(ocupada)) {
+    throw new Error(`A vaga já está ${ocupada ? "ocupada" : "livre"}.`);
+  }
+
+  const movimentoRef = doc(collection(db, "movimentacoesVagas"));
+  const alteradaEm = serverTimestamp();
+  const dadosVaga = {
+    ocupada: Boolean(ocupada),
+    placa: "",
+    origemOcupacao: "operador",
+    ultimaMovimentacaoId: movimentoRef.id,
+    alteradaEm,
+    leituraValida: deleteField(),
+    modelo: deleteField(),
+    cor: deleteField(),
+  };
+
+  let ocupadasDepois = ocupada ? 1 : 0;
+  vagasSnap.forEach((item) => {
+    const n = Number(item.id);
+    if (n !== numeroVaga && n >= 1 && n <= Number(estacionamentoSnap.data().numVagas)) {
+      if (item.data().ocupada) ocupadasDepois += 1;
+    }
+  });
+  const total = Number(estacionamentoSnap.data().numVagas);
+  const disponibilidade = {
+    modoDisponibilidade: "mapa",
+    vagasLivresMapeadas: Math.max(0, total - ocupadasDepois),
+    ultimaAtualizacaoMapa: alteradaEm,
+  };
+
+  const batch = writeBatch(db);
+  batch.set(vagaRef, dadosVaga, { merge: true });
+  batch.set(vagaPublicaRef, { ocupada: Boolean(ocupada) }, { merge: true });
+  batch.set(movimentoRef, {
+    estacionamentoId: estId,
+    vaga: numeroVaga,
+    estadoAnterior,
+    estadoNovo: Boolean(ocupada),
+    origem: "operador",
+    operadorUid: auth.currentUser?.uid || "",
+    criadoEm: alteradaEm,
+  });
+  batch.set(estacionamentoRef, disponibilidade, { merge: true });
+  batch.set(
+    doc(db, "catalogoEstacionamentos", estId),
+    { ...disponibilidade, atualizadoEm: alteradaEm },
+    { merge: true }
+  );
+  await batch.commit();
+  return movimentoRef.id;
 }
