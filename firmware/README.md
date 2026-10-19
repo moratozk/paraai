@@ -16,6 +16,7 @@ virtual e a evolução do site ficam para a próxima etapa.
 | totem/LogicaTotem.h | Validação de placa, capacidade, tarifa e cálculo de cobrança |
 | totem/AssistenteWiFi.h | Wi-Fi na própria tela: lista de redes, teclado completo e teste |
 | totem/ConfiguracaoWiFi.ino | Rádio da tela de Wi-Fi, portal pelo celular, teste da rede e persistência |
+| totem/TelaVinculo.h | Instalação pelo código do site: teclado do código e confirmação de instalar de novo |
 | totem/Credenciais.example.h | Modelo; Credenciais.h real permanece fora do Git |
 | touch-calibration/ | Sketch avulso para medir o touch |
 | test/ | Lógica C++ e interface com periféricos simulados, rodando no PC |
@@ -102,6 +103,45 @@ gabinete aberto) abre o portal sem PIN.
 
 O portal pode ser cancelado e expira em 10 minutos.
 
+### Instalar pelo código do site
+
+Com `TOTEM_EMAIL`, `TOTEM_PASSWORD` e `ESTACIONAMENTO_ID` vazios no
+Credenciais.h (o modelo já vem assim), o totem ainda não tem acesso ao
+Firebase e, com o Wi-Fi conectado, a tela inicial pede o código de instalação
+(o cabeçalho mostra INSTALACAO):
+
+1. No site, o dono abre Perfil > Segurança do totem e toca em Instalar um
+   totem; a administração faz o mesmo no painel da rede. O código tem 8
+   caracteres, vale 15 minutos e serve para um totem só.
+2. No totem, digitar o código (o teclado só tem os 32 caracteres possíveis,
+   sem I, O, 0 e 1) e tocar OK, que só acende com os 8.
+3. O totem cria a própria conta no Firebase, com e-mail
+   `totem-...@dispositivo.paraai.app` e senha sorteados nele, que nunca saem
+   do aparelho; lê o código e grava o próprio cadastro em `totems/{uid}`
+   junto com a exclusão do código, no mesmo commit. A tela mostra TOTEM
+   INSTALADO com o nome do estacionamento, e o site mostra o totem na lista
+   na hora.
+
+O acesso fica num blob validado da NVS (`paraai-id`, como a rede em
+`paraai-net`). Antes de criar a conta, o totem guarda e-mail e senha como
+pendentes: uma nova tentativa (código errado, rede caiu, energia cortada) usa
+a mesma conta em vez de criar outra e, se o cadastro chegou a ser gravado e a
+resposta se perdeu, qualquer código digitado conclui a instalação. Código
+errado, vencido ou já usado mostra CODIGO NAO ACEITO, sem gravar nada. O
+código digitado some da tela depois de 3 minutos sem toque.
+
+Para instalar de novo (outro estacionamento ou totem trocado): na manutenção
+(status por 3 s e PIN), NOVO CODIGO apaga o acesso da memória e reinicia o
+totem, que volta a pedir um código. A conta antiga continua na lista do site
+e deve ser bloqueada lá. O botão só aparece no totem instalado por código.
+
+Acesso fixo (opcional): com os três campos preenchidos, o Credenciais.h vale
+mais que o código. Eles saem do site em Perfil > Segurança do totem >
+"Prefere configurar com e-mail e senha?". É o caminho do totem gravado antes
+da instalação por código, que continua funcionando igual. Campos incompletos
+ou com os valores do modelo antigo são ignorados (o Serial avisa) e o totem
+pede o código.
+
 Nos dois caminhos, somente Wi-Fi 2,4 GHz pessoal protegido; não aceita redes abertas, WEP ou
 empresariais. Redes com login adicional de hotel/escola não são suportadas.
 WPA3 depende do core e do ponto de acesso. SSID/senha ficam em um único blob
@@ -123,10 +163,19 @@ verificação apenas para diagnóstico.
 
 ## Firebase: contrato do totem
 
-Cada equipamento usa uma conta exclusiva (TOTEM_EMAIL / TOTEM_PASSWORD),
-autorizada por totems/{uid}, para um único ESTACIONAMENTO_ID.
+Cada equipamento usa uma conta exclusiva, autorizada por totems/{uid}, para
+um único estacionamento: a que o próprio totem cria na instalação por código
+ou a do Credenciais.h (TOTEM_EMAIL / TOTEM_PASSWORD / ESTACIONAMENTO_ID).
 
 ```
+codigosInstalacao/{CODIGO}                   # gerado no site; vale 15 min
+  estacionamentoId, nome (do totem), nomeEstacionamento, criadoEm
+
+totems/{uid}
+  estacionamentoId, nome, email, ativo
+  codigoInstalacao, vinculadoEm              # instalação por código
+  criadoEm                                   # acesso fixo criado pelo site
+
 estacionamentos/{id}
   numVagas: 1..200, tarifaHora: 0..10000       # configuração do painel
   ultimaAtualizacao: segundos Unix           # heartbeat a cada 60s
@@ -221,8 +270,9 @@ XPT2046_Touchscreen; instalar pelo Library Manager da Arduino IDE. Neste PC,
 `libraries/`, na raiz do repositório, é o cache local, ignorado pelo Git. ESP32Servo não é mais
 dependência do firmware; a cópia antiga do cache local foi preservada.
 
-Copiar Credenciais.example.h para Credenciais.h **só se ainda não existir**,
-preencher os dados locais e o acesso gerado em Perfil > Segurança do totem.
+Copiar Credenciais.example.h para Credenciais.h **só se ainda não existir**
+e preencher os dados locais (chave da API, projeto e PIN). O acesso do totem
+fica vazio para a instalação pelo código; preencha-o só para o acesso fixo.
 Nunca sobrescrever um arquivo real com o modelo nem versioná-lo.
 Selecionar ESP32 Dev Module, core usado nos testes 3.3.10, partição
 **Huge APP (3MB No OTA/1MB SPIFFS)**. Não oferece atualização OTA.
@@ -236,8 +286,9 @@ Antes de desenhar o gabinete 3D, medir a placa real. Preservar
 acesso USB/reset, suporte do display, espaço dos fios e fixação sem pressionar
 o touch. Recalibrar já com a tela fixada. Nenhum STL foi criado nesta etapa.
 
-Serial a 115200: S mostra conexão e memória livre; W abre o Wi-Fi pelo celular; C recalibra.
-W/C só na inicial. Não existem comandos de catraca.
+Serial a 115200: S mostra conexão, origem do acesso (Credenciais.h, código de
+instalação ou aguardando código) e memória livre; W abre o Wi-Fi pelo celular;
+C recalibra. W/C só na inicial ou na tela do código. Não existem comandos de catraca.
 
 ## Verificação e instalação controlada
 
@@ -263,8 +314,8 @@ No Windows, criar .runtime com New-Item, se necessário, e usar a extensão .exe
 Esta revisão usou zig c++ 0.14.1 portátil ([distribuição oficial](https://ziglang.org/download/)).
 
 O emulador só aceita demo-paraai em 127.0.0.1:8180. Testes C++ incluem o código
-real da lógica e da interface, não uma reescrita em JavaScript. Geram 18 SVGs
-com Adafruit_GFX e fontes reais para inspeção em http://127.0.0.1:4174.
+real da lógica e da interface, não uma reescrita em JavaScript. Geram as telas
+em SVG com Adafruit_GFX e fontes reais para inspeção em http://127.0.0.1:4174.
 Periféricos são simulados: não valida ruído, pressão, alimentação, SPI, TLS
 ou calibração do painel físico.
 
@@ -298,6 +349,9 @@ As antigas reservas paraai-res da NVS não são utilizadas nem apagadas.
   poucos segundos no roteador real.
 - Trocar Wi-Fi pelo celular, senha errada, rede oculta, cancelar, expiração,
   perda de sinal e persistência após reiniciar.
+- Instalar pelo código: código certo, errado, vencido e já usado; cortar a
+  energia no meio e digitar de novo; reiniciar e continuar instalado; NOVO
+  CODIGO na manutenção; o totem novo na lista do site e atendendo.
 - Entrada/saída sem sensores conectados; reiniciar com estadia aberta e
   verificar que a vaga continua associada.
 - Alterar tarifa durante estadia, recarregar durante saída e conferir recibo.
@@ -308,6 +362,7 @@ As antigas reservas paraai-res da NVS não são utilizadas nem apagadas.
 ## Limites atuais
 
 Não verifica presença física nem passagem de veículos. Sem internet ou hora
-válida, não confirma atendimento. A credencial Firebase continua embarcada:
-revogação pelo operador e proteção física são necessárias. Sem pagamentos
+válida, não confirma atendimento. A credencial Firebase fica no aparelho (NVS
+sem criptografia ou Credenciais.h): revogação pelo operador e proteção física
+são necessárias. Sem pagamentos
 reais, mensalistas, servidor confiável de cobrança ou maquete virtual.

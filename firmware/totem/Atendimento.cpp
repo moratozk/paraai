@@ -4,21 +4,40 @@
 #include "RaizesGoogle.h"
 #include <Arduino.h>
 #include <WiFi.h>
+#include <Preferences.h>
 #include <Firebase_ESP_Client.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
+#include <esp_system.h>
 #include <time.h>
+#include <atomic>
 #include <cerrno>
+#include <cstddef>
+
+// Acesso fixo é opcional: sem ele, o totem é instalado por código na tela.
+#ifndef TOTEM_EMAIL
+#define TOTEM_EMAIL ""
+#endif
+#ifndef TOTEM_PASSWORD
+#define TOTEM_PASSWORD ""
+#endif
+#ifndef ESTACIONAMENTO_ID
+#define ESTACIONAMENTO_ID ""
+#endif
 
 namespace {
-constexpr const char* PATIO = "estacionamentos/" ESTACIONAMENTO_ID;
+// Pátio deste totem, do Credenciais.h ou do código de instalação. Só a tarefa
+// de rede usa depois de iniciarAtendimento.
+String estacionamentoId;
+String PATIO;           // "estacionamentos/<id>"
 // Projeção pública do mapa: o app marca reservas aqui e o totem espelha a ocupação.
-constexpr const char* VAGAS_PUBLICAS = "catalogoEstacionamentos/" ESTACIONAMENTO_ID "/vagas";
+String VAGAS_PUBLICAS;  // "catalogoEstacionamentos/<id>/vagas"
+std::atomic<OrigemIdentidade> origem{OrigemIdentidade::NENHUMA};
 constexpr uint32_t HEARTBEAT_MS = 60000;
 constexpr uint32_t RETENTATIVA_MS = 15000;
-struct Solicitacao { PedidoTotem tipo; char placa[8]; };
+struct Solicitacao { PedidoTotem tipo; char placa[8]; char codigo[paraai::CODIGO_INSTALACAO_TAMANHO + 1]; };
 QueueHandle_t pedidos = nullptr, respostas = nullptr, statusFila = nullptr;
 SemaphoreHandle_t exclusao = nullptr;
 bool pausado = false; // Somente a tarefa da UI acessa esta variável.
@@ -266,7 +285,7 @@ Reserva consultarReserva(const String& dono, int& vaga, String& revisao) {
   int64_t numero = 0, expira = 0;
   // Margem de 30 s: a reserva não pode vencer entre a leitura e o commit.
   if (!texto(json, "fields/status/stringValue", status) || status != "ativa" ||
-      !texto(json, "fields/estacionamentoId/stringValue", local) || local != ESTACIONAMENTO_ID ||
+      !texto(json, "fields/estacionamentoId/stringValue", local) || local != estacionamentoId ||
       !inteiro(json, "vaga", numero) || numero < 1 || numero > paraai::MAX_VAGAS ||
       !inteiro(json, "expiraEm", expira) || expira <= static_cast<int64_t>(time(nullptr)) + 30 ||
       !texto(json, "updateTime", revisao) || revisao.isEmpty()) return Reserva::NENHUMA;
@@ -318,7 +337,7 @@ Sincronia heartbeat() {
   if (!Firebase.Firestore.patchDocument(&fb, PROJECT_ID, "", PATIO, dados.raw(),
       "ultimaAtualizacao,vagasLivres,vagasEmOperacao,tarifaAplicadaTotem,modoTotem,vagasSuportadasTotem", "", "true"))
     return falhaSincronia();
-  bool ok = Firebase.Firestore.patchDocument(&fb, PROJECT_ID, "", String("catalogoEstacionamentos/") + ESTACIONAMENTO_ID,
+  bool ok = Firebase.Firestore.patchDocument(&fb, PROJECT_ID, "", "catalogoEstacionamentos/" + estacionamentoId,
     dados.raw(), "ultimaAtualizacao,vagasLivres,vagasEmOperacao", "", "true");
   return ok || fb.httpCode() == 404 ? Sincronia::OK : falhaSincronia();
 }
@@ -390,7 +409,7 @@ RespostaTotem executar(const Solicitacao& pedido) {
     FirebaseJson alteracao, vaga, publica, reserva;
     alteracao.set("fields/vagaAtual/integerValue", String(mapa.primeira));
     alteracao.set("fields/horaEntrada/integerValue", String(static_cast<long long>(time(nullptr))));
-    alteracao.set("fields/estacionamentoId/stringValue", ESTACIONAMENTO_ID);
+    alteracao.set("fields/estacionamentoId/stringValue", estacionamentoId);
     alteracao.set("fields/tarifaHoraEntrada/doubleValue", tarifa);
     dadosVaga(vaga, placa, modelo, cor);
     std::vector<firebase_firestore_document_write_t> lote;
@@ -414,7 +433,7 @@ RespostaTotem executar(const Solicitacao& pedido) {
       " - R$ " + valorEmReais(tarifa) + "/h", carro);
   }
   if (numeroVaga == 0) return resposta(TipoResposta::ALERTA, "SEM ENTRADA ABERTA", placa, "Nenhuma saida a registrar");
-  if (local != ESTACIONAMENTO_ID) return resposta(TipoResposta::ALERTA, "USE O OUTRO TOTEM", placa, "A entrada foi em outro local");
+  if (local != estacionamentoId) return resposta(TipoResposta::ALERTA, "USE O OUTRO TOTEM", placa, "A entrada foi em outro local");
   paraai::Cobranca cobranca;
   int64_t agora = time(nullptr);
   if (!inteiro(veiculo, "horaEntrada", entrada) || !numero(veiculo, "tarifaHoraEntrada", congelada) ||
@@ -443,7 +462,7 @@ RespostaTotem executar(const Solicitacao& pedido) {
   recibo.set("fields/valorCobrado/doubleValue", cobranca.valor);
   recibo.set("fields/valorPendente/doubleValue", cobranca.pendente);
   recibo.set("fields/tarifaHora/doubleValue", congelada);
-  recibo.set("fields/estacionamentoId/stringValue", ESTACIONAMENTO_ID);
+  recibo.set("fields/estacionamentoId/stringValue", estacionamentoId);
   std::vector<firebase_firestore_document_write_t> lote;
   escrita(lote, caminho, alteracao, "vagaAtual,horaEntrada,estacionamentoId,saldo,tarifaHoraEntrada", revisao, true);
   escrita(lote, caminhoVaga, vaga, CAMPOS_VAGA, revisaoVaga, true);
@@ -464,6 +483,259 @@ RespostaTotem executar(const Solicitacao& pedido) {
     minutos + " - " + placa);
 }
 
+// ---- Acesso do totem -------------------------------------------------------
+// Na instalação por código, o totem cria a própria conta no Firebase e grava o
+// próprio cadastro com o código digitado (ver firebase/firestore.rules). A
+// conta fica num blob só da NVS, com checksum, como a rede Wi-Fi
+// (ConfiguracaoWiFi.ino). PENDENTE guarda e-mail e senha antes de a conta
+// existir, para uma nova tentativa usar a mesma em vez de criar outra;
+// VINCULADA soma o estacionamento, que vem do código.
+constexpr const char* NVS_IDENTIDADE = "paraai-id";
+constexpr const char* CHAVE_IDENTIDADE = "acesso";
+constexpr uint32_t MAGIC_IDENTIDADE = 0x50414944UL;  // "PAID"
+constexpr uint32_t VERSAO_IDENTIDADE = 1;
+constexpr uint8_t IDENTIDADE_PENDENTE = 1, IDENTIDADE_VINCULADA = 2;
+struct DadosIdentidade {
+  uint32_t magic;
+  uint32_t versao;
+  uint8_t estado;
+  char email[64];
+  char senha[34];
+  char estacionamentoId[paraai::ESTACIONAMENTO_ID_MAX + 1];
+  uint32_t checksum;
+};
+
+uint32_t somaIdentidade(const DadosIdentidade& dados) {
+  const uint8_t* bytes = reinterpret_cast<const uint8_t*>(&dados);
+  uint32_t hash = 2166136261UL;  // FNV-1a de 32 bits (integridade, não cifra)
+  for (size_t i = 0; i < offsetof(DadosIdentidade, checksum); ++i) {
+    hash ^= bytes[i];
+    hash *= 16777619UL;
+  }
+  return hash;
+}
+bool terminado(const char* texto, size_t capacidade) { return memchr(texto, '\0', capacidade) != nullptr; }
+bool identidadeValida(const DadosIdentidade& dados) {
+  if (dados.magic != MAGIC_IDENTIDADE || dados.versao != VERSAO_IDENTIDADE ||
+      dados.checksum != somaIdentidade(dados)) return false;
+  if (!terminado(dados.email, sizeof(dados.email)) || !terminado(dados.senha, sizeof(dados.senha)) ||
+      !terminado(dados.estacionamentoId, sizeof(dados.estacionamentoId)) ||
+      !dados.email[0] || !dados.senha[0]) return false;
+  if (dados.estado == IDENTIDADE_PENDENTE) return true;
+  return dados.estado == IDENTIDADE_VINCULADA && paraai::estacionamentoIdValido(dados.estacionamentoId);
+}
+bool lerIdentidade(DadosIdentidade& dados) {
+  memset(&dados, 0, sizeof(dados));
+  Preferences preferencias;
+  if (!preferencias.begin(NVS_IDENTIDADE, true)) return false;
+  const bool ok = preferencias.getBytesLength(CHAVE_IDENTIDADE) == sizeof(dados) &&
+                  preferencias.getBytes(CHAVE_IDENTIDADE, &dados, sizeof(dados)) == sizeof(dados) &&
+                  identidadeValida(dados);
+  preferencias.end();
+  return ok;
+}
+// Lê a gravação de volta antes de considerá-la feita.
+bool salvarIdentidade(DadosIdentidade& dados) {
+  dados.checksum = somaIdentidade(dados);
+  Preferences preferencias;
+  if (!preferencias.begin(NVS_IDENTIDADE, false)) return false;
+  const bool gravou = preferencias.putBytes(CHAVE_IDENTIDADE, &dados, sizeof(dados)) == sizeof(dados);
+  preferencias.end();
+  DadosIdentidade lida;
+  const bool confere = gravou && lerIdentidade(lida) && memcmp(&lida, &dados, sizeof(dados)) == 0;
+  memset(&lida, 0, sizeof(lida));
+  return confere;
+}
+void sortear(char* destino, size_t quantidade, const char* alfabeto) {
+  const size_t tamanho = strlen(alfabeto);
+  for (size_t i = 0; i < quantidade; ++i) destino[i] = alfabeto[esp_random() % tamanho];
+  destino[quantidade] = '\0';
+}
+// Conta só deste totem; a senha nunca sai dele. Maiúscula, minúscula, número
+// e símbolo atendem a uma política de senha do Firebase, como as do site.
+void novaConta(DadosIdentidade& dados) {
+  memset(&dados, 0, sizeof(dados));
+  dados.magic = MAGIC_IDENTIDADE;
+  dados.versao = VERSAO_IDENTIDADE;
+  dados.estado = IDENTIDADE_PENDENTE;
+  char sufixo[13], miolo[25];
+  sortear(sufixo, 12, "abcdefghijklmnopqrstuvwxyz0123456789");
+  sortear(miolo, 24, "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789");
+  snprintf(dados.email, sizeof(dados.email), "totem-%s@dispositivo.paraai.app", sufixo);
+  snprintf(dados.senha, sizeof(dados.senha), "Pa!%s9z", miolo);
+  memset(miolo, 0, sizeof(miolo));
+}
+void definirPatio(const char* id) {
+  estacionamentoId = id;
+  PATIO = "estacionamentos/" + estacionamentoId;
+  VAGAS_PUBLICAS = "catalogoEstacionamentos/" + estacionamentoId + "/vagas";
+}
+// Antes da tarefa de rede. O Credenciais.h preenchido vale mais que a memória.
+void carregarIdentidade() {
+  if (paraai::credencialFixaPreenchida(TOTEM_EMAIL, TOTEM_PASSWORD, ESTACIONAMENTO_ID)) {
+    auth.user.email = TOTEM_EMAIL;
+    auth.user.password = TOTEM_PASSWORD;
+    definirPatio(ESTACIONAMENTO_ID);
+    origem = OrigemIdentidade::CREDENCIAIS;
+    return;
+  }
+  if (*TOTEM_EMAIL || *TOTEM_PASSWORD || *ESTACIONAMENTO_ID)
+    Serial.println("[ATENDIMENTO] Acesso do Credenciais.h incompleto ou de exemplo: vale o da instalacao por codigo.");
+  DadosIdentidade dados;
+  if (lerIdentidade(dados) && dados.estado == IDENTIDADE_VINCULADA) {
+    auth.user.email = dados.email;
+    auth.user.password = dados.senha;
+    definirPatio(dados.estacionamentoId);
+    origem = OrigemIdentidade::CODIGO;
+  } else {
+    Serial.println("[ATENDIMENTO] Sem acesso ao Firebase: o totem vai pedir o codigo de instalacao.");
+  }
+  memset(&dados, 0, sizeof(dados));
+}
+
+void prepararConfiguracao() {
+  static bool pronta = false;
+  if (pronta) return;
+  config.api_key = API_KEY;
+  config.database_url = DATABASE_URL;
+  config.timeout.socketConnection = 8000;
+  config.timeout.serverResponse = 10000;
+#ifndef PARAAI_TLS_SEM_VERIFICACAO
+  // Sem isto a biblioteca aceita qualquer certificado. O login por
+  // e-mail/senha da versão 4.4.17 ainda ignora esta opção (ver README).
+  config.cert.data = RAIZES_GOOGLE_PEM;
+#endif
+  fb.setResponseSize(12288);
+  Firebase.reconnectWiFi(false); // A UI controla a rede, inclusive o portal.
+  pronta = true;
+}
+// O begin só volta com o login feito: a biblioteca espera o token.
+void entrarNoFirebase() {
+  prepararConfiguracao();
+  Firebase.begin(&config, &auth);
+  iniciado = true;
+}
+
+RespostaTotem codigoRecusado() {
+  return resposta(TipoResposta::ALERTA, "CODIGO NAO ACEITO", "Confira ou gere outro", "O codigo vale 15 minutos");
+}
+RespostaTotem totemInstalado(const String& nomeEstacionamento) {
+  // Sem acento, com a mesma conversão do nome da rede Wi-Fi.
+  char nome[sizeof(RespostaTotem::detalhe)];
+  paraai::textoWifiExibivel(nomeEstacionamento.c_str(), nome, sizeof(nome));
+  if (!nome[0]) return resposta(TipoResposta::SUCESSO, "TOTEM INSTALADO", "Pronto para atender");
+  return resposta(TipoResposta::SUCESSO, "TOTEM INSTALADO", nome, "Pronto para atender");
+}
+RespostaTotem falhaCadastro(const String& erro) {
+  Serial.printf("[ATENDIMENTO] Acesso do totem nao criado: %s\n", erro.isEmpty() ? "sem resposta" : erro.c_str());
+  if (erro.isEmpty()) return resposta(TipoResposta::ERRO, "SEM CONEXAO", "Nada foi registrado", "Tente novamente");
+  if (erro.startsWith("TOO_MANY_ATTEMPTS"))
+    return resposta(TipoResposta::ALERTA, "ACESSO NAO CRIADO", "Muitas tentativas", "Aguarde alguns minutos");
+  return resposta(TipoResposta::ERRO, "ACESSO NAO CRIADO", "Nada foi registrado", "Procure o responsavel");
+}
+RespostaTotem concluirVinculo(DadosIdentidade& dados, const String& patio, const String& nomeEstacionamento) {
+  dados.estado = IDENTIDADE_VINCULADA;
+  snprintf(dados.estacionamentoId, sizeof(dados.estacionamentoId), "%s", patio.c_str());
+  // Sem a gravação, o totem atende até reiniciar; depois, qualquer código
+  // digitado acha o cadastro já feito (em vincularConta) e grava de novo.
+  if (!salvarIdentidade(dados)) Serial.println("[ATENDIMENTO] Acesso nao gravado na memoria: vale ate reiniciar.");
+  definirPatio(dados.estacionamentoId);
+  sincronizado = false;
+  patioValidado = false;
+  configuracaoInvalida = false;
+  origem = OrigemIdentidade::CODIGO;
+  Serial.printf("[ATENDIMENTO] Totem instalado em %s.\n", estacionamentoId.c_str());
+  return totemInstalado(nomeEstacionamento);
+}
+
+RespostaTotem vincularConta(DadosIdentidade& dados, const char* codigo) {
+  if (!iniciado) {
+    estado(ConexaoTotem::SEM_VINCULO, "Criando o acesso...");
+    prepararConfiguracao();
+    if (!Firebase.signUp(&config, &auth, dados.email, dados.senha)) {
+      const String erro = config.signer.signupError.message.c_str();
+      // Já existe: foi criada por uma tentativa anterior, com esta senha.
+      if (!erro.startsWith("EMAIL_EXISTS")) return falhaCadastro(erro);
+    }
+    auth.user.email = dados.email;
+    auth.user.password = dados.senha;
+    entrarNoFirebase();
+  }
+  const String uid = auth.token.uid.c_str();
+  if (!Firebase.ready() || uid.isEmpty())
+    return resposta(TipoResposta::ERRO, "SEM CONEXAO", "Nada foi registrado", "Tente novamente");
+
+  estado(ConexaoTotem::SEM_VINCULO, "Conferindo o codigo...");
+  String patio, nomeTotem, nomeEstacionamento;
+  FirebaseJson json;
+  // Instalado numa tentativa anterior cuja resposta se perdeu: só concluir.
+  if (consultar("totems/" + uid, json, "estacionamentoId")) {
+    if (!texto(json, "fields/estacionamentoId/stringValue", patio) || !paraai::estacionamentoIdValido(patio.c_str()))
+      return resposta(TipoResposta::ERRO, "VERIFIQUE O PAINEL", "Nada foi registrado", "Procure o responsavel");
+    FirebaseJson catalogo;
+    if (consultar("catalogoEstacionamentos/" + patio, catalogo, "nome"))
+      texto(catalogo, "fields/nome/stringValue", nomeEstacionamento);
+    return concluirVinculo(dados, patio, nomeEstacionamento);
+  }
+  if (fb.httpCode() != 404) return falhaLeitura();
+
+  const String caminhoCodigo = String("codigosInstalacao/") + codigo;
+  if (!consultar(caminhoCodigo, json, "estacionamentoId,nome,nomeEstacionamento")) {
+    // Código que não existe, já usado ou vencido: as regras recusam a leitura.
+    if (fb.httpCode() == 403 || fb.httpCode() == 404) return codigoRecusado();
+    return falhaLeitura();
+  }
+  if (!texto(json, "fields/estacionamentoId/stringValue", patio) || !paraai::estacionamentoIdValido(patio.c_str()) ||
+      !texto(json, "fields/nome/stringValue", nomeTotem) || nomeTotem.isEmpty()) return codigoRecusado();
+  texto(json, "fields/nomeEstacionamento/stringValue", nomeEstacionamento);
+
+  // Cadastro do totem e fim do código no mesmo commit: o código vale uma vez.
+  FirebaseJson cadastro;
+  cadastro.set("fields/estacionamentoId/stringValue", patio);
+  cadastro.set("fields/nome/stringValue", nomeTotem);
+  cadastro.set("fields/email/stringValue", String(dados.email));
+  cadastro.set("fields/ativo/booleanValue", true);
+  cadastro.set("fields/codigoInstalacao/stringValue", String(codigo));
+  cadastro.set("fields/vinculadoEm/integerValue", String(static_cast<long long>(time(nullptr))));
+  std::vector<firebase_firestore_document_write_t> lote;
+  escrita(lote, "totems/" + uid, cadastro, "", "", false);
+  firebase_firestore_document_write_t fimDoCodigo;
+  fimDoCodigo.type = firebase_firestore_document_write_type_delete;
+  fimDoCodigo.delete_document_path = caminhoCodigo.c_str();
+  lote.push_back(fimDoCodigo);
+  estado(ConexaoTotem::SEM_VINCULO, "Registrando o totem...");
+  if (!Firebase.Firestore.commitDocument(&fb, PROJECT_ID, "", lote, "")) {
+    Serial.printf("[ATENDIMENTO] Instalacao nao confirmada (HTTP %d).\n", fb.httpCode());
+    // Pode ter chegado ao servidor: o mesmo código, de novo, acha o cadastro.
+    if (classificarFalha() == Falha::REDE)
+      return resposta(TipoResposta::ERRO, "NAO FOI CONFIRMADO", "Confira a conexao", "Digite o codigo de novo");
+    return codigoRecusado();
+  }
+  return concluirVinculo(dados, patio, nomeEstacionamento);
+}
+
+RespostaTotem vincular(const char* codigo) {
+  if (origem.load() != OrigemIdentidade::NENHUMA) return totemInstalado("");
+  if (!paraai::codigoInstalacaoValido(codigo)) return codigoRecusado();
+  if (WiFi.status() != WL_CONNECTED)
+    return resposta(TipoResposta::ERRO, "SEM CONEXAO", "Conecte o Wi-Fi primeiro", "Segure o relogio por 3 s");
+  if (time(nullptr) < paraai::PRIMEIRO_TIMESTAMP_VALIDO)
+    return resposta(TipoResposta::ERRO, "CONEXAO INDISPONIVEL", "Aguarde a reconexao", "Nenhuma operacao foi enviada");
+  // A conta pendente de uma tentativa anterior ou uma nova, guardada antes de
+  // existir no Firebase.
+  DadosIdentidade dados;
+  if (!lerIdentidade(dados) || dados.estado != IDENTIDADE_PENDENTE) {
+    novaConta(dados);
+    if (!salvarIdentidade(dados)) {
+      memset(&dados, 0, sizeof(dados));
+      return resposta(TipoResposta::ERRO, "ERRO NA MEMORIA", "Nada foi registrado", "Procure o responsavel");
+    }
+  }
+  const RespostaTotem r = vincularConta(dados, codigo);
+  memset(&dados, 0, sizeof(dados));
+  return r;
+}
+
 ConexaoTotem estadoDoServico(bool pronto) {
   if (!pronto || servidorSemResposta) return ConexaoTotem::AUTENTICANDO; // "CONECTANDO"
   if (configuracaoInvalida) return ConexaoTotem::ERRO_CONFIGURACAO;
@@ -478,24 +750,9 @@ void tarefa(void*) {
     else {
       if (!relogioIniciado) { configTime(-3 * 3600, 0, "pool.ntp.org", "time.google.com"); relogioIniciado = true; }
       if (time(nullptr) < paraai::PRIMEIRO_TIMESTAMP_VALIDO) estado(ConexaoTotem::AJUSTANDO_HORA);
+      else if (origem.load() == OrigemIdentidade::NENHUMA) estado(ConexaoTotem::SEM_VINCULO);
       else {
-        if (!iniciado) {
-          config.api_key = API_KEY;
-          config.database_url = DATABASE_URL;
-          config.timeout.socketConnection = 8000;
-          config.timeout.serverResponse = 10000;
-#ifndef PARAAI_TLS_SEM_VERIFICACAO
-          // Sem isto a biblioteca aceita qualquer certificado. O login por
-          // e-mail/senha da versão 4.4.17 ainda ignora esta opção (ver README).
-          config.cert.data = RAIZES_GOOGLE_PEM;
-#endif
-          auth.user.email = TOTEM_EMAIL;
-          auth.user.password = TOTEM_PASSWORD;
-          fb.setResponseSize(12288);
-          Firebase.begin(&config, &auth);
-          Firebase.reconnectWiFi(false); // A UI controla a rede, inclusive o portal.
-          iniciado = true;
-        }
+        if (!iniciado) entrarNoFirebase();
         pronto = Firebase.ready();
         estado(estadoDoServico(pronto));
       }
@@ -503,14 +760,16 @@ void tarefa(void*) {
     Solicitacao pedido;
     if (xQueueReceive(pedidos, &pedido, 0) == pdTRUE) {
       repetirPedido = false;
-      RespostaTotem r = pronto ? executar(pedido)
+      RespostaTotem r = pedido.tipo == PedidoTotem::VINCULAR ? vincular(pedido.codigo)
+        : pronto ? executar(pedido)
         : resposta(TipoResposta::ERRO, "CONEXAO INDISPONIVEL", "Aguarde a reconexao", "Nenhuma operacao foi enviada");
-      if (repetirPedido) {
+      if (repetirPedido && pedido.tipo != PedidoTotem::VINCULAR) {
         Serial.println("[ATENDIMENTO] Repetindo uma vez com os dados relidos.");
         repetirPedido = false;
         r = executar(pedido);
         repetirPedido = false;
       }
+      memset(&pedido, 0, sizeof(pedido));
       xQueueOverwrite(respostas, &r);
     } else if (pronto && uxQueueMessagesWaiting(respostas) == 0 &&
                (!sincronizado || millis() - ultimoHeartbeat >= HEARTBEAT_MS) &&
@@ -538,6 +797,7 @@ void tarefa(void*) {
 
 bool iniciarAtendimento() {
   if (pedidos) return true;
+  carregarIdentidade();
   pedidos = xQueueCreate(1, sizeof(Solicitacao));
   respostas = xQueueCreate(1, sizeof(RespostaTotem));
   statusFila = xQueueCreate(1, sizeof(StatusTotem));
@@ -566,8 +826,14 @@ bool iniciarAtendimento() {
   return false;
 }
 bool solicitarAtendimento(PedidoTotem tipo, const char* placa) {
-  if (!pedidos || pausado || pedidoPendente || !paraai::placaValida(placa)) return false;
+  if (!pedidos || pausado || pedidoPendente || tipo == PedidoTotem::VINCULAR || !paraai::placaValida(placa)) return false;
   Solicitacao s{}; s.tipo = tipo; memcpy(s.placa, placa, 8);
+  pedidoPendente = xQueueSend(pedidos, &s, 0) == pdTRUE;
+  return pedidoPendente;
+}
+bool solicitarVinculo(const char* codigo) {
+  if (!pedidos || pausado || pedidoPendente || !paraai::codigoInstalacaoValido(codigo)) return false;
+  Solicitacao s{}; s.tipo = PedidoTotem::VINCULAR; memcpy(s.codigo, codigo, sizeof(s.codigo));
   pedidoPendente = xQueueSend(pedidos, &s, 0) == pdTRUE;
   return pedidoPendente;
 }
@@ -581,6 +847,7 @@ StatusTotem obterStatusTotem() {
   if (statusFila) xQueuePeek(statusFila, &s, 0);
   return s;
 }
+OrigemIdentidade origemIdentidade() { return origem.load(); }
 bool suspenderAtendimento() {
   if (pausado) return true;
   if (pedidoPendente) return false;
@@ -590,4 +857,14 @@ bool suspenderAtendimento() {
 }
 void retomarAtendimento() {
   if (pausado) { pausado = false; xSemaphoreGive(exclusao); }
+}
+// A conta antiga continua na lista do site, sem equipamento: o dono pode
+// bloqueá-la lá.
+bool esquecerVinculo() {
+  if (origem.load() != OrigemIdentidade::CODIGO) return false;
+  Preferences preferencias;
+  if (!preferencias.begin(NVS_IDENTIDADE, false)) return false;
+  const bool apagou = preferencias.remove(CHAVE_IDENTIDADE);
+  preferencias.end();
+  return apagou;
 }

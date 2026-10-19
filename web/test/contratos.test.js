@@ -11,6 +11,13 @@ import { RECARGA_MAXIMA, RECARGA_MINIMA } from "../src/utils/constants.js";
 import { placaValida } from "../src/utils/format.js";
 import { DIREITOS_VAGA, obterTipoVaga, TIPOS_VAGA } from "../src/utils/mapaVagas.js";
 import { CORES_VEICULO, nomeVeiculoValido, TAMANHO_NOME_VEICULO } from "../src/utils/veiculo.js";
+import {
+  ALFABETO_CODIGO_INSTALACAO,
+  codigoInstalacaoValido,
+  gerarCodigoInstalacao,
+  TAMANHO_CODIGO_INSTALACAO,
+  VALIDADE_CODIGO_MINUTOS,
+} from "../src/utils/codigoInstalacao.js";
 
 const REGRAS = lerArquivo("firebase/firestore.rules");
 const TOTEM = lerArquivo("firmware/totem/LogicaTotem.h");
@@ -105,4 +112,23 @@ test("recarga: os mesmos limites no site e nas regras", () => {
   const limites = trecho(REGRAS, /valor >= ([0-9.]+) && valor <= ([0-9.]+)/, "os limites da recarga nas regras");
   assert.equal(Number(limites[1]), RECARGA_MINIMA);
   assert.equal(Number(limites[2]), RECARGA_MAXIMA);
+});
+
+test("código de instalação: o site, o totem e as regras aceitam os de contratos/codigos-instalacao.csv", () => {
+  const dasRegras = new RegExp(trecho(REGRAS, /codigo\.matches\('([^']+)'\)/, "o formato do código nas regras")[1]);
+  for (const { codigo, valido } of lerCsv("codigos-instalacao.csv")) {
+    assert.equal(codigoInstalacaoValido(codigo), valido === "sim", `site: ${JSON.stringify(codigo)}`);
+    assert.equal(dasRegras.test(codigo), valido === "sim", `regras: ${JSON.stringify(codigo)}`);
+  }
+  // Cada caractere visível: aceito só se estiver no alfabeto, nas duas partes.
+  for (let c = 0x20; c < 0x7f; c++) {
+    const repetido = String.fromCharCode(c).repeat(TAMANHO_CODIGO_INSTALACAO);
+    const esperado = ALFABETO_CODIGO_INSTALACAO.includes(String.fromCharCode(c));
+    assert.equal(codigoInstalacaoValido(repetido), esperado, `site: ${repetido}`);
+    assert.equal(dasRegras.test(repetido), esperado, `regras: ${repetido}`);
+  }
+  for (let i = 0; i < 500; i++) assert.ok(dasRegras.test(gerarCodigoInstalacao()));
+  trecho(TOTEM, new RegExp(`ALFABETO_CODIGO_INSTALACAO\\[\\] = "${ALFABETO_CODIGO_INSTALACAO}";`), "o alfabeto no totem");
+  trecho(TOTEM, new RegExp(`CODIGO_INSTALACAO_TAMANHO = ${TAMANHO_CODIGO_INSTALACAO};`), "o tamanho no totem");
+  trecho(REGRAS, new RegExp(`duration\\.value\\(${VALIDADE_CODIGO_MINUTOS}, 'm'\\)`), "o prazo nas regras");
 });

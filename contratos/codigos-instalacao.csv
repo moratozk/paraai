@@ -1,0 +1,21 @@
+# Código de instalação do totem: o site gera, o totem recebe pelo teclado da
+# tela e as regras conferem. Oito caracteres entre letras maiúsculas e números,
+# sem I, O, 0 e 1, que se confundem na tela pequena.
+codigo,valido
+ABCDEFGH,sim
+K7M2Q9XZ,sim
+23456789,sim
+ZZZZZZZZ,sim
+HJKNPRTW,sim
+ABCDEFG,nao
+ABCDEFGHJ,nao
+,nao
+ABCDEFGI,nao
+ABCDEFGO,nao
+ABCDEFG0,nao
+ABCDEFG1,nao
+abcdefgh,nao
+ABCD-EFG,nao
+ABCD EFG,nao
+ABCDEFG/,nao
+ABCDEFGÇ,nao

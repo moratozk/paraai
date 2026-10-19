@@ -236,6 +236,23 @@ const dadosDaVaga = (placa, modelo = "", cor = "") => ({
   cor: cor || deleteField(),
 });
 
+// Totem novo instalado pelo código do site, como o firmware faz (vincularConta
+// em firmware/totem/Atendimento.cpp): cria a própria conta, lê o código e
+// grava o próprio cadastro com ele, e o código sai no mesmo lote.
+export async function instalarTotemPorCodigo(env, { email, senha, codigo }) {
+  const uid = await contaNoAuth("signUp", { email, password: senha });
+  const db = env.authenticatedContext(uid, { email }).firestore();
+  const pedido = (await getDoc(doc(db, "codigosInstalacao", codigo))).data();
+  const lote = writeBatch(db);
+  lote.set(doc(db, "totems", uid), {
+    estacionamentoId: pedido.estacionamentoId, nome: pedido.nome, email, ativo: true,
+    codigoInstalacao: codigo, vinculadoEm: agoraEmSegundos(),
+  });
+  lote.delete(doc(db, "codigosInstalacao", codigo));
+  await lote.commit();
+  return { uid, estacionamentoId: pedido.estacionamentoId, nomeEstacionamento: pedido.nomeEstacionamento };
+}
+
 export function totemSimulado(env, { uid, estacionamentoId }) {
   const db = env.authenticatedContext(uid).firestore();
   const numeroDaVaga = (id) => {

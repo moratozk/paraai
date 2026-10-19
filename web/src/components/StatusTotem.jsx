@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useConexao } from "../conexao";
 import { IconeConexao } from "./AvisoSemInternet";
 import { TOTEM_OFFLINE_APOS_SEGUNDOS } from "../utils/constants";
@@ -7,9 +8,8 @@ import "./StatusTotem.css";
  * Situação do totem, em três estados que pedem respostas diferentes:
  *
  *  - nunca conectou  → o equipamento ainda não foi ligado. Mostra o passo a
- *                      passo da primeira conexão, com o código do
- *                      estacionamento que a instalação usa (no firmware, é o
- *                      ESTACIONAMENTO_ID do Credenciais.h; ver
+ *                      passo da primeira conexão: Wi-Fi pela tela do totem e
+ *                      o código de instalação gerado no Perfil (ver
  *                      firmware/README.md). A tela não cita a placa
  *                      eletrônica, arquivos nem programas: quem lê é o dono
  *                      do estacionamento.
@@ -20,7 +20,7 @@ import "./StatusTotem.css";
  * Sem internet neste aparelho, nada disso dá para saber: a tela diz que quem
  * está sem conexão é o aparelho, em vez de acusar o totem.
  */
-export default function StatusTotem({ estacionamento, online, onCopiarId }) {
+export default function StatusTotem({ estacionamento, online }) {
   const conexao = useConexao();
   const ultimaAtualizacao = Number(estacionamento?.ultimaAtualizacao) || 0;
   const nuncaConectou = ultimaAtualizacao === 0;
@@ -44,29 +44,17 @@ export default function StatusTotem({ estacionamento, online, onCopiarId }) {
 
         <ol className="totem-passos">
           <li>
-            <strong>Gere o acesso do totem</strong> em Perfil. A senha aparece
-            uma vez só: guarde-a para a instalação.
+            <strong>Ligue o totem</strong> e escolha o Wi-Fi do local na
+            própria tela dele.
           </li>
           <li>
-            <strong>Passe para a instalação</strong> esse acesso, um PIN de
-            manutenção à sua escolha e o código deste estacionamento:
-            <span className="totem-id-linha">
-              <code className="totem-id">{estacionamento?.id}</code>
-              {onCopiarId && (
-                <button
-                  type="button"
-                  className="btn btn-outline btn-sm"
-                  onClick={onCopiarId}
-                >
-                  Copiar
-                </button>
-              )}
-            </span>
+            <strong>Gere o código de instalação</strong> em{" "}
+            <Link to="/perfil" className="link-texto">Perfil</Link> e digite-o no totem quando ele
+            pedir. O código vale 15 minutos e serve para um totem só.
           </li>
           <li>
-            <strong>Ligue o totem.</strong> Se ele ainda não conhecer nenhuma
-            rede, a própria tela dele mostra como escolher o Wi-Fi. A conexão
-            aparece aqui em menos de um minuto.
+            <strong>Pronto.</strong> A conexão aparece aqui em menos de um
+            minuto, com as vagas em tempo real.
           </li>
         </ol>
 

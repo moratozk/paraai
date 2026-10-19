@@ -4,9 +4,10 @@
 // =========================================================================
 // ParaAi - configuracao local de Wi-Fi
 // -------------------------------------------------------------------------
-// Mantem somente SSID e senha da rede local na NVS. As credenciais do
-// Firebase continuam exclusivamente no Credenciais.h e nunca passam pela
-// tela de Wi-Fi nem pelo portal de configuracao.
+// Mantem somente SSID e senha da rede local na NVS. O acesso do totem ao
+// Firebase fica no Credenciais.h ou, na instalacao por codigo, na memoria do
+// atendimento (Atendimento.cpp); nunca passa pela tela de Wi-Fi nem pelo
+// portal de configuracao.
 //
 // Duas formas de trocar a rede, ambas atras do PIN de manutencao:
 //  - na propria tela (AssistenteWiFi.h): lista, senha no teclado e teste;

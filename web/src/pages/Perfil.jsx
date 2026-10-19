@@ -401,9 +401,9 @@ export default function Perfil() {
                 <code className="est-id">{estId}</code>
               </div>
               <p className="muted-note">
-                Este ID identifica o estacionamento. Gere abaixo um acesso para
-                cada totem e entregue o e-mail, a senha e o ID a quem for
-                instalá-lo. Tarifa e vagas chegam ao totem automaticamente.
+                Este ID identifica o estacionamento. Para instalar um totem,
+                gere um código em Segurança do totem e digite-o na tela dele.
+                Tarifa e vagas chegam ao totem automaticamente.
               </p>
             </>
           )}
@@ -411,6 +411,7 @@ export default function Perfil() {
         <div className="card totem-security-card">
           <GerenciarTotens
             estId={estId}
+            nomeEstacionamento={estacionamento?.nome}
             totens={totems}
             carregando={carregandoTotems}
             erroLista={erroTotem}

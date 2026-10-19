@@ -129,6 +129,11 @@ historico/{ID_GERADO_PELO_APP}             -- versão anterior (só leitura)
 
 totems/{FIREBASE_AUTH_UID}
   estacionamentoId, nome, email, ativo       -- identidade do equipamento
+  codigoInstalacao, vinculadoEm              -- instalado pelo código do site
+  criadoEm                                   -- acesso com e-mail e senha
+
+codigosInstalacao/{CODIGO}                 -- 8 caracteres, vale 15 min e uma vez
+  estacionamentoId, nome (do totem), nomeEstacionamento, criadoEm
 
 users/{uid}
   name, email, role ("motorista"|"candidato"|"operador"|"admin"), placa?, estacionamentoId?
@@ -154,15 +159,18 @@ não mudar retroativamente durante uma estadia.
 3. **Promova uma conta administrativa** alterando no Firebase Console o campo
    `users/{UID}.role` para `admin`. Essa operação não é exposta no site.
 4. **Cadastre o estacionamento** no painel administrativo, ou aprove o pedido
-   do dono em "Pedidos para entrar na rede", e copie o ID exibido no cartão do
-   local (formato `EST-XXXXXX`).
-5. Em uma conta de operador existente, **Perfil > Segurança do totem** gera
-   uma credencial exclusiva do
-   equipamento.
-6. **Firmware** — siga [firmware/README.md](firmware/README.md): copie
-   `Credenciais.example.h` → `Credenciais.h`, preencha WiFi de contingência, chaves,
-   `TOTEM_EMAIL`, `TOTEM_PASSWORD` e `ESTACIONAMENTO_ID`; selecione a partição
-   **Huge APP** e grave no ESP32.
+   do dono em "Pedidos para entrar na rede".
+5. **Firmware** — siga [firmware/README.md](firmware/README.md): copie
+   `Credenciais.example.h` → `Credenciais.h`, preencha Wi-Fi de contingência
+   (opcional), chaves e PIN, deixe o acesso do totem vazio, selecione a
+   partição **Huge APP** e grave no ESP32.
+6. **Instale o totem pelo código:** em uma conta de dono, **Perfil >
+   Segurança do totem > Instalar um totem** mostra um código de 8 caracteres,
+   que vale 15 minutos. Ligue o totem, conecte o Wi-Fi pela tela e digite o
+   código quando ele pedir. A administração faz o mesmo no painel da rede.
+   Quem preferir o acesso fixo gera e-mail e senha em "Prefere configurar com
+   e-mail e senha?" e preenche `TOTEM_EMAIL`, `TOTEM_PASSWORD` e
+   `ESTACIONAMENTO_ID` no `Credenciais.h` antes de gravar.
 
 No novo firmware, o Wi-Fi é escolhido na própria tela do totem (lista de redes
 e senha no teclado, atrás do PIN de manutenção) ou pelo celular, e a calibração do touch

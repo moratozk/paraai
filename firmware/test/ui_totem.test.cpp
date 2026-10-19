@@ -4,6 +4,7 @@
 #include <vector>
 #include "../totem/DisplayUI.ino"
 #include "../totem/AssistenteWiFi.h"
+#include "../totem/TelaVinculo.h"
 
 // Rádio simulado para o fluxo de Wi-Fi na tela: nenhum ESP32 envolvido.
 struct RadioSimulado : AcoesWifiTela {
@@ -467,5 +468,163 @@ int main(int argc, char** argv) {
     RadioSimulado mudo;
     assert(executarAssistenteWifi(mudo) == ResultadoAssistenteWifi::EXPIROU);
   }
-  std::puts("DisplayUI real: teclado, antirrepeticao, confirmacao, animacao e mapeamento aprovados; PIN de manutencao e mensagens conferidos; Wi-Fi na tela (lista, teclado completo, senha errada, rede oculta, cancelar, prazos) aprovado; 31 telas exportadas.");
+  // ---------------------------------------------------------------------
+  // Instalação pelo código do site (TelaVinculo.h)
+  // ---------------------------------------------------------------------
+  {
+    soltar();
+    atualizarStatusServico(ConexaoTotem::SEM_VINCULO);
+    desenharTelaVinculo("");
+    tft.salvar(destino + "/32-codigo.svg");
+    // Teclas dentro da tela, abaixo das casas, com alvo de dedo.
+    for (int i = 0; i < TV_TOTAL_TECLAS; ++i) {
+      const TeclaWifi t = teclaVinculo(i);
+      assert(t.x >= 0 && t.x + t.w <= TELA_W && t.y >= TV_CASA_Y + TV_CASA_H && t.y + t.h <= TELA_H);
+      assert(t.w >= 30 && t.h >= 30);
+    }
+    for (int i = 0; i < 8; ++i) assert(casaVinculoX(i) >= 0 && casaVinculoX(i) + TV_CASA_W <= TELA_W);
+    assert(casaVinculoX(4) - (casaVinculoX(3) + TV_CASA_W) == TV_GRUPO_GAP);
+    assert(casaVinculoX(7) + TV_CASA_W - casaVinculoX(0) == TV_CASAS_W);
+    // Todo ponto do teclado cai numa tecla (os vãos também), e um ponto
+    // desenhado de uma tecla nunca entrega outra.
+    for (int py = 0; py < TELA_H; ++py) {
+      for (int px = 0; px < TELA_W; ++px) {
+        TeclaWifi t;
+        const bool achou = teclaVinculoEm(px, py, t);
+        assert(achou == (py >= TV_Y0));
+        if (!achou) continue;
+        for (int i = 0; i < TV_TOTAL_TECLAS; ++i) {
+          const TeclaWifi d = teclaVinculo(i);
+          if (px >= d.x && px < d.x + d.w && py >= d.y && py < d.y + d.h) assert(t.codigo == d.codigo);
+        }
+      }
+    }
+    // Pelo toque: cada tecla entrega o que mostra, o dedo mantido não repete e
+    // só os 32 caracteres do código existem no teclado.
+    bool alcancado[256] = {};
+    for (int i = 0; i < TV_TOTAL_TECLAS; ++i) {
+      const TeclaWifi t = teclaVinculo(i);
+      soltar(); pressionar(t.x + t.w / 2, t.y + t.h / 2);
+      const EventoVinculo e = verificarToqueVinculo();
+      assert(verificarToqueVinculo().acao == AcaoVinculo::NENHUMA);
+      if (t.codigo == TV_APAGAR) assert(e.acao == AcaoVinculo::APAGAR);
+      else if (t.codigo == TV_CONFIRMAR) assert(e.acao == AcaoVinculo::CONFIRMAR);
+      else {
+        assert(e.acao == AcaoVinculo::CARACTERE && e.caractere == t.codigo);
+        alcancado[static_cast<unsigned char>(e.caractere)] = true;
+      }
+      soltar(); delay(120); atualizarFeedbackTeclado();
+    }
+    int caracteres = 0;
+    for (bool sim : alcancado) caracteres += sim;
+    assert(caracteres == 32);
+    for (const char* c = paraai::ALFABETO_CODIGO_INSTALACAO; *c; ++c) assert(alcancado[static_cast<unsigned char>(*c)]);
+    soltar(); pressionar(160, TV_CASA_Y + TV_CASA_H / 2);  // as casas não são botão
+    assert(verificarToqueVinculo().acao == AcaoVinculo::NENHUMA);
+
+    // Digitação como no loop do totem.ino: a tela atualizada aos poucos fica
+    // igual à desenhada de uma vez, e o OK só acende com os 8 caracteres.
+    String codigo;
+    const auto tocar = [&](char c) {
+      for (int i = 0; i < TV_TOTAL_TECLAS; ++i) {
+        const TeclaWifi t = teclaVinculo(i);
+        if (t.codigo != c) continue;
+        soltar(); pressionar(t.x + t.w / 2, t.y + t.h / 2);
+        const EventoVinculo e = verificarToqueVinculo();
+        const bool completo = codigo.length() == paraai::CODIGO_INSTALACAO_TAMANHO;
+        if (e.acao == AcaoVinculo::APAGAR && !codigo.isEmpty()) codigo.remove(codigo.length() - 1);
+        else if (e.acao == AcaoVinculo::CARACTERE && !completo) codigo += e.caractere;
+        if (e.acao != AcaoVinculo::CONFIRMAR) atualizarCodigoVinculo(codigo, completo);
+        soltar(); delay(120); atualizarFeedbackTeclado();
+        return e.acao;
+      }
+      return AcaoVinculo::NENHUMA;
+    };
+    const auto teclado = [] {
+      return std::vector<uint16_t>(tft.pixels.begin() + (TV_CASA_Y - 1) * TELA_W, tft.pixels.end());
+    };
+    soltar();
+    desenharTelaVinculo(codigo);
+    assert(tocar(TV_APAGAR) == AcaoVinculo::APAGAR && codigo.isEmpty());  // apagar no vazio não quebra
+    for (const char* c = "K7M2"; *c; ++c) assert(tocar(*c) == AcaoVinculo::CARACTERE);
+    assert(codigo == "K7M2");
+    tft.salvar(destino + "/33-codigo-parcial.svg");
+    auto incremental = teclado();
+    desenharTelaVinculo(codigo);
+    assert(teclado() == incremental);
+    for (const char* c = "Q9XZ"; *c; ++c) assert(tocar(*c) == AcaoVinculo::CARACTERE);
+    assert(tocar('A') == AcaoVinculo::CARACTERE && codigo == "K7M2Q9XZ");  // o nono não entra
+    assert(paraai::codigoInstalacaoValido(codigo.c_str()));
+    incremental = teclado();
+    tft.salvar(destino + "/34-codigo-completo.svg");
+    desenharTelaVinculo(codigo);
+    assert(teclado() == incremental);
+    const TeclaWifi ok = teclaVinculo(TV_TOTAL_TECLAS - 1);
+    assert(ok.codigo == TV_CONFIRMAR && tft.pixels[(ok.y + 2) * TELA_W + ok.x + 4] == corDestaque);
+    assert(tocar(TV_APAGAR) == AcaoVinculo::APAGAR && codigo == "K7M2Q9X");
+    assert(tft.pixels[(ok.y + 2) * TELA_W + ok.x + 4] != corDestaque);   // o OK apaga de novo
+    incremental = teclado();
+    desenharTelaVinculo(codigo);
+    assert(teclado() == incremental);
+    assert(tocar(TV_CONFIRMAR) == AcaoVinculo::CONFIRMAR && codigo == "K7M2Q9X");
+    soltar();
+
+    desenharTelaProcessando("Instalando o totem...");
+    tft.salvar(destino + "/35-instalando.svg");
+    desenharTelaResultado(RESULTADO_SUCESSO, "TOTEM INSTALADO", "Estacionamento Central", "Pronto para atender");
+    desenharBotaoConcluir(); tft.salvar(destino + "/36-instalado.svg");
+    desenharTelaResultado(RESULTADO_ALERTA, "CODIGO NAO ACEITO", "Confira ou gere outro", "O codigo vale 15 minutos");
+    desenharBotaoConcluir(); tft.salvar(destino + "/37-codigo-recusado.svg");
+    desenharTelaResultado(RESULTADO_ERRO, "SEM CONEXAO", "Conecte o Wi-Fi primeiro", "Segure o relogio por 3 s");
+    desenharBotaoConcluir(); tft.salvar(destino + "/38-instalar-sem-wifi.svg");
+
+    // Manutenção do totem instalado pelo código: NOVO CODIGO ao lado de VOLTAR.
+    atualizarStatusServico(ConexaoTotem::MANUTENCAO);
+    desenharTelaConfiguracoes(true);
+    tft.salvar(destino + "/39-manutencao-codigo.svg");
+    const auto tocarMenuCodigo = [](int px, int py) {
+      soltar(); pressionar(px, py); return verificarToqueConfiguracoes(true);
+    };
+    assert(tocarMenuCodigo(160, 90) == 1 && tocarMenuCodigo(160, 134) == 4 && tocarMenuCodigo(160, 176) == 2);
+    assert(tocarMenuCodigo(88, 218) == 5 && tocarMenuCodigo(232, 218) == 3 && tocarMenuCodigo(160, 218) == 0);
+    assert(tocarMenu(88, 218) == 3 && tocarMenu(232, 218) == 3);  // sem o código, VOLTAR fica como era
+    soltar();
+    desenharTelaConfirmarNovoCodigo();
+    tft.salvar(destino + "/40-instalar-de-novo.svg");
+    soltar(); pressionar(CONF_BTN_X_NAO + CONF_BTN_W / 2, CONF_BTN_Y + CONF_BTN_H / 2);
+    assert(verificarToqueConfirmacao() == 0);
+    soltar(); pressionar(CONF_BTN_X_SIM + CONF_BTN_W / 2, CONF_BTN_Y + CONF_BTN_H / 2);
+    assert(verificarToqueConfirmacao() == 1);
+    soltar();
+    desenharTelaResultado(RESULTADO_SUCESSO, "ACESSO APAGADO", "Reiniciando o totem", "Depois, digite o codigo novo");
+    tft.salvar(destino + "/41-acesso-apagado.svg");
+
+    // Mensagens da instalação (Atendimento.cpp e totem.ino) na fonte de cada linha.
+    for (const char* titulo : {"TOTEM INSTALADO", "CODIGO NAO ACEITO", "ACESSO NAO CRIADO", "ERRO NA MEMORIA",
+         "NAO FOI APAGADO", "ACESSO APAGADO"})
+      assert(cabe(titulo, FONTE_GRANDE));
+    assert(cabeEm("INSTALAR DE NOVO?", FONTE_GRANDE, TELA_W - 20));
+    for (const char* detalhe : {"Conecte o Wi-Fi primeiro", "Confira ou gere outro", "Muitas tentativas",
+         "Pronto para atender", "Reiniciando o totem", "Estacionamento Central"})
+      assert(cabe(detalhe, FONTE_GRANDE));
+    for (const char* ajuda : {"Segure o relogio por 3 s", "O codigo vale 15 minutos", "Digite o codigo de novo",
+         "Depois, digite o codigo novo", "Pronto para atender"})
+      assert(cabe(ajuda, FONTE_MEDIA));
+    for (const char* etapa : {"Criando o acesso...", "Conferindo o codigo...", "Registrando o totem...",
+         "Instalando o totem..."})
+      assert(cabe(etapa, FONTE_GRANDE));
+    assert(cabeEm("CODIGO DE INSTALACAO", FONTE_MEDIA, TELA_W - 20));
+    assert(cabeEm("Gere o codigo no site do ParaAi", FONTE_PEQUENA, TELA_W - 20));
+    assert(cabeEm("O totem para de atender ate", FONTE_MEDIA, TELA_W - 20));
+    assert(cabeEm("receber um codigo novo do site.", FONTE_MEDIA, TELA_W - 20));
+    assert(cabeEm("No site, bloqueie o acesso antigo.", FONTE_PEQUENA, TELA_W - 20));
+    assert(cabeEm("NOVO CODIGO", FONTE_MEDIA, CFG_NOVO_W - 8) && cabeEm("VOLTAR", FONTE_MEDIA, CFG_VOLTAR_LADO_W - 8));
+    assert(cabeEm("OK", FONTE_MEDIA, TV_LADO_W - 6));
+    // Nome do estacionamento com acento, como vem do site, sem glifo faltando.
+    char nome[64];
+    paraai::textoWifiExibivel("Estacionamento S\xc3\xa3o Jo\xc3\xa3o", nome, sizeof(nome));
+    assert(std::strcmp(nome, "Estacionamento Sao Joao") == 0 && cabe(nome, FONTE_GRANDE));
+    std::puts("Instalacao por codigo: teclado de 32 caracteres sem toque perdido, casas, OK so com 8, NOVO CODIGO na manutencao e mensagens conferidos; telas 32 a 41 exportadas.");
+  }
+  std::puts("DisplayUI real: teclado, antirrepeticao, confirmacao, animacao e mapeamento aprovados; PIN de manutencao e mensagens conferidos; Wi-Fi na tela (lista, teclado completo, senha errada, rede oculta, cancelar, prazos) aprovado; telas 01 a 41 exportadas.");
 }

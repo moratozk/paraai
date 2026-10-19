@@ -15,6 +15,7 @@ só. Os testes das três partes leem os mesmos arquivos:
 | `cobranca.csv` | valor da estadia, saldo depois da saída e parte pendente | `web/test/contratos.test.js` | `firmware/test/logica_totem.test.cpp` | `firebase/test/firestore.test.mjs` |
 | `vagas-especiais.csv` | tipo das vagas que não têm o campo `tipo` gravado | `web/test/contratos.test.js` | `firmware/test/logica_totem.test.cpp` | `firebase/test/firestore.test.mjs` |
 | `placas.csv` | placas aceitas (padrão antigo e Mercosul) | `web/test/contratos.test.js` | `firmware/test/logica_totem.test.cpp` | `web/test/contratos.test.js` (expressão das regras) |
+| `codigos-instalacao.csv` | código de instalação do totem (8 caracteres, sem I, O, 0 e 1) | `web/test/contratos.test.js` | `firmware/test/logica_totem.test.cpp` | `firebase/test/firestore.test.mjs` e `web/test/contratos.test.js` (expressão das regras) |
 
 Para mudar uma dessas regras, mude o arquivo daqui e as três implementações
 no mesmo PR. Linhas que começam com `#` são comentários.

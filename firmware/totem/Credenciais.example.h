@@ -19,8 +19,13 @@
 //                    > "ID do projeto"
 //   DATABASE_URL -> Firebase Console > Realtime Database (se não usar,
 //                    pode deixar o valor de exemplo abaixo)
-//   TOTEM_EMAIL / TOTEM_PASSWORD -> credencial de dispositivo gerada no
-//                    painel do operador. Não use a conta pessoal do dono.
+//   TOTEM_EMAIL / TOTEM_PASSWORD / ESTACIONAMENTO_ID -> deixe vazios para
+//                    instalar pelo código: depois do Wi-Fi, o totem pede o
+//                    código gerado no site (Perfil > Segurança do totem >
+//                    Instalar um totem) e guarda o próprio acesso na memória.
+//                    Preencha só com o acesso da opção "e-mail e senha" do
+//                    site; preenchidos, eles valem mais que o código. Não use
+//                    a conta pessoal do dono.
 //
 // Nunca faça commit do Credenciais.h real - ele já está no .gitignore.
 // =========================================================================
@@ -42,14 +47,13 @@
 #define PROJECT_ID   "seu-projeto-firebase"
 #define DATABASE_URL "https://seu-projeto-firebase-default-rtdb.firebaseio.com/"
 
-// Conta exclusiva deste equipamento no Firebase Authentication. Gere em
-// Perfil > Segurança do totem e copie os dois valores exibidos uma única vez.
-#define TOTEM_EMAIL    "totem-gerado@dispositivo.paraai.app"
-#define TOTEM_PASSWORD "SENHA_FORTE_GERADA_NO_PAINEL"
-
-// Vincula ESTE totem a um estacionamento da rede ParaAí. Cadastre o
-// estacionamento no painel web e copie o ID exibido em
-// Perfil > Meu estacionamento (formato EST-XXXXXX).
-#define ESTACIONAMENTO_ID "EST-XXXXXX"
+// Acesso fixo, opcional. Vazios (o normal), o totem pede o código de
+// instalação na tela e cria sozinho a própria conta. Para usar o acesso fixo,
+// gere em Perfil > Segurança do totem > "Prefere configurar com e-mail e
+// senha?" e copie os três valores, exibidos uma única vez. O ID do
+// estacionamento aparece em Perfil > Meu estacionamento (formato EST-XXXXXX).
+#define TOTEM_EMAIL       ""
+#define TOTEM_PASSWORD    ""
+#define ESTACIONAMENTO_ID ""
 
 #endif

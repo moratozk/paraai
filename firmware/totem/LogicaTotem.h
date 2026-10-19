@@ -218,6 +218,41 @@ inline size_t textoWifiExibivel(const char* origem, char* destino, size_t capaci
   return n;
 }
 
+// --- Instalação por código -------------------------------------------------
+// O site gera, o totem recebe pelo teclado da tela e as regras conferem o
+// mesmo formato (contratos/codigos-instalacao.csv): oito caracteres sem I, O,
+// 0 e 1, que se confundem na tela pequena.
+constexpr size_t CODIGO_INSTALACAO_TAMANHO = 8;
+constexpr char ALFABETO_CODIGO_INSTALACAO[] = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+inline bool caractereCodigoInstalacao(char c) {
+  return c != '\0' && std::strchr(ALFABETO_CODIGO_INSTALACAO, c) != nullptr;
+}
+inline bool codigoInstalacaoValido(const char* codigo) {
+  if (!codigo || std::strlen(codigo) != CODIGO_INSTALACAO_TAMANHO) return false;
+  for (size_t i = 0; i < CODIGO_INSTALACAO_TAMANHO; ++i)
+    if (!caractereCodigoInstalacao(codigo[i])) return false;
+  return true;
+}
+
+// ID do estacionamento como o site gera (EST-7K2M4A): vira parte do caminho
+// dos documentos, então só letras, números, hífen e sublinhado.
+constexpr int ESTACIONAMENTO_ID_MAX = 40;
+inline bool estacionamentoIdValido(const char* id) {
+  if (!id || !*id) return false;
+  for (int n = 0; id[n]; ++n)
+    if (n >= ESTACIONAMENTO_ID_MAX || !(letraOuNumero(id[n]) || id[n] == '-' || id[n] == '_')) return false;
+  return true;
+}
+
+// Acesso fixo no Credenciais.h: vale com os três campos preenchidos e fora
+// dos valores de exemplo. Sem ele, o totem usa a instalação por código.
+inline bool credencialFixaPreenchida(const char* email, const char* senha, const char* estacionamento) {
+  return email && senha && *email && *senha && estacionamentoIdValido(estacionamento) &&
+         std::strcmp(email, "totem-gerado@dispositivo.paraai.app") != 0 &&
+         std::strcmp(senha, "SENHA_FORTE_GERADA_NO_PAINEL") != 0 &&
+         std::strcmp(estacionamento, "EST-XXXXXX") != 0;
+}
+
 // Meio centavo absorve resíduo de ponto flutuante de recargas e débitos.
 // O mesmo limite está em firestore.rules (entrada com saldo pendente).
 constexpr double TOLERANCIA_SALDO = 0.005;
