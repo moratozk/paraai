@@ -215,15 +215,6 @@ service cloud.firestore {
         ]);
     }
 
-    function pareamentoValido(dados) {
-      return dados.estacionamentoId is string
-        && estacionamentoExiste(dados.estacionamentoId)
-        && get(/databases/$(database)/documents/estacionamentos/$(dados.estacionamentoId)).data.totemPairingCode
-          is string
-        && dados.pairingCode
-          == get(/databases/$(database)/documents/estacionamentos/$(dados.estacionamentoId)).data.totemPairingCode;
-    }
-
     function perfilDeOperador(uid) {
       return exists(/databases/$(database)/documents/users/$(uid))
         && get(/databases/$(database)/documents/users/$(uid)).data.role == 'operador';
@@ -848,16 +839,107 @@ service cloud.firestore {
         && veiculoDepois.estacionamentoId == resource.data.estacionamentoId;
     }
 
+    // ---------------------------------------------------------------------
+    // Instalação do totem por código. O dono (ou a administração) gera no
+    // site um código de 8 caracteres que vale 15 minutos. O totem novo cria
+    // a própria conta, recebe o código pelo teclado da tela e, num lote só,
+    // grava o próprio cadastro e apaga o código. A senha do totem não sai do
+    // equipamento. Mesmo formato do site e do firmware:
+    // contratos/codigos-instalacao.csv.
+    // ---------------------------------------------------------------------
+    function codigoInstalacaoValido(codigo) {
+      return codigo is string && codigo.matches('^[A-HJ-NP-Z2-9]{8}$');
+    }
+
+    function codigoInstalacaoVigente(dados) {
+      return dados.criadoEm is timestamp
+        && request.time < dados.criadoEm + duration.value(15, 'm');
+    }
+
+    function codigoInstalacaoNovoValido(codigo, dados) {
+      return codigoInstalacaoValido(codigo)
+        && dados.keys().hasOnly(['estacionamentoId', 'nome', 'nomeEstacionamento', 'criadoEm'])
+        && dados.keys().hasAll(['estacionamentoId', 'nome', 'nomeEstacionamento', 'criadoEm'])
+        && dados.estacionamentoId is string
+        && estacionamentoExiste(dados.estacionamentoId)
+        && textoPreenchido(dados.nome, 40)
+        && textoPreenchido(dados.nomeEstacionamento, 60)
+        && dados.criadoEm == request.time;
+    }
+
+    // O cadastro que o totem grava para si: o pátio e o nome vêm do código,
+    // o e-mail é o da conta que grava, e a conta é nova (sem perfil de pessoa).
+    function totemSeVinculaPorCodigo(totemUid) {
+      let dados = request.resource.data;
+      let codigo = dados.get('codigoInstalacao', '');
+      let caminho = /databases/$(database)/documents/codigosInstalacao/$(codigo);
+      return signedIn()
+        && request.auth.uid == totemUid
+        && codigoInstalacaoValido(codigo)
+        && !exists(/databases/$(database)/documents/users/$(totemUid))
+        && dados.keys().hasOnly([
+          'estacionamentoId', 'nome', 'email', 'ativo', 'codigoInstalacao', 'vinculadoEm'
+        ])
+        && dados.keys().hasAll([
+          'estacionamentoId', 'nome', 'email', 'ativo', 'codigoInstalacao', 'vinculadoEm'
+        ])
+        && exists(caminho)
+        && !existsAfter(caminho)
+        && codigoInstalacaoVigente(get(caminho).data)
+        && dados.estacionamentoId == get(caminho).data.estacionamentoId
+        && dados.nome == get(caminho).data.nome
+        && dados.email == request.auth.token.email
+        && dados.ativo == true
+        && horarioAtual(dados.vinculadoEm);
+    }
+
+    // O código só sai pelo totem junto com o cadastro que ele cria.
+    function totemConsomeCodigo(codigo) {
+      return signedIn()
+        && !exists(/databases/$(database)/documents/totems/$(request.auth.uid))
+        && getAfter(/databases/$(database)/documents/totems/$(request.auth.uid)).data
+          .get('codigoInstalacao', '') == codigo;
+    }
+
+    // Acesso criado pelo site (dono ou administração), com e-mail e senha:
+    // também para uma conta nova, nunca a de uma pessoa, que ganharia o que
+    // um totem pode fazer.
+    function totemDoPainelValido(totemUid) {
+      let dados = request.resource.data;
+      return dados.keys().hasOnly(['estacionamentoId', 'nome', 'email', 'ativo', 'criadoEm'])
+        && dados.keys().hasAll(['estacionamentoId', 'nome', 'email', 'ativo', 'criadoEm'])
+        && dados.estacionamentoId is string
+        && estacionamentoExiste(dados.estacionamentoId)
+        && textoPreenchido(dados.nome, 40)
+        && dados.email is string
+        && dados.ativo is bool
+        && dados.criadoEm == request.time
+        && !exists(/databases/$(database)/documents/users/$(totemUid));
+    }
+
+    match /codigosInstalacao/{codigo} {
+      // Quem digita o código lê enquanto ele vale; o dono lista os do pátio.
+      allow get: if signedIn() && codigoInstalacaoVigente(resource.data);
+      allow list: if adminDoSistema()
+        || donoDoEstacionamento(resource.data.estacionamentoId);
+      allow create: if (adminDoSistema()
+          || donoDoEstacionamento(request.resource.data.estacionamentoId))
+        && codigoInstalacaoNovoValido(codigo, request.resource.data);
+      allow update: if false;
+      allow delete: if adminDoSistema()
+        || donoDoEstacionamento(resource.data.estacionamentoId)
+        || totemConsomeCodigo(codigo);
+    }
+
     match /totems/{totemUid} {
       allow read: if adminDoSistema()
         || (signedIn()
           && (request.auth.uid == totemUid
             || donoDoEstacionamento(resource.data.estacionamentoId)));
-      allow create: if adminDoSistema()
-        || (signedIn()
-          && ((request.auth.uid == totemUid
-              && pareamentoValido(request.resource.data))
-            || donoDoEstacionamento(request.resource.data.estacionamentoId)));
+      allow create: if ((adminDoSistema()
+            || donoDoEstacionamento(request.resource.data.estacionamentoId))
+          && totemDoPainelValido(totemUid))
+        || totemSeVinculaPorCodigo(totemUid);
       allow update: if adminDoSistema()
         || (signedIn()
           && donoDoEstacionamento(resource.data.estacionamentoId)

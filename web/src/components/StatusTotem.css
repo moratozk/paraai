@@ -109,8 +109,7 @@
 
 .totem-passos strong { color: var(--text-primary); font-weight: 700; }
 
-.totem-passos code,
-.totem-id {
+.totem-passos code {
   font-family: var(--font-mono);
   /* 0.82em do texto de apoio dava 11,5 px; o mínimo do projeto é 12 px. */
   font-size: max(0.82em, var(--t-legenda));
@@ -119,21 +118,6 @@
   background: var(--bg-input);
   border: 1px solid var(--border);
   color: var(--accent-text);
-}
-
-.totem-id-linha {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-  margin-top: 0.5rem;
-}
-
-.totem-id {
-  border-style: dashed;
-  border-color: var(--border-strong);
-  word-break: break-all;
-  padding: 0.4rem 0.6rem;
 }
 
 .totem-nota {

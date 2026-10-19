@@ -228,10 +228,6 @@ export default function PainelOperador() {
       <StatusTotem
         estacionamento={estacionamento ? { id: estId, ...estacionamento } : null}
         online={online}
-        onCopiarId={() => {
-          navigator.clipboard?.writeText(estId);
-          toast.sucesso("Identificador copiado.");
-        }}
       />
 
       {/* ---------- Edição de tarifa / vagas ---------- */}

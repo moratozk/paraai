@@ -806,6 +806,86 @@
 
 .totem-list-item > div { display: grid; gap: 0.2rem; }
 
+/* Código de instalação: grande e espaçado, para ler de longe e digitar na
+   tela do totem. */
+.totem-instalacao {
+  display: grid;
+  gap: 0.6rem;
+  justify-items: start;
+  padding: 1rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-secondary));
+}
+
+.totem-instalacao.concluida {
+  border-color: color-mix(in srgb, var(--success) 55%, transparent);
+  background: color-mix(in srgb, var(--success) 9%, var(--bg-secondary));
+}
+
+.totem-instalacao p,
+.totem-instalacao-aviso {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--t-apoio);
+}
+
+.totem-instalacao-rotulo {
+  color: var(--text-muted);
+  font-size: var(--t-legenda);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.totem-instalacao-codigo {
+  font-family: var(--font-mono);
+  font-size: clamp(1.9rem, 8vw, 2.5rem);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.12em;
+  color: var(--accent-text);
+}
+
+.totem-instalacao-prazo {
+  color: var(--text-muted);
+  font-size: var(--t-apoio);
+  font-variant-numeric: tabular-nums;
+}
+
+.totem-instalacao-titulo {
+  color: var(--text-primary);
+  font-size: var(--t-destaque);
+}
+
+.totem-instalacao-passos {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.2rem 0 0;
+  padding-left: 1.2rem;
+  color: var(--text-secondary);
+  font-size: var(--t-apoio);
+}
+
+/* E-mail e senha ficam recolhidos: o código é o caminho principal. */
+.totem-manual > summary {
+  width: fit-content;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: var(--t-apoio);
+  font-weight: 600;
+}
+
+.totem-manual-conteudo {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+  margin-top: 0.75rem;
+}
+
+.totem-manual-conteudo .muted-note { margin: 0; }
+.totem-manual-conteudo .totem-credential { justify-self: stretch; }
+
 .profile-summary { text-align: center; }
 .profile-summary .perfil-carro {
   margin: 0.55rem 0 0;

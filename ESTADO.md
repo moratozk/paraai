@@ -1,7 +1,7 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **11/10/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **19/10/2026**.
 
 ---
 
@@ -15,7 +15,7 @@ Sistema acadêmico de atendimento para estacionamentos:
 - **`web/`** — painel React/Vite, com Firebase Auth e Firestore
 - **`firebase/`** — regras do Firestore e testes no emulador
 - **`contratos/`** — casos esperados que o site, o totem e as regras testam
-  juntos (conta da estadia, vagas especiais e placas)
+  juntos (conta da estadia, vagas especiais, placas e código de instalação)
 - **`e2e/`** — teste do fluxo completo no navegador e demonstração sem
   internet, com os emuladores e o totem simulado
 - **`docs/apresentacao.md`** — roteiro da banca, checklist do dia e plano B
@@ -25,12 +25,80 @@ estadia e cobrança simulada. O operador acompanha pelo painel. A ocupação é
 lógica; a maquete virtual do administrador mostra os mesmos registros com
 carros andando num pátio desenhado (ver "Maquete virtual", abaixo).
 
-Projeto acadêmico (TCC). A `main` tem tudo: a integração (PR #9) e, desde
-06/10/2026, os PRs #10 a #15 (pinos e tela da CYD, pastas, vagas especiais,
-revisão visual e nova tela inicial). **Regras do Firestore e site publicados
-em 06/10/2026** a partir da `main` (`26a97e5`); o site no ar é o build dessa
-versão. **O firmware da `main` foi gravado no totem no mesmo dia** e testado:
-uma placa sem direito declarado recebeu a primeira vaga comum livre.
+Projeto acadêmico (TCC). A `main` tem tudo. **Regras, índice e site foram
+publicados pela última vez em 10/10/2026**, a partir da `main` (`fa07f39`,
+PRs unidos até o #34); o site no ar é o build dessa versão. **O firmware do totem é
+o gravado em 06/10/2026** (`26a97e5`, anterior aos PRs #20 e #22), testado
+naquele dia: uma placa sem direito declarado recebeu a primeira vaga comum
+livre. O que entrou depois espera a próxima publicação.
+
+## Próxima publicação
+
+Esperam publicação os PRs #35 a #40 e #43, já na `main`. Mudam as regras o
+#39 (estacionamento novo por pedido) e o #43 (instalação do totem por
+código); o índice e o `firebase.json` não mudam desde 10/10.
+
+Na raiz do repositório, no computador que publica, com o `web/.env`
+preenchido:
+
+1. `git checkout main` e `git pull`.
+2. `npm --prefix web ci`: desde o PR #38 as fontes vêm de pacotes
+   (`@fontsource`), e o build falha sem eles.
+3. `firebase deploy --only firestore --project paraai-9514f` (regras e
+   índice). Se o Firebase perguntar se deve apagar índices que não estão no
+   arquivo, responder que não.
+4. `npm --prefix web run build` e
+   `firebase deploy --only hosting --project paraai-9514f`.
+
+A ordem só importa para o site novo: com as regras antigas, ele recusa o
+cadastro de estacionamento e não gera o código de instalação. As regras novas
+aceitam o site que está no ar (o fluxo completo da versão `fa07f39` passou com
+elas no emulador, no computador e no celular) e não mudam nada do que o totem
+grava, então o firmware de 06/10 continua funcionando. Depois de publicar,
+fazer as conferências dos itens 14 a 17 de "O que falta". Os itens 8 a 13 já
+foram publicados em 09 e 10/10; deles, só as conferências seguem pendentes.
+Gravar o firmware novo é um passo à parte, que não depende deste (item 17).
+
+## Instalação do totem por código (18/10/2026)
+
+Antes, para ligar um totem a um estacionamento, o dono gerava no Perfil um
+e-mail e uma senha do totem, alguém copiava os dois e o ID do estacionamento
+para o `Credenciais.h` e gravava o firmware pelo computador. A tela do totem
+só configurava o Wi-Fi e a calibração.
+
+- **No site** (`components/GerenciarTotens.jsx`, em Perfil > Segurança do
+  totem e no painel da rede): "Instalar um totem" gera um código de 8
+  caracteres (sem I, O, 0 e 1), que vale 15 minutos e serve para um totem só,
+  com os passos ao lado e a contagem regressiva. Quando o totem usa o código, o
+  cartão troca sozinho para "<nome> instalado" e o totem aparece na lista. Um
+  código novo cancela o anterior do pátio; vencidos saem do banco. O acesso
+  com e-mail e senha continua, recolhido em "Prefere configurar com e-mail e
+  senha?". O aviso de primeira conexão no painel do dono (`StatusTotem.jsx`)
+  ensina estes passos, sem o ID do estacionamento nem arquivo para copiar.
+- **No totem** (`TelaVinculo.h`, `Atendimento.cpp`): sem acesso no
+  `Credenciais.h`, a tela inicial pede o código depois do Wi-Fi (o cabeçalho
+  mostra INSTALACAO). O teclado só tem os 32 caracteres possíveis e o OK
+  acende com os 8. O totem cria a própria conta no Firebase, com e-mail e
+  senha sorteados nele, guarda na memória (NVS `paraai-id`) e grava o próprio
+  cadastro com o código, que sai no mesmo lote; TOTEM INSTALADO mostra o nome
+  do estacionamento. Uma nova tentativa usa a mesma conta, e, se a resposta se
+  perder depois de gravar, qualquer código conclui. Na manutenção, NOVO CODIGO
+  apaga o acesso e reinicia pedindo outro (a conta antiga se bloqueia no site).
+- **Regras** (`firebase/firestore.rules`): `codigosInstalacao/{codigo}` só o
+  dono do pátio ou a administração criam, no formato do contrato, com a hora
+  do servidor; quem digita lê o código só enquanto ele vale; o dono lista e
+  cancela os do próprio pátio. Uma conta nova vira totem só no lote que cria
+  `totems/{uid}` com o código vigente, o e-mail da própria conta, o pátio e o
+  nome do código, e apaga o código. Conta de pessoa (com perfil em `users`)
+  não vira totem, e o código não serve duas vezes.
+- **Credenciais.h:** `TOTEM_EMAIL`, `TOTEM_PASSWORD` e `ESTACIONAMENTO_ID`
+  vêm vazios no modelo. Preenchidos, valem mais que o código, e o totem gravado
+  antes continua igual.
+- **Testes:** o contrato `contratos/codigos-instalacao.csv` (site, totem e
+  regras), testes novos das regras (123 no total), do totem no PC (formato do
+  código, teclado sem toque perdido, telas 32 a 41) e o fluxo completo "totem
+  novo" no navegador, no computador e no celular. O firmware foi compilado
+  (1.437.860 bytes, 45%), não gravado nem testado na placa.
 
 ## Aviso de "sem internet" (11/10/2026)
 
@@ -1183,6 +1251,15 @@ usa o Firebase de produção.
 16. **Aviso de "sem internet" (11/10/2026, PR próprio).** Para publicar, só
     o site. Para conferir: abrir o painel do dono no celular, ligar o modo
     avião e ver a faixa e o aviso do totem; desligar e ver "Conexão de volta".
+
+17. **Instalação do totem por código (18/10/2026, PR próprio).** Publicar as
+    regras (`firebase deploy --only firestore`) antes do site: com o site novo
+    e as regras antigas, "Instalar um totem" não gera o código. As regras novas
+    não mudam nada para o site antigo nem para o totem atual. Gravar o firmware
+    novo: com o acesso preenchido no `Credenciais.h`, ele segue igual. Para
+    testar a instalação, gravar com os três campos do acesso vazios, conectar o
+    Wi-Fi, gerar o código no Perfil e digitá-lo; depois, código errado, energia
+    cortada no meio e NOVO CODIGO (checklist em `firmware/README.md`).
 
 ---
 

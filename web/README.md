@@ -14,14 +14,15 @@ explicando a experiência para donos de estacionamento e motoristas.
 - Cadastro em etapas (conta; endereço preenchido pelo CEP; vagas e preço da
   hora) que vira um pedido para a equipe do ParaAí. Em análise, a conta
   acompanha o pedido, corrige os dados ou desiste; aprovado no painel da rede,
-  o pátio entra no mapa dos motoristas e a conta recebe o painel e um
-  `ESTACIONAMENTO_ID` (formato `EST-XXXXXX`) para o totem. A tarifa pode ser
-  alterada no painel.
+  o pátio entra no mapa dos motoristas e a conta recebe o painel do
+  estacionamento (`EST-XXXXXX`). A tarifa pode ser alterada no painel.
 - Painel: valores recebidos (hoje / 7 dias / 30 dias / total), acessos,
   ocupação vaga a vaga ao vivo, status do totem, movimentações com valores.
 - Mapa de vagas em tempo real.
-- Gestão de equipamentos: gera uma conta exclusiva por totem e permite
-  bloquear um dispositivo sem afetar a conta do operador.
+- Gestão de equipamentos: "Instalar um totem" gera um código de instalação
+  (8 caracteres, vale 15 minutos), digitado na tela do totem, que cria a
+  própria conta; a lista mostra cada totem e permite bloqueá-lo sem afetar a
+  conta do operador. O acesso com e-mail e senha continua como alternativa.
 
 **Conta de motorista**
 - Cadastro da placa — aceita padrão antigo (ABC1234) **e** Mercosul (ABC1D23).
@@ -100,9 +101,13 @@ o painel precisa respeitar:
   o totem lê (`ativo/vagaAtual/horaEntrada/saldo`).
 - O status "totem online" vem do heartbeat que o ESP32 grava no documento
   `estacionamentos/{id}` a cada 60 s.
-- O pareamento painel ↔ totem usa `ESTACIONAMENTO_ID`, `TOTEM_EMAIL` e
-  `TOTEM_PASSWORD`, gerados em *Perfil > Segurança do totem*. As regras do
-  Firestore validam a identidade e o estacionamento de cada equipamento.
+- O totem entra no estacionamento pelo código de instalação gerado em
+  *Perfil > Segurança do totem* (`codigosInstalacao/{codigo}`,
+  `services/totems.js`): ele cria a própria conta e grava `totems/{uid}` no
+  mesmo lote que apaga o código. A alternativa é o acesso fixo
+  (`ESTACIONAMENTO_ID`, `TOTEM_EMAIL` e `TOTEM_PASSWORD` no `Credenciais.h`),
+  gerado no mesmo lugar. As regras do Firestore validam a identidade e o
+  estacionamento de cada equipamento.
 - `numVagas` e `tarifaHora` são lidos pelo totem no documento do
   estacionamento. A tarifa usada fica registrada em `tarifaHoraEntrada` até a
   saída.

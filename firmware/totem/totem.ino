@@ -7,6 +7,7 @@
 #include "LogicaTotem.h"
 #include "DisplayUI.ino"
 #include "AssistenteWiFi.h"
+#include "TelaVinculo.h"
 #include "ConfiguracaoWiFi.ino"
 
 #ifndef MANUTENCAO_PIN
@@ -14,17 +15,20 @@
 #endif
 static_assert(paraai::pinFormatoValido(MANUTENCAO_PIN), "MANUTENCAO_PIN precisa ter de 4 a 8 digitos.");
 
-enum class Tela { INICIO, PLACA, PROCESSANDO, CADASTRO, RESULTADO, AGUARDANDO_MANUTENCAO };
+// VINCULO: sem acesso ao Firebase, a tela inicial pede o código de instalação.
+enum class Tela { INICIO, PLACA, PROCESSANDO, CADASTRO, RESULTADO, AGUARDANDO_MANUTENCAO, VINCULO };
 Tela tela = Tela::INICIO;
 Operacao operacao = OP_NENHUMA;
 FormatoPlaca formato = FORMATO_NAO_ESCOLHIDO;
 String placa;
+String codigoVinculo; // Fica entre tentativas, para corrigir um caractere.
 bool servicoIniciado = false;
 bool portalAutomaticoPendente = true;
 unsigned long inicio = 0, ultimaInteracao = 0, resultadoDesde = 0;
 unsigned long ultimaTentativaWifi = 0, processamentoDesde = 0;
 const unsigned long INATIVIDADE_MS = 60000;
 const unsigned long RESULTADO_MS = 8000;
+const unsigned long VINCULO_INATIVIDADE_MS = 3UL * 60UL * 1000UL;
 int manutencaoSolicitada = 0; // 0 central, 1 Wi-Fi na tela, 2 calibração, 3 Wi-Fi pelo celular
 bool manutencaoExigePin = true;
 uint8_t errosPin = 0;
@@ -33,13 +37,22 @@ unsigned long pinBloqueadoDesde = 0;
 const uint8_t MAX_ERROS_PIN = 5;
 const unsigned long BLOQUEIO_PIN_MS = 5UL * 60UL * 1000UL;
 
+bool aguardandoInstalacao() {
+  return servicoIniciado && origemIdentidade() == OrigemIdentidade::NENHUMA;
+}
 void voltarAoInicio() {
   placa = "";
   operacao = OP_NENHUMA;
   formato = FORMATO_NAO_ESCOLHIDO;
-  tela = Tela::INICIO;
   ultimaInteracao = millis();
   definirOperacaoVisual(OP_NENHUMA);
+  if (aguardandoInstalacao()) {
+    tela = Tela::VINCULO;
+    desenharTelaVinculo(codigoVinculo);
+    return;
+  }
+  codigoVinculo = "";
+  tela = Tela::INICIO;
   desenharTelaInicial();
 }
 void exibirResposta(const RespostaTotem& r) {
@@ -59,14 +72,16 @@ void exibirResposta(const RespostaTotem& r) {
   tela = Tela::RESULTADO;
 }
 void enviar(PedidoTotem pedido) {
-  if (!servicoIniciado || !solicitarAtendimento(pedido, placa.c_str())) {
-    RespostaTotem r{TipoResposta::ERRO, "SERVICO INDISPONIVEL", "Pedido nao enviado", "Tente novamente"};
+  const bool vinculo = pedido == PedidoTotem::VINCULAR;
+  if (!servicoIniciado || !(vinculo ? solicitarVinculo(codigoVinculo.c_str())
+                                    : solicitarAtendimento(pedido, placa.c_str()))) {
+    RespostaTotem r{TipoResposta::ERRO, "SERVICO INDISPONIVEL", "Pedido nao enviado", "Tente novamente", ""};
     exibirResposta(r);
     return;
   }
   tela = Tela::PROCESSANDO;
   processamentoDesde = millis();
-  desenharTelaProcessando("Aguarde um instante");
+  desenharTelaProcessando(vinculo ? "Instalando o totem..." : "Aguarde um instante");
 }
 void trocarWifi(bool pelaTela) {
   // A tarefa Firebase está pausada durante toda a manutenção. Sem disputa
@@ -127,6 +142,25 @@ bool conferirPinManutencao() {
   if (liberado) errosPin = 0;
   return liberado;
 }
+// Totem instalado pelo código: esquece o acesso e reinicia pedindo outro.
+void instalarDeNovo() {
+  desenharTelaConfirmarNovoCodigo();
+  const unsigned long desde = millis();
+  int escolha = -1;
+  while (escolha < 0 && millis() - desde < 30000) {
+    escolha = verificarToqueConfirmacao();
+    delay(10);
+  }
+  if (escolha != 1) return;
+  if (!esquecerVinculo()) {
+    desenharTelaResultado(RESULTADO_ERRO, "NAO FOI APAGADO", "Tente novamente", "Procure o responsavel");
+    delay(3000);
+    return;
+  }
+  desenharTelaResultado(RESULTADO_SUCESSO, "ACESSO APAGADO", "Reiniciando o totem", "Depois, digite o codigo novo");
+  delay(1500);
+  ESP.restart();
+}
 void manutencao() {
   atualizarStatusServico(ConexaoTotem::MANUTENCAO);
   if (manutencaoExigePin && !conferirPinManutencao()) {
@@ -138,13 +172,16 @@ void manutencao() {
   else if (manutencaoSolicitada == 2) executarCalibracaoTouch(true);
   else if (manutencaoSolicitada == 3) trocarWifi(false);
   else {
-    desenharTelaConfiguracoes();
+    const bool novoCodigo = origemIdentidade() == OrigemIdentidade::CODIGO;
+    desenharTelaConfiguracoes(novoCodigo);
     unsigned long interacao = millis();
     while (millis() - interacao < INATIVIDADE_MS) {
-      int acao = verificarToqueConfiguracoes();
+      int acao = verificarToqueConfiguracoes(novoCodigo);
       if (acao == 3) break;
-      if (acao == 1 || acao == 4) { trocarWifi(acao == 1); interacao = millis(); desenharTelaConfiguracoes(); }
-      if (acao == 2) { executarCalibracaoTouch(true); interacao = millis(); desenharTelaConfiguracoes(); }
+      if (acao == 1 || acao == 4) trocarWifi(acao == 1);
+      if (acao == 2) executarCalibracaoTouch(true);
+      if (acao == 5) instalarDeNovo();
+      if (acao != 0) { interacao = millis(); desenharTelaConfiguracoes(novoCodigo); }
       delay(10);
     }
   }
@@ -182,14 +219,15 @@ void loop() {
 
   if (WiFi.status() == WL_CONNECTED) portalAutomaticoPendente = false;
   // Reconexão não interrompe a digitação nem troca o rádio de um pedido ativo.
-  if (tela == Tela::INICIO && WiFi.status() != WL_CONNECTED &&
+  const bool telaInicial = tela == Tela::INICIO || tela == Tela::VINCULO;
+  if (telaInicial && WiFi.status() != WL_CONNECTED &&
       agora - ultimaTentativaWifi >= 15000) {
     ultimaTentativaWifi = agora;
     iniciarReconexaoWifiConfigurado();
   }
   // Só abre sozinho sem nenhuma rede para tentar (instalação). Com rede
   // configurada, uma queda de energia apenas reconecta quando o roteador voltar.
-  if (portalAutomaticoPendente && tela == Tela::INICIO && agora - inicio >= 15000) {
+  if (portalAutomaticoPendente && telaInicial && agora - inicio >= 15000) {
     portalAutomaticoPendente = false;
     if (obterSsidWifiConfigurado().isEmpty()) pedirManutencao(1, false);
   }
@@ -229,9 +267,31 @@ void loop() {
       atualizarDigitacao(placa, formato, anterior);
       break;
     }
+    case Tela::VINCULO: {
+      if (verificarPressaoLongaStatus()) { pedirManutencao(0, true); break; }
+      // O código não fica na tela de quem passa depois.
+      if (!codigoVinculo.isEmpty() && agora - ultimaInteracao >= VINCULO_INATIVIDADE_MS) {
+        codigoVinculo = "";
+        voltarAoInicio();
+        break;
+      }
+      const EventoVinculo evento = verificarToqueVinculo();
+      if (evento.acao == AcaoVinculo::NENHUMA) break;
+      ultimaInteracao = agora;
+      const bool completo = codigoVinculo.length() == paraai::CODIGO_INSTALACAO_TAMANHO;
+      if (evento.acao == AcaoVinculo::CONFIRMAR) {
+        if (paraai::codigoInstalacaoValido(codigoVinculo.c_str())) enviar(PedidoTotem::VINCULAR);
+        break;
+      }
+      if (evento.acao == AcaoVinculo::APAGAR && !codigoVinculo.isEmpty()) codigoVinculo.remove(codigoVinculo.length() - 1);
+      else if (evento.acao == AcaoVinculo::CARACTERE && !completo) codigoVinculo += evento.caractere;
+      atualizarCodigoVinculo(codigoVinculo, completo);
+      break;
+    }
     case Tela::PROCESSANDO: {
       // Só a UI acessa TFT/touch. Mesmo em TLS lento, animação e relógio vivem.
-      String etapa = status.etapa[0] ? status.etapa : "Conectando ao atendimento...";
+      String etapa = status.etapa[0] ? status.etapa
+        : aguardandoInstalacao() ? "Instalando o totem..." : "Conectando ao atendimento...";
       if (agora - processamentoDesde >= 20000) etapa = "A rede esta demorando...";
       atualizarProcessamento(etapa, agora - processamentoDesde);
       RespostaTotem r;
@@ -256,13 +316,17 @@ void loop() {
   if (Serial.available()) {
     char c = Serial.read();
     if (c == 's' || c == 'S') {
-      Serial.printf("[TOTEM] Wi-Fi=%s | estado=%d | heap=%u | sem sensores/atuadores\n",
-        WiFi.status() == WL_CONNECTED ? "conectado" : "offline",
-        static_cast<int>(status.conexao), ESP.getFreeHeap());
+      const OrigemIdentidade acesso = origemIdentidade();
+      Serial.printf("[TOTEM] Wi-Fi=%s | estado=%d | acesso=%s | heap=%u | sem sensores/atuadores\n",
+        WiFi.status() == WL_CONNECTED ? "conectado" : "offline", static_cast<int>(status.conexao),
+        acesso == OrigemIdentidade::CREDENCIAIS ? "Credenciais.h"
+          : acesso == OrigemIdentidade::CODIGO ? "codigo de instalacao" : "aguardando codigo",
+        static_cast<unsigned>(ESP.getFreeHeap()));
     }
     // Serial é o acesso de quem está com o toque ruim: abre o portal pelo celular.
-    if (tela == Tela::INICIO && (c == 'w' || c == 'W')) pedirManutencao(3, false);
-    if (tela == Tela::INICIO && (c == 'c' || c == 'C')) pedirManutencao(2, false);
+    const bool emEspera = tela == Tela::INICIO || tela == Tela::VINCULO;
+    if (emEspera && (c == 'w' || c == 'W')) pedirManutencao(3, false);
+    if (emEspera && (c == 'c' || c == 'C')) pedirManutencao(2, false);
   }
   delay(8);
 }

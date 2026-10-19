@@ -10,6 +10,7 @@ import { formatarDuracao, formatarMoeda } from "../web/src/utils/format.js";
 import {
   abrirEmuladores,
   criarConta,
+  instalarTotemPorCodigo,
   lerSemRegras,
   prepararAdministrador,
   prepararPatio,
@@ -330,6 +331,56 @@ test("sem internet: o painel do dono avisa e não culpa o totem", async ({ brows
     await expect(dono.getByText("Totem online")).toBeVisible();
     await expect(dono.locator(".mapa-vagas-card .live-dot")).toHaveText("AO VIVO");
     await expect(dono.locator(".aviso-conexao")).toHaveCount(0, { timeout: 8000 });
+  });
+
+  expect(dono.erros).toEqual([]);
+});
+
+// Totem novo: o dono gera o código no Perfil e o totem (simulado em patio.js,
+// como o firmware) se instala sozinho com ele. Nenhuma senha passa pelo site.
+test("totem novo: código de instalação no Perfil e o totem se instala sozinho", async ({ browser }, info) => {
+  const { viewport, userAgent, deviceScaleFactor, isMobile, hasTouch, baseURL, locale, timezoneId } =
+    info.project.use;
+  const opcoes = { viewport, userAgent, deviceScaleFactor, isMobile, hasTouch, baseURL, locale, timezoneId };
+  const dono = await novaPagina(browser, opcoes);
+  const totemNovo = { email: "totem-novo@dispositivo.paraai.test", senha: "Pa!TotemNovoDaBanca2026z" };
+  let codigo;
+  let instalado;
+  await entrar(dono, DONO.email);
+  await dono.goto("/perfil");
+  const seguranca = cartao(dono, "Segurança do totem");
+  await expect(seguranca.locator(".totem-list-item")).toHaveCount(1);
+
+  await test.step("o dono gera o código", async () => {
+    await seguranca.getByRole("button", { name: "Instalar outro totem" }).click();
+    const exibido = seguranca.locator(".totem-instalacao-codigo");
+    await expect(exibido).toHaveText(/^[A-HJ-NP-Z2-9]{4} [A-HJ-NP-Z2-9]{4}$/);
+    codigo = (await exibido.textContent()).replace(" ", "");
+    await expect(seguranca.locator(".totem-instalacao-prazo")).toContainText(/Vale por mais (15:00|14:[0-5]\d)/);
+    expect(await lerNoBanco(`codigosInstalacao/${codigo}`)).toMatchObject({
+      estacionamentoId: EST, nome: "Totem 2", nomeEstacionamento: NOME_EST,
+    });
+  });
+
+  await test.step("o totem digita o código e aparece instalado no Perfil", async () => {
+    instalado = await instalarTotemPorCodigo(env, { ...totemNovo, codigo });
+    expect(instalado).toMatchObject({ estacionamentoId: EST, nomeEstacionamento: NOME_EST });
+    await expect(seguranca.locator(".totem-instalacao.concluida")).toContainText("Totem 2 instalado");
+    await expect(seguranca.locator(".totem-list-item")).toHaveCount(2);
+    await expect(seguranca.locator(".totem-list-item").filter({ hasText: totemNovo.email })).toContainText("Totem 2");
+    expect(await lerNoBanco(`codigosInstalacao/${codigo}`)).toBeNull();
+    expect(await lerNoBanco(`totems/${instalado.uid}`)).toMatchObject({
+      estacionamentoId: EST, nome: "Totem 2", email: totemNovo.email, ativo: true, codigoInstalacao: codigo,
+    });
+    await seguranca.getByRole("button", { name: "Fechar" }).click();
+    await expect(seguranca.locator(".totem-instalacao")).toHaveCount(0);
+  });
+
+  await test.step("o totem novo atende, e o código não serve para outro", async () => {
+    expect(await totemSimulado(env, { uid: instalado.uid, estacionamentoId: EST }).sinal()).toBe(true);
+    await expect(
+      instalarTotemPorCodigo(env, { email: "totem-outro@dispositivo.paraai.test", senha: totemNovo.senha, codigo })
+    ).rejects.toThrow();
   });
 
   expect(dono.erros).toEqual([]);

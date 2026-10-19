@@ -606,6 +606,7 @@ export default function PainelAdmin() {
                   <div className="admin-totens totem-security-card" id={`totens-${item.id}`}>
                     <GerenciarTotens
                       estId={item.id}
+                      nomeEstacionamento={item.nome}
                       totens={totensDoEstacionamento}
                       carregando={carregandoTotens}
                       erroLista={erroTotens}

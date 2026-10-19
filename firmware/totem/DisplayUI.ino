@@ -216,9 +216,11 @@ void desenharBotaoConcluir();
 bool verificarToqueConcluir();
 bool executarCalibracaoTouch(bool forcar);
 bool verificarPressaoLongaStatus();
-void desenharTelaConfiguracoes();
-// 1 = Wi-Fi na tela, 2 = calibrar, 3 = voltar, 4 = Wi-Fi pelo celular
-int  verificarToqueConfiguracoes();
+// novoCodigo: mostra NOVO CODIGO (totem instalado pelo código do site).
+void desenharTelaConfiguracoes(bool novoCodigo = false);
+// 1 = Wi-Fi na tela, 2 = calibrar, 3 = voltar, 4 = Wi-Fi pelo celular,
+// 5 = novo código
+int  verificarToqueConfiguracoes(bool novoCodigo = false);
 const char PIN_APAGAR = '<', PIN_CONFIRMAR = '>';
 void desenharTelaPin(const char* aviso = nullptr);
 void atualizarDigitosPin(uint8_t digitos);
@@ -889,6 +891,7 @@ void desenharStatusCabecalho() {
     case ConexaoTotem::PRONTO: estado = "ONLINE"; break;
     case ConexaoTotem::ERRO_CONFIGURACAO: estado = "VERIFICAR PAINEL"; break;
     case ConexaoTotem::MANUTENCAO: estado = "MANUTENCAO"; break;
+    case ConexaoTotem::SEM_VINCULO: estado = "INSTALACAO"; break;
     default: break;
   }
   tft.setFont(nullptr);
@@ -1531,8 +1534,17 @@ bool verificarPressaoLongaStatus() {
 }
 
 // TROCAR WIFI escolhe a rede na própria tela; o portal pelo celular continua
-// como alternativa (senha com acento, toque ruim).
-void desenharTelaConfiguracoes() {
+// como alternativa (senha com acento, toque ruim). No totem instalado pelo
+// código, NOVO CODIGO divide a última linha com VOLTAR.
+const int CFG_LINHA_Y = 200, CFG_LINHA_H = 36;
+const int CFG_NOVO_X = 20, CFG_NOVO_W = 136, CFG_VOLTAR_LADO_X = 164, CFG_VOLTAR_LADO_W = 136;
+void desenharBotaoConfiguracao(int x, int w, const char* rotulo, uint16_t corRotulo) {
+  tft.fillRoundRect(x, CFG_LINHA_Y, w, CFG_LINHA_H, 7, corPainel);
+  tft.drawRoundRect(x, CFG_LINHA_Y, w, CFG_LINHA_H, 7, corBotaoBorda);
+  textoCentralizadoEm(rotulo, x, CFG_LINHA_Y, w, CFG_LINHA_H, corRotulo, FONTE_MEDIA);
+}
+
+void desenharTelaConfiguracoes(bool novoCodigo) {
   tft.fillScreen(corFundo);
   desenharCabecalho();
   centralizarTexto("CONFIGURACOES", 40, corTexto, FONTE_GRANDE);
@@ -1552,20 +1564,27 @@ void desenharTelaConfiguracoes() {
   textoCentralizadoEm("RECALIBRAR TOUCH", 20, 158, 280, 36,
                       corTexto, FONTE_MEDIA);
 
-  tft.fillRoundRect(70, 200, 180, 36, 7, corPainel);
-  tft.drawRoundRect(70, 200, 180, 36, 7, corBotaoBorda);
-  textoCentralizadoEm("VOLTAR", 70, 200, 180, 36,
-                      corTextoFraco, FONTE_MEDIA);
+  if (novoCodigo) {
+    desenharBotaoConfiguracao(CFG_NOVO_X, CFG_NOVO_W, "NOVO CODIGO", corTexto);
+    desenharBotaoConfiguracao(CFG_VOLTAR_LADO_X, CFG_VOLTAR_LADO_W, "VOLTAR", corTextoFraco);
+  } else {
+    desenharBotaoConfiguracao(70, 180, "VOLTAR", corTextoFraco);
+  }
   bloquearToqueAtualAteSoltar();
 }
 
-int verificarToqueConfiguracoes() {
+int verificarToqueConfiguracoes(bool novoCodigo) {
   int x, y;
   if (!lerNovoToque(x, y)) return 0;
   if (toqueDentro(x, y, 20, 70, 280, 40)) return 1;
   if (toqueDentro(x, y, 20, 116, 280, 36)) return 4;
   if (toqueDentro(x, y, 20, 158, 280, 36)) return 2;
-  if (toqueDentro(x, y, 70, 200, 180, 36)) return 3;
+  if (novoCodigo) {
+    if (toqueDentro(x, y, CFG_NOVO_X, CFG_LINHA_Y, CFG_NOVO_W, CFG_LINHA_H)) return 5;
+    if (toqueDentro(x, y, CFG_VOLTAR_LADO_X, CFG_LINHA_Y, CFG_VOLTAR_LADO_W, CFG_LINHA_H)) return 3;
+  } else if (toqueDentro(x, y, 70, CFG_LINHA_Y, 180, CFG_LINHA_H)) {
+    return 3;
+  }
   return 0;
 }
 

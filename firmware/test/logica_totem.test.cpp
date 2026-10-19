@@ -257,6 +257,43 @@ int main() {
             "placas.csv", caso);
   }
 
+  for (const LinhaCsv& caso : lerCsv("codigos-instalacao.csv", "codigo,valido")) {
+    confere(caso.campos.size() == 2 && (caso.campos[1] == "sim" || caso.campos[1] == "nao") &&
+                codigoInstalacaoValido(caso.campos[0].c_str()) == (caso.campos[1] == "sim"),
+            "codigos-instalacao.csv", caso);
+  }
+  // Cada byte: aceito só se estiver no alfabeto, como no teste do site.
+  static_assert(sizeof(ALFABETO_CODIGO_INSTALACAO) == 33, "32 caracteres no alfabeto do codigo");
+  for (int c = 1; c < 256; ++c) {
+    const char ch = static_cast<char>(c);
+    const bool esperado = (ch >= 'A' && ch <= 'Z' && ch != 'I' && ch != 'O') || (ch >= '2' && ch <= '9');
+    assert(caractereCodigoInstalacao(ch) == esperado);
+    assert(codigoInstalacaoValido(std::string(CODIGO_INSTALACAO_TAMANHO, ch).c_str()) == esperado);
+  }
+  assert(!caractereCodigoInstalacao('\0') && !codigoInstalacaoValido(nullptr));
+
+  assert(estacionamentoIdValido("EST-7K2M4A") && estacionamentoIdValido("est_b-2"));
+  assert(estacionamentoIdValido(std::string(ESTACIONAMENTO_ID_MAX, 'A').c_str()));
+  assert(!estacionamentoIdValido(std::string(ESTACIONAMENTO_ID_MAX + 1, 'A').c_str()));
+  for (const char* id : {"", "EST/A", "EST A", "EST.A", "../x", "EST-\xc3\x87", "EST-A\n"})
+    assert(!estacionamentoIdValido(id));
+  assert(!estacionamentoIdValido(nullptr));
+
+  // Acesso fixo só com os três campos de verdade; vazio ou o valor de exemplo
+  // do Credenciais.example.h faz o totem pedir o código de instalação.
+  const char* const email = "totem-ab12cd34ef56@dispositivo.paraai.app";
+  assert(credencialFixaPreenchida(email, "Pa!x7Kq2Wm9Lr4Tz8Nb3Vc6Yd9z", "EST-7K2M4A"));
+  assert(!credencialFixaPreenchida("", "", ""));
+  assert(!credencialFixaPreenchida("totem-gerado@dispositivo.paraai.app", "SENHA_FORTE_GERADA_NO_PAINEL", "EST-XXXXXX"));
+  assert(!credencialFixaPreenchida("totem-gerado@dispositivo.paraai.app", "Senha!Forte9", "EST-7K2M4A"));
+  assert(!credencialFixaPreenchida(email, "SENHA_FORTE_GERADA_NO_PAINEL", "EST-7K2M4A"));
+  assert(!credencialFixaPreenchida(email, "Senha!Forte9", "EST-XXXXXX"));
+  assert(!credencialFixaPreenchida(email, "", "EST-7K2M4A") && !credencialFixaPreenchida("", "Senha!Forte9", "EST-7K2M4A"));
+  assert(!credencialFixaPreenchida(email, "Senha!Forte9", "") && !credencialFixaPreenchida(email, "Senha!Forte9", "EST/7K"));
+  assert(!credencialFixaPreenchida(nullptr, "x", "EST-A") && !credencialFixaPreenchida("a", nullptr, "EST-A") &&
+         !credencialFixaPreenchida("a", "b", nullptr));
+
   std::puts("LogicaTotem: placas, capacidade, tarifa, cobranca, PIN, escolha de vaga e Wi-Fi pela tela aprovados.");
-  std::puts("LogicaTotem: casos de contratos/ (cobranca, vagas especiais e placas) iguais ao site e as regras.");
+  std::puts("LogicaTotem: codigo de instalacao, ID do estacionamento e acesso fixo do Credenciais.h aprovados.");
+  std::puts("LogicaTotem: casos de contratos/ (cobranca, vagas especiais, placas e codigos de instalacao) iguais ao site e as regras.");
 }

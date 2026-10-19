@@ -449,10 +449,12 @@ for (const caso of casosDeCobranca) {
   });
 }
 
+// uid também aceita as declarações do token, como { sub, email }.
 async function rest(path, body, uid = 'totem-a', method = body ? 'POST' : 'GET') {
+  const conta = typeof uid === 'string' ? { sub: uid } : uid;
   const response = await fetch(`${base}${path}`, {
     method,
-    headers: { Authorization: `Bearer ${createMockUserToken({ sub: uid }, projectId)}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${createMockUserToken(conta, projectId)}`, 'Content-Type': 'application/json' },
     ...(body ? { body: JSON.stringify(body) } : {})
   });
   return { status: response.status, data: await response.json() };
@@ -1245,4 +1247,172 @@ test('exclusão da conta candidata: perfil e pedido saem juntos', async () => {
   await assertSucceeds(lote.commit());
   assert.equal((await lerSemRegras('pedidosEstacionamento/candidata')).exists(), false);
   assert.equal((await lerSemRegras('users/candidata')).exists(), false);
+});
+
+// ---------------------------------------------------------------------------
+// Instalação do totem por código: o dono gera no site, o totem novo cria a
+// própria conta e grava o próprio cadastro com o código, que sai no mesmo lote.
+// ---------------------------------------------------------------------------
+const CODIGO = 'K7M2Q9XZ';
+const EMAIL_TOTEM_NOVO = 'totem-novo@dispositivo.paraai.app';
+const dbTotemNovo = (uid = 'totem-novo', email = EMAIL_TOTEM_NOVO) =>
+  env.authenticatedContext(uid, { email }).firestore();
+const codigosDoContrato = await lerCsv('codigos-instalacao.csv');
+const codigoNovo = (extra = {}) => ({ estacionamentoId: 'EST-A', nome: 'Totem da entrada',
+  nomeEstacionamento: 'Patio A', criadoEm: serverTimestamp(), ...extra });
+async function prepararCodigo(codigo = CODIGO, { minutos = 0, estId = 'EST-A' } = {}) {
+  await env.withSecurityRulesDisabled(c => setDoc(doc(c.firestore(), `codigosInstalacao/${codigo}`), {
+    ...codigoNovo({ estacionamentoId: estId }), criadoEm: Timestamp.fromMillis(Date.now() - minutos * 60000) }));
+}
+const cadastroDoTotem = (extra = {}) => ({ estacionamentoId: 'EST-A', nome: 'Totem da entrada',
+  email: EMAIL_TOTEM_NOVO, ativo: true, codigoInstalacao: CODIGO,
+  vinculadoEm: Math.floor(Date.now() / 1000), ...extra });
+function loteVinculo(d, { uid = 'totem-novo', cadastro = cadastroDoTotem(), apagar = CODIGO } = {}) {
+  const batch = writeBatch(d);
+  if (cadastro) batch.set(doc(d, `totems/${uid}`), cadastro);
+  if (apagar) batch.delete(doc(d, `codigosInstalacao/${apagar}`));
+  return batch;
+}
+
+test('código de instalação: o dono gera para o próprio pátio, no formato do contrato', async () => {
+  for (const { codigo, valido } of codigosDoContrato) {
+    // Vazio e com barra nem chegam a ser um documento.
+    if (!codigo || codigo.includes('/')) continue;
+    const criar = setDoc(ref('operador-a', `codigosInstalacao/${codigo}`), codigoNovo());
+    await (valido === 'sim' ? assertSucceeds(criar) : assertFails(criar));
+  }
+  const novo = 'MNPQRSTU';
+  for (const uid of ['operador-b', 'motorista-a', 'totem-a']) {
+    await assertFails(setDoc(ref(uid, `codigosInstalacao/${novo}`), codigoNovo()));
+  }
+  for (const invalido of [{ nome: ' ' }, { nome: 'x'.repeat(41) }, { nomeEstacionamento: '' },
+    { nomeEstacionamento: 'x'.repeat(61) }, { ownerUid: 'operador-a' }, { estacionamentoId: 'EST-X' },
+    { criadoEm: Timestamp.fromMillis(Date.now() - 60000) }]) {
+    await assertFails(setDoc(ref('operador-a', `codigosInstalacao/${novo}`), codigoNovo(invalido)));
+  }
+  const semNome = codigoNovo();
+  delete semNome.nomeEstacionamento;
+  await assertFails(setDoc(ref('operador-a', `codigosInstalacao/${novo}`), semNome));
+  await assertSucceeds(setDoc(ref('admin', `codigosInstalacao/${novo}`), codigoNovo({ estacionamentoId: 'EST-B' })));
+  // Um código que já existe não muda de pátio nem de prazo: o site sorteia outro.
+  await assertFails(setDoc(ref('operador-a', `codigosInstalacao/${novo}`), codigoNovo()));
+  await assertFails(updateDoc(ref('admin', `codigosInstalacao/${novo}`), { criadoEm: serverTimestamp() }));
+});
+
+test('código de instalação: quem digita lê só enquanto vale; só o dono lista e cancela', async () => {
+  await prepararCodigo();
+  await prepararCodigo('HJKNPRTW', { minutos: 16 });
+  await prepararCodigo('ZZZZZZZZ', { estId: 'EST-B' });
+  await assertSucceeds(getDoc(doc(dbTotemNovo(), `codigosInstalacao/${CODIGO}`)));
+  await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), `codigosInstalacao/${CODIGO}`)));
+  await assertFails(getDoc(doc(dbTotemNovo(), 'codigosInstalacao/HJKNPRTW')));
+  await assertFails(getDoc(doc(dbTotemNovo(), 'codigosInstalacao/ABCDEFGH')));
+  const doPatio = (d, estId = 'EST-A') => getDocs(query(collection(d, 'codigosInstalacao'),
+    where('estacionamentoId', '==', estId)));
+  assert.equal((await assertSucceeds(doPatio(db('operador-a')))).size, 2);
+  assert.equal((await assertSucceeds(doPatio(db('admin'), 'EST-B'))).size, 1);
+  await assertFails(doPatio(db('operador-b')));
+  await assertFails(doPatio(dbTotemNovo()));
+  await assertFails(getDocs(collection(db('operador-a'), 'codigosInstalacao')));
+  await assertFails(deleteDoc(ref('operador-b', `codigosInstalacao/${CODIGO}`)));
+  await assertFails(deleteDoc(doc(dbTotemNovo(), `codigosInstalacao/${CODIGO}`)));
+  await assertSucceeds(deleteDoc(ref('operador-a', 'codigosInstalacao/HJKNPRTW')));
+  await assertSucceeds(deleteDoc(ref('operador-a', `codigosInstalacao/${CODIGO}`)));
+});
+
+test('instalação por código: o totem novo grava o próprio cadastro e o código sai junto', async () => {
+  await prepararCodigo();
+  const d = dbTotemNovo();
+  await assertFails(getDoc(doc(d, 'estacionamentos/EST-A')));
+  await assertSucceeds(loteVinculo(d).commit());
+  assert.equal((await lerSemRegras(`codigosInstalacao/${CODIGO}`)).exists(), false);
+  const cadastro = (await lerSemRegras('totems/totem-novo')).data();
+  assert.equal(cadastro.estacionamentoId, 'EST-A');
+  assert.equal(cadastro.nome, 'Totem da entrada');
+  assert.equal(cadastro.ativo, true);
+  // Daqui em diante é um totem do pátio A, como os do painel, e o dono o vê.
+  await assertSucceeds(getDoc(doc(d, 'estacionamentos/EST-A')));
+  await assertSucceeds(getDoc(doc(d, 'veiculos/ABC1D23')));
+  await assertFails(getDoc(doc(d, 'estacionamentos/EST-B')));
+  await assertSucceeds(getDoc(ref('operador-a', 'totems/totem-novo')));
+  await assertFails(getDoc(ref('operador-b', 'totems/totem-novo')));
+  // O código não serve duas vezes, e o totem não troca de pátio sozinho.
+  const outro = dbTotemNovo('totem-outro', 'totem-outro@dispositivo.paraai.app');
+  await assertFails(loteVinculo(outro, { uid: 'totem-outro',
+    cadastro: cadastroDoTotem({ email: 'totem-outro@dispositivo.paraai.app' }) }).commit());
+  await assertFails(updateDoc(doc(d, 'totems/totem-novo'), { estacionamentoId: 'EST-B' }));
+  await assertFails(updateDoc(doc(d, 'totems/totem-novo'), { ativo: true }));
+  await assertSucceeds(updateDoc(ref('operador-a', 'totems/totem-novo'), { ativo: false }));
+});
+
+test('instalação por código: lote incompleto, código vencido ou dados trocados são recusados', async () => {
+  await prepararCodigo();
+  await prepararCodigo('HJKNPRTW', { minutos: 16 });
+  const d = dbTotemNovo();
+  await assertFails(loteVinculo(d, { apagar: null }).commit());
+  await assertFails(loteVinculo(d, { cadastro: null }).commit());
+  for (const invalido of [{ estacionamentoId: 'EST-B' }, { nome: 'Outro nome' },
+    { email: 'outro@dispositivo.paraai.app' }, { ativo: false }, { vinculadoEm: Math.floor(Date.now() / 1000) - 3600 },
+    { vinculadoEm: String(Math.floor(Date.now() / 1000)) }, { role: 'admin' }, { criadoEm: serverTimestamp() },
+    { codigoInstalacao: 'k7m2q9xz' }]) {
+    await assertFails(loteVinculo(d, { cadastro: cadastroDoTotem(invalido) }).commit());
+  }
+  // Vencido, de outro pátio que não o do código, ou em nome de outra conta.
+  await assertFails(loteVinculo(d, { cadastro: cadastroDoTotem({ codigoInstalacao: 'HJKNPRTW' }),
+    apagar: 'HJKNPRTW' }).commit());
+  await assertFails(loteVinculo(d, { uid: 'totem-a' }).commit());
+  await assertFails(loteVinculo(d, { uid: 'outra-conta' }).commit());
+  // A conta de uma pessoa não vira totem, nem a do dono.
+  for (const uid of ['motorista-a', 'operador-a']) {
+    await assertFails(loteVinculo(dbTotemNovo(uid), { uid }).commit());
+  }
+  await assertSucceeds(loteVinculo(d).commit());
+});
+
+test('acesso do totem pelo site: só conta nova, campos conhecidos e o próprio pátio', async () => {
+  const acesso = (extra = {}) => ({ estacionamentoId: 'EST-A', nome: 'Totem principal',
+    email: 'totem-esta@dispositivo.paraai.app', ativo: true, criadoEm: serverTimestamp(), ...extra });
+  await assertSucceeds(setDoc(ref('operador-a', 'totems/conta-nova'), acesso()));
+  // Com a própria conta (ou a de uma pessoa) como totem, o dono leria os
+  // veículos de toda a rede.
+  for (const uid of ['operador-a', 'motorista-a', 'admin']) {
+    await assertFails(setDoc(ref('operador-a', `totems/${uid}`), acesso()));
+  }
+  for (const invalido of [{ estacionamentoId: 'EST-B' }, { nome: '' }, { ativo: 'sim' },
+    { criadoEm: Timestamp.fromMillis(0) }, { codigoInstalacao: CODIGO }, { role: 'admin' }]) {
+    await assertFails(setDoc(ref('operador-a', 'totems/outra-conta-nova'), acesso(invalido)));
+  }
+  await assertFails(setDoc(ref('motorista-a', 'totems/outra-conta-nova'), acesso()));
+  await assertSucceeds(setDoc(ref('admin', 'totems/conta-da-rede'), acesso({ estacionamentoId: 'EST-B' })));
+  await assertFails(setDoc(ref('admin', 'totems/motorista-b'), acesso({ estacionamentoId: 'EST-B' })));
+  await assertFails(setDoc(ref('admin', 'totems/conta-sem-patio'), acesso({ estacionamentoId: 'EST-X' })));
+});
+
+test('REST do ESP: vínculo por código como o firmware lê e grava', async () => {
+  await prepararCodigo();
+  const conta = { sub: 'totem-novo', email: EMAIL_TOTEM_NOVO };
+  const lido = await rest(`/codigosInstalacao/${CODIGO}`, undefined, conta);
+  assert.equal(lido.status, 200, JSON.stringify(lido));
+  assert.equal(lido.data.fields.estacionamentoId.stringValue, 'EST-A');
+  assert.equal(lido.data.fields.nomeEstacionamento.stringValue, 'Patio A');
+  // Código errado e código vencido dão a mesma recusa: o totem não distingue.
+  assert.equal((await rest('/codigosInstalacao/ABCDEFGH', undefined, conta)).status, 403);
+  // Antes, o totem procura o próprio cadastro (uma tentativa anterior pode ter
+  // gravado): 404, e não 403, é o que o firmware espera para seguir.
+  assert.equal((await rest('/totems/totem-novo?mask.fieldPaths=estacionamentoId', undefined, conta)).status, 404);
+  const resultado = await rest(':commit', { writes: [
+    { ...escrita('totems/totem-novo', cadastroDoTotem(), { exists: 'false' }), updateMask: undefined },
+    { delete: `projects/${projectId}/databases/(default)/documents/codigosInstalacao/${CODIGO}` }
+  ] }, conta);
+  assert.equal(resultado.status, 200, JSON.stringify(resultado));
+  assert.equal((await rest('/estacionamentos/EST-A', undefined, conta)).status, 200);
+  // Uma segunda vez (energia caiu antes de o totem guardar a resposta): recusa.
+  const repetido = await rest(':commit', { writes: [
+    { ...escrita('totems/totem-novo', cadastroDoTotem(), { exists: 'false' }), updateMask: undefined },
+    { delete: `projects/${projectId}/databases/(default)/documents/codigosInstalacao/${CODIGO}` }
+  ] }, conta);
+  assert.notEqual(repetido.status, 200, JSON.stringify(repetido));
+  const cadastro = await rest('/totems/totem-novo?mask.fieldPaths=estacionamentoId', undefined, conta);
+  assert.equal(cadastro.status, 200);
+  assert.equal(cadastro.data.fields.estacionamentoId.stringValue, 'EST-A');
 });
