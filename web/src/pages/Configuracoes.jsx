@@ -278,7 +278,7 @@ export default function Configuracoes() {
                     inputMode="numeric"
                     value={telefone}
                     onChange={(e) => setTelefone(formatarTelefone(e.target.value))}
-                    placeholder="(41) 99999-8888"
+                    placeholder="(19) 99999-8888"
                     maxLength={15}
                   />
                   {telefone && !telefoneValido(telefone) && (
