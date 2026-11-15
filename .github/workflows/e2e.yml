@@ -29,7 +29,7 @@ jobs:
     # cadastro, recarga, reserva, entrada e saída no totem e a cobrança, no
     # computador e no celular (ver e2e/fluxo.spec.js).
     name: Fluxo completo nos emuladores
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # o Playwright 1.56 não instala o Chromium no Ubuntu 26.04
     timeout-minutes: 20
     steps:
       - name: Baixar código
