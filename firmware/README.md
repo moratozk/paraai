@@ -339,6 +339,59 @@ Registros antigos sem tarifa congelada, vagas duplicadas ou associações
 ausentes exigem conferência manual; não resolver apagando dados.
 As antigas reservas paraai-res da NVS não são utilizadas nem apagadas.
 
+### Gravar a versão da feira e voltar atrás
+
+O totem roda a versão de 06/10 (`26a97e5`). As regras publicadas aceitam as
+duas versões, então gravar não depende de publicar, e voltar atrás não exige
+mexer no Firebase. As duas usam as mesmas bibliotecas e as mesmas chaves da
+memória (`paraai-net` para o Wi-Fi e `paraai-ui` para a calibração): a rede e
+a calibração continuam depois da gravação, nos dois sentidos.
+
+Antes de gravar:
+
+1. Decidir se o PR #42 (marcação manual de vagas) entra, porque ele muda a
+   escolha da vaga no `Atendimento.cpp`. Gravar uma vez só, com a decisão
+   tomada.
+2. Na pasta do repositório, `git pull` na `main` e conferir que o CI dela
+   está verde.
+3. Manter o `Credenciais.h` que já está no PC. Com o acesso fixo preenchido,
+   o totem continua usando esse acesso e não pede o código de instalação.
+   Para testar a instalação por código, apagar só os três valores do acesso
+   (e-mail, senha e ID do estacionamento) e gerar o código no Perfil do dono.
+4. Não ter ninguém usando o totem durante a troca. Conferir no site as
+   estadias abertas e anotar quais vagas estão ocupadas.
+
+Gravar, a partir de `firmware/totem/`, com o totem na USB:
+
+```sh
+arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=huge_app --libraries ../../libraries --build-path .codex-build .
+arduino-cli upload -p COM3 --fqbn esp32:esp32:esp32:PartitionScheme=huge_app --build-path .codex-build .
+```
+
+Trocar `COM3` pela porta do CH340 (`arduino-cli board list`). Se der "Wrong
+boot mode detected", seguir o passo do BOOT e RST descrito em "Montagem e
+configuração".
+
+Depois de gravar: abrir o Serial a 115200, digitar `S` e conferir a conexão e
+a origem do acesso; fazer uma entrada e uma saída com uma placa de teste;
+conferir que as estadias anotadas continuam abertas; seguir o checklist
+físico abaixo.
+
+Voltar para a versão de 06/10, se algo der errado (o `Credenciais.h` precisa
+ter o acesso fixo preenchido, porque essa versão não tem o código):
+
+```sh
+git worktree add ../totem-0610 26a97e5
+cp firmware/totem/Credenciais.h ../totem-0610/firmware/totem/
+cd ../totem-0610/firmware/totem
+arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=huge_app --libraries ../../../ParaAi/libraries --build-path .codex-build .
+arduino-cli upload -p COM3 --fqbn esp32:esp32:esp32:PartitionScheme=huge_app --build-path .codex-build .
+```
+
+O caminho de `--libraries` aponta para a pasta `libraries/` do repositório
+original; ajustar se a pasta do repositório tiver outro nome. No fim,
+`git worktree remove ../totem-0610` na pasta do repositório.
+
 ### Checklist físico pendente
 
 - Calibrar com o display montado; testar bordas, formatos, corrigir/apagar/

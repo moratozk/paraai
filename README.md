@@ -35,7 +35,7 @@ paraai/
 ├── contratos/               Casos que o site, o totem e as regras testam juntos
 ├── e2e/                     Fluxo completo no navegador e demonstração sem internet
 ├── docs/
-│   ├── apresentacao.md      Roteiro da banca, checklist do dia e plano B
+│   ├── apresentacao.md      Roteiro da feira, checklist do dia e plano B
 │   └── brand/               Logos da marca em alta resolução
 ├── .github/                 CI (firmware, Firebase, site e fluxo completo) e modelo de PR
 ├── firebase.json            Publicação das regras e do site (Hosting)
@@ -206,7 +206,7 @@ site, aprovação no painel da rede e o painel de dono.
 O mesmo totem simulado (`e2e/patio.js`) serve à demonstração sem internet, o
 plano B da apresentação: `npm run apresentacao` em `e2e/` sobe o site no
 computador com contas prontas e o totem no terminal, e o CI confere que ela
-abre e atende. O roteiro da banca, com o checklist do dia, está em
+abre e atende. O roteiro da feira, com o checklist do dia, está em
 [`docs/apresentacao.md`](docs/apresentacao.md).
 
 ## Limitações conhecidas (transparência acadêmica)

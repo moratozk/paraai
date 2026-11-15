@@ -1,9 +1,15 @@
 # Roteiro da apresentação
 
-Guia para a banca: o que preparar antes, a ordem da demonstração, o que fazer
-quando algo falha e as perguntas que costumam aparecer. A demonstração
-principal usa o site publicado (<https://paraai.web.app>) e o totem de verdade.
-O plano B roda o sistema inteiro no notebook, sem internet.
+Guia para a feira de 04/12/2026: o que preparar antes, a demonstração curta
+que se repete para cada visitante, a completa para quem quer ver mais, o que
+fazer quando algo falha e as perguntas que costumam aparecer. A demonstração
+usa o site publicado (<https://paraai.web.app>) e o totem de verdade. O plano
+B roda o sistema inteiro no notebook, sem internet.
+
+Numa feira, o público passa e fica poucos minutos, o totem fica ligado por
+horas e quem usa é o próprio visitante. Por isso a demonstração curta é o
+centro, o mapa ao vivo fica o tempo todo numa tela e as placas usadas são as
+dos cartões de demonstração, nunca a placa de verdade do visitante.
 
 ## Antes do dia
 
@@ -16,20 +22,23 @@ O plano B roda o sistema inteiro no notebook, sem internet.
    firebase deploy --only hosting
    ```
 
-2. **Gravar no totem o firmware da `main`** e testar entrada, saída, a troca de
-   Wi-Fi pela tela e o modelo e a cor ("GOL PRATA") de uma placa com o Perfil
-   preenchido. Grave antes de fechar o gabinete, que não deixa o botão BOOT à
-   mão.
+2. **Gravar no totem o firmware da `main`** (passo a passo e volta atrás em
+   [firmware/README.md](../firmware/README.md#gravar-a-versão-da-feira-e-voltar-atrás))
+   e testar entrada, saída, a troca de Wi-Fi pela tela e o modelo e a cor
+   ("GOL PRATA") de uma placa com o Perfil preenchido. Grave antes de fechar o
+   gabinete, que não deixa o botão BOOT à mão. Depois de fechado, deixe o
+   totem ligado por pelo menos 4 horas seguidas, fazendo entradas e saídas de
+   vez em quando, para ver se ele aguenta o dia da feira.
 3. **Criar as contas da demonstração no site publicado**, pelo próprio site.
    Anote e-mails e senhas num papel, nunca no repositório.
 
    | Conta | Para quê | Como deixar pronta |
    |---|---|---|
-   | Motorista pronto | Usar se o cadastro ao vivo falhar | Placa, modelo e cor no Perfil e uma recarga simulada de R$ 50 |
+   | Motorista pronto | A placa dos cartões e o cadastro que falhar | Placa, modelo e cor no Perfil e uma recarga simulada de R$ 200, que cobre muitas voltas de poucos minutos |
    | Motorista com direito 60+ (ou PCD) | Mostrar o totem levando a pessoa para a vaga especial | Outra placa e o direito declarado no Perfil |
    | Administrador | Painel da rede, vagas ao vivo e maquete | A conta de vocês com `role: "admin"`, trocado no console do Firebase (o site não cria administrador) |
-   | Estacionamento em análise | Mostrar a aprovação de um pátio novo | Cadastro em "Tenho um estacionamento" com outro e-mail; o pedido fica esperando no painel da rede. Depois da banca, oculte o pátio dos motoristas |
-   | Cadastro ao vivo | Mostrar o cadastro na frente da banca | Um e-mail ainda sem conta; no Gmail, `seunome+banca@gmail.com` chega na mesma caixa |
+   | Estacionamento em análise | Mostrar a aprovação de um pátio novo | Cadastro em "Tenho um estacionamento" com outro e-mail; o pedido fica esperando no painel da rede. Depois da feira, oculte o pátio dos motoristas |
+   | Cadastro ao vivo | Mostrar o cadastro para um avaliador | Um e-mail ainda sem conta; no Gmail, `seunome+feira@gmail.com` chega na mesma caixa |
 
 4. **Marcar "Não é spam".** O e-mail de recuperação de senha ainda sai no
    modelo padrão do Firebase e cai no spam (ver `ESTADO.md`). Peça uma
@@ -43,23 +52,48 @@ O plano B roda o sistema inteiro no notebook, sem internet.
    TROCAR WIFI.
 7. **Preparar a demonstração sem internet no notebook** (ver
    [abaixo](#demonstração-sem-internet)), uma vez, com internet.
-8. Opcional: instalar o app no celular ("Instalar o app" no menu da conta;
+8. **Imprimir os cartões de placa**: dois ou três cartões com as placas das
+   contas prontas (a comum e a 60+), para o visitante digitar no totem. Assim
+   nenhuma placa de verdade de visitante fica gravada no banco (LGPD), e cada
+   entrada cai numa conta com saldo.
+9. Opcional: um cartaz com o QR code de <https://paraai.web.app>, para o
+   visitante abrir o site no próprio celular.
+10. Opcional: instalar o app no celular ("Instalar o app" no menu da conta;
    no iPhone, Compartilhar e "Adicionar à Tela de Início").
 
 ## Checklist do dia
 
 - [ ] Hotspot ligado, em 2,4 GHz, com internet e o notebook conectado nele.
-- [ ] Totem ligado na tomada ou num carregador portátil, com ENTRADA e SAÍDA na
-      tela e ONLINE no status, não CONECTANDO.
-- [ ] Notebook carregado, no hotspot, com as abas abertas e já logadas: painel
-      do administrador, vagas ao vivo e a maquete.
+- [ ] Totem ligado na tomada (o carregador portátil fica de reserva), com
+      ENTRADA e SAÍDA na tela e ONLINE no status, não CONECTANDO.
+- [ ] Notebook na tomada, no hotspot, com as abas abertas e já logadas: painel
+      do administrador, vagas ao vivo e a maquete. Suspensão e protetor de tela
+      desligados, para a maquete ficar no ar o dia todo.
+- [ ] Cartões de placa na mesa, ao lado do totem.
 - [ ] Celular com a conta do motorista pronto aberta, "Na rua" e sem reserva.
 - [ ] Modo não perturbe no notebook e no celular; brilho no máximo.
 - [ ] Vídeo do fluxo no notebook e no celular.
 - [ ] Demonstração sem internet abrindo no notebook (`npm run apresentacao`).
 - [ ] Papel com as contas e senhas, e o PIN do totem.
 
-## Ordem da demonstração
+## Demonstração curta (2 a 3 minutos, para cada visitante)
+
+1. **Uma frase:** "O ParaAí é uma rede de estacionamentos em que o motorista
+   paga pelo app e o totem registra a entrada e a saída pela placa."
+2. **O visitante usa o totem:** ENTRADA, escolhe o tipo da placa, digita a do
+   cartão e confirma. O totem mostra a vaga, com o modelo e a cor do carro.
+3. **Mostre a tela do mapa:** a vaga ficou ocupada sozinha, sem recarregar.
+   No celular, a conta do motorista mostra "Estacionado".
+4. **O visitante faz a SAÍDA** com a mesma placa: o totem mostra o valor pelo
+   tempo exato e o celular mostra o débito e o comprovante.
+5. **Uma frase de fecho:** "Tudo isso passa por regras de segurança no banco,
+   testadas automaticamente a cada mudança."
+
+Sempre feche a volta com a SAÍDA. Uma entrada sem saída deixa a vaga ocupada,
+e na próxima vez o totem recusa a mesma placa. Se alguém sair sem fazer a
+saída, faça você mesmo antes do próximo visitante.
+
+## Demonstração completa (para avaliadores e quem quer ver mais)
 
 | # | Onde | O que mostrar | O que destacar |
 |---|---|---|---|
@@ -77,7 +111,10 @@ O plano B roda o sistema inteiro no notebook, sem internet.
 | 12 | Projetor (administrador) | "Pedidos para entrar na rede": aprovar o estacionamento em análise; depois, entrar com a conta dele | Só a equipe aprova; na hora, o pátio entra no mapa e a conta ganha o painel de dono |
 | 13 | GitHub (opcional) | Actions verdes: contratos, regras e fluxo completo | A conta da cobrança é a mesma no site, no totem e nas regras, testada em cada PR |
 
-Com pouco tempo, fique com 2, 5, 6, 7, 9 e 10.
+Com pouco tempo, fique com 2, 5, 6, 7, 9 e 10. Para quem pergunta como um
+totem novo entra na rede: no Perfil do dono, "Segurança do totem", gere o
+código de 8 letras e mostre na tela; um totem novo pede esse código depois do
+Wi-Fi e se instala sozinho (o da feira usa o acesso fixo e não precisa).
 
 ## Plano B
 
@@ -131,10 +168,10 @@ de internet, porque o endereço vem do CEP; sem ela, mostre a aprovação com o
 pedido da `ana@paraai.test`.
 
 Limites: só abre no próprio notebook (para a tela de celular, use o modo de
-dispositivo do navegador, no F12) e o totem é simulado; diga isso à banca.
+dispositivo do navegador, no F12) e o totem é simulado; diga isso ao visitante.
 As fontes da marca vêm junto com o site, então aparecem mesmo sem internet.
 
-## Perguntas que a banca costuma fazer
+## Perguntas que costumam aparecer
 
 **E se o motorista mudar o saldo pelo navegador?** As regras do banco só
 deixam o saldo subir junto com um registro de recarga novo, do mesmo valor,
@@ -156,6 +193,11 @@ pedido.
 deixam cada um fazer só o que o atendimento precisa (entrada, saída, placa
 nova e o sinal de vida), e só no próprio estacionamento. O administrador
 bloqueia um totem pelo painel.
+
+**Como se instala um totem novo?** O dono gera no site um código de 8 letras,
+que vale 15 minutos e uma vez só. O totem pede o código depois do Wi-Fi, cria
+a própria conta e se liga ao estacionamento. Ninguém precisa de computador nem
+de mexer no código do firmware.
 
 **Por que não tem sensor nem cancela?** Decisão de 09/09/2026: o totem é de
 atendimento e a ocupação é lógica, vinda da estadia registrada. Sem cancela,

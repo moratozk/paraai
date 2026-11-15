@@ -1,7 +1,7 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **19/10/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **15/11/2026**.
 
 ---
 
@@ -18,25 +18,27 @@ Sistema acadêmico de atendimento para estacionamentos:
   juntos (conta da estadia, vagas especiais, placas e código de instalação)
 - **`e2e/`** — teste do fluxo completo no navegador e demonstração sem
   internet, com os emuladores e o totem simulado
-- **`docs/apresentacao.md`** — roteiro da banca, checklist do dia e plano B
+- **`docs/apresentacao.md`** — roteiro da feira de 04/12/2026, checklist do dia e plano B
 
 O motorista registra entrada/saída por placa. O Firebase associa vaga,
 estadia e cobrança simulada. O operador acompanha pelo painel. A ocupação é
 lógica; a maquete virtual do administrador mostra os mesmos registros com
 carros andando num pátio desenhado (ver "Maquete virtual", abaixo).
 
-Projeto acadêmico (TCC). A `main` tem tudo. **Regras, índice e site foram
-publicados pela última vez em 10/10/2026**, a partir da `main` (`fa07f39`,
-PRs unidos até o #34); o site no ar é o build dessa versão. **O firmware do totem é
-o gravado em 06/10/2026** (`26a97e5`, anterior aos PRs #20 e #22), testado
-naquele dia: uma placa sem direito declarado recebeu a primeira vaga comum
-livre. O que entrou depois espera a próxima publicação.
+Projeto acadêmico (TCC), apresentado numa feira em **04/12/2026**. A `main`
+tem tudo. **Regras, índice e site foram publicados pela última vez em
+15/11/2026** (00:15 UTC, 21:15 de 14/11 em Brasília), a partir da `main`
+(`cbe1328`, PRs unidos até o #43); o site no ar é o build dessa versão.
+**O firmware do totem é o gravado em 06/10/2026** (`26a97e5`, anterior aos
+PRs #20, #22 e #43), testado naquele dia: uma placa sem direito declarado
+recebeu a primeira vaga comum livre. Gravar a `main` no totem é o próximo
+passo do hardware (ver "Gravar a versão da feira e voltar atrás" em
+`firmware/README.md`).
 
-## Próxima publicação
+## Como publicar
 
-Esperam publicação os PRs #35 a #40 e #43, já na `main`. Mudam as regras o
-#39 (estacionamento novo por pedido) e o #43 (instalação do totem por
-código); o índice e o `firebase.json` não mudam desde 10/10.
+Publicado em 15/11/2026: os PRs #35 a #40 e #43. O que entrar na `main`
+depois disso espera a próxima publicação, que segue estes passos.
 
 Na raiz do repositório, no computador que publica, com o `web/.env`
 preenchido:
@@ -50,14 +52,11 @@ preenchido:
 4. `npm --prefix web run build` e
    `firebase deploy --only hosting --project paraai-9514f`.
 
-A ordem só importa para o site novo: com as regras antigas, ele recusa o
-cadastro de estacionamento e não gera o código de instalação. As regras novas
-aceitam o site que está no ar (o fluxo completo da versão `fa07f39` passou com
-elas no emulador, no computador e no celular) e não mudam nada do que o totem
-grava, então o firmware de 06/10 continua funcionando. Depois de publicar,
-fazer as conferências dos itens 14 a 17 de "O que falta". Os itens 8 a 13 já
-foram publicados em 09 e 10/10; deles, só as conferências seguem pendentes.
-Gravar o firmware novo é um passo à parte, que não depende deste (item 17).
+Publicar sempre as regras antes do site. As regras publicadas em 15/11
+aceitam o firmware de 06/10 que está no totem e o da `main`. Faltam as
+conferências dos itens 14 a 17 de "O que falta", agora no ar; as dos itens 8
+a 13 também seguem pendentes. Gravar o firmware novo é um passo à parte, que
+não depende de publicar (item 17).
 
 ## Instalação do totem por código (18/10/2026)
 

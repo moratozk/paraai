@@ -117,7 +117,7 @@ export default function Cadastro() {
       if (!name.trim()) return setError("Informe seu nome.");
       if (!email.trim()) return setError("Informe seu e-mail.");
       if (!telefoneValido(telefone))
-        return setError("Informe um celular válido com DDD. Ex.: (41) 99999-8888");
+        return setError("Informe um celular válido com DDD. Ex.: (19) 99999-8888");
       if (password.length < 6)
         return setError("A senha deve ter pelo menos 6 caracteres.");
       if (password !== confirmPassword)
@@ -156,7 +156,7 @@ export default function Cadastro() {
     // motorista: validações da etapa única
     if (!estacionamento) {
       if (!telefoneValido(telefone))
-        return setError("Informe um celular válido com DDD. Ex.: (41) 99999-8888");
+        return setError("Informe um celular válido com DDD. Ex.: (19) 99999-8888");
       if (password !== confirmPassword)
         return setError("As senhas não coincidem.");
       if (password.length < 6)
@@ -348,7 +348,7 @@ export default function Cadastro() {
                   autoComplete="tel"
                   value={telefone}
                   onChange={(e) => setTelefone(formatarTelefone(e.target.value))}
-                  placeholder="(41) 99999-8888"
+                  placeholder="(19) 99999-8888"
                   maxLength={15}
                 />
                 {telefone && !telefoneValido(telefone) ? (
