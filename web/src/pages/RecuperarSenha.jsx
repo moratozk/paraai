@@ -47,7 +47,7 @@ export default function RecuperarSenha() {
 
   if (enviado) {
     return (
-      <div className="auth-page">
+      <main className="auth-page">
         <div className="card auth-card">
           <div className="auth-selo" aria-hidden="true">
             ✓
@@ -65,12 +65,12 @@ export default function RecuperarSenha() {
             Voltar para o login
           </Link>
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="auth-page">
+    <main className="auth-page">
       <div className="card auth-card">
         <div className="auth-logo">
           <LogoMark size={52} />
@@ -109,6 +109,6 @@ export default function RecuperarSenha() {
           Lembrou a senha? <Link to="/login">Entrar</Link>
         </p>
       </div>
-    </div>
+    </main>
   );
 }

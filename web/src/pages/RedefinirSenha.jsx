@@ -95,7 +95,7 @@ export default function RedefinirSenha() {
   // ---------- concluído ----------
   if (pronto) {
     return (
-      <div className="auth-page">
+      <main className="auth-page">
         <div className="card auth-card">
           <div className="auth-selo" aria-hidden="true">✓</div>
           <h1 className="auth-title">Senha redefinida</h1>
@@ -107,25 +107,25 @@ export default function RedefinirSenha() {
             Ir para o login
           </Link>
         </div>
-      </div>
+      </main>
     );
   }
 
   // ---------- validando o código da URL ----------
   if (validando && codigoDaUrl) {
     return (
-      <div className="auth-page">
+      <main className="auth-page">
         <div className="card auth-card">
           <div className="spinner-grande" style={{ margin: "10px auto 22px" }} />
           <h1 className="auth-title">Conferindo o link…</h1>
           <p className="subtitle">Só um instante.</p>
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="auth-page">
+    <main className="auth-page">
       <div className="card auth-card">
         <div className="auth-logo">
           <LogoMark size={52} />
@@ -221,7 +221,7 @@ export default function RedefinirSenha() {
           </form>
         )}
       </div>
-    </div>
+    </main>
   );
 }
 

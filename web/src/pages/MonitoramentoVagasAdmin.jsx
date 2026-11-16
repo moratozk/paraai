@@ -355,7 +355,7 @@ export default function MonitoramentoVagasAdmin() {
               className="monitor-mapa-scroll"
               tabIndex={0}
               role="region"
-              aria-label="Mapa das vagas"
+              aria-label="Vagas do pátio"
               aviso="Role para o lado para ver todas as vagas."
             >
               <div

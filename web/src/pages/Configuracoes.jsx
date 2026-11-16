@@ -224,7 +224,7 @@ export default function Configuracoes() {
   const tipoConta = TIPOS_DE_CONTA[userData?.role] || TIPOS_DE_CONTA.motorista;
 
   return (
-    <div className="page container">
+    <main className="page container">
       <div className="page-header">
         <h1>Configurações</h1>
         <p>Gerencie o acesso e a privacidade da sua conta ParaAí.</p>
@@ -571,7 +571,7 @@ export default function Configuracoes() {
           )}
         </div>
       </div>
-    </div>
+    </main>
   );
 }
 

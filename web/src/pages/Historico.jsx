@@ -65,7 +65,7 @@ export default function Historico() {
   if (role === "candidato") return <Navigate to="/dashboard" replace />;
 
   return (
-    <div className="page container">
+    <main className="page container">
       <div className="page-header">
         <h1>{role === "operador" ? "Movimentações" : "Meus acessos"}</h1>
         <p>
@@ -217,6 +217,6 @@ export default function Historico() {
           aoFechar={() => setComprovante(null)}
         />
       )}
-    </div>
+    </main>
   );
 }
