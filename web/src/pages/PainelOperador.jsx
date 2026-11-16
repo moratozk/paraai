@@ -182,7 +182,7 @@ export default function PainelOperador() {
 
   if (!estId) {
     return (
-      <div className="page container">
+      <main className="page container">
         <div className="card empty-state">
           <h2>Conclua o cadastro do estacionamento</h2>
           <p>
@@ -193,12 +193,12 @@ export default function PainelOperador() {
             Informar dados do estacionamento
           </Link>
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="page container">
+    <main className="page container">
       {/* ---------- Cabeçalho ---------- */}
       <div className="page-header header-row">
         <div>
@@ -571,6 +571,6 @@ export default function PainelOperador() {
           </>
         )}
       </div>
-    </div>
+    </main>
   );
 }

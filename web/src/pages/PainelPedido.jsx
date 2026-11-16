@@ -339,9 +339,9 @@ export default function PainelPedido() {
 
   if (carregando) {
     return (
-      <div className="page container">
+      <main className="page container">
         <div className="card empty-state">Carregando o seu pedido…</div>
-      </div>
+      </main>
     );
   }
 
@@ -358,7 +358,7 @@ export default function PainelPedido() {
         };
 
   return (
-    <div className="page container pedido-pagina">
+    <main className="page container pedido-pagina">
       <div className="page-header">
         <div>
           <span className="rotulo">Estacionamento na rede</span>
@@ -505,6 +505,6 @@ export default function PainelPedido() {
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

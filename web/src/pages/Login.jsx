@@ -45,7 +45,7 @@ export default function Login() {
   }
 
   return (
-    <div className="auth-page">
+    <main className="auth-page">
       <div className="card auth-card">
         <div className="auth-logo">
           <LogoMark size={52} />
@@ -116,7 +116,7 @@ export default function Login() {
           </p>
         )}
       </div>
-    </div>
+    </main>
   );
 }
 

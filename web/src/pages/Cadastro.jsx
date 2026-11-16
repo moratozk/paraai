@@ -230,7 +230,7 @@ export default function Cadastro() {
   }
 
   return (
-    <div className="auth-page">
+    <main className="auth-page">
       <div className="card auth-card auth-card-larga">
         <div className="auth-logo">
           <LogoMark size={54} />
@@ -637,7 +637,7 @@ export default function Cadastro() {
           Faz parte da equipe? <Link to="/login?perfil=admin">Acesso administrativo</Link>
         </p>
       </div>
-    </div>
+    </main>
   );
 }
 

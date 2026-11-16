@@ -146,7 +146,7 @@ export default function MaqueteVirtual() {
               telaCheia={telaCheia}
               aoMovimentar={registrarMovimento}
             />
-            <aside className="maquete-movimentos" aria-labelledby="maquete-movimentos-titulo">
+            <section className="maquete-movimentos" aria-labelledby="maquete-movimentos-titulo">
               <h2 id="maquete-movimentos-titulo">Últimos movimentos</h2>
               {movimentos.length === 0 ? (
                 <p>
@@ -168,7 +168,7 @@ export default function MaqueteVirtual() {
                   ))}
                 </ol>
               )}
-            </aside>
+            </section>
           </div>
         )}
       </section>

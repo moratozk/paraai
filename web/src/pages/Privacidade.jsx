@@ -80,7 +80,7 @@ export default function Privacidade() {
   const destinoDosDados = user ? "/configuracoes?aba=privacidade" : "/login";
 
   return (
-    <div className="page container privacidade">
+    <main className="page container privacidade">
       <div className="page-header">
         <div>
           <h1>Privacidade</h1>
@@ -285,6 +285,6 @@ export default function Privacidade() {
           </section>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

@@ -149,7 +149,7 @@ export default function PainelMotorista() {
     : "";
 
   return (
-    <div className="page container">
+    <main className="page container">
       <div className="page-header">
         <h1>Olá, {firstName} 👋</h1>
         <p>Seu carro na rede ParaAí, em tempo real.</p>
@@ -416,6 +416,6 @@ export default function PainelMotorista() {
           aoFechar={() => setComprovante(null)}
         />
       )}
-    </div>
+    </main>
   );
 }

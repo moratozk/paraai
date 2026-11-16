@@ -253,7 +253,7 @@ export default function Perfil() {
 
 
   return (
-    <div className="page container">
+    <main className="page container">
       <div className="page-header">
         <h1>Perfil</h1>
         <p>
@@ -270,7 +270,7 @@ export default function Perfil() {
       <div className="profile-grid">
         <div className="card profile-summary">
           <div className="profile-avatar">{initials}</div>
-          <h3>{name}</h3>
+          <h2>{name}</h2>
           <p>{email}</p>
           {role === "admin" ? (
             <span className="status-pill warning">Administrador</span>
@@ -772,6 +772,6 @@ export default function Perfil() {
           aoConcluir={(v) => toast.sucesso(`+${formatarMoeda(v)} na sua carteira!`)}
         />
       )}
-    </div>
+    </main>
   );
 }
