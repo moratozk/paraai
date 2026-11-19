@@ -1,7 +1,7 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **15/11/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **18/11/2026**.
 
 ---
 
@@ -26,19 +26,22 @@ lógica; a maquete virtual do administrador mostra os mesmos registros com
 carros andando num pátio desenhado (ver "Maquete virtual", abaixo).
 
 Projeto acadêmico (TCC), apresentado numa feira em **04/12/2026**. A `main`
-tem tudo. **Regras, índice e site foram publicados pela última vez em
-15/11/2026** (00:15 UTC, 21:15 de 14/11 em Brasília), a partir da `main`
-(`cbe1328`, PRs unidos até o #43); o site no ar é o build dessa versão.
-**O firmware do totem é o gravado em 06/10/2026** (`26a97e5`, anterior aos
-PRs #20, #22 e #43), testado naquele dia: uma placa sem direito declarado
-recebeu a primeira vaga comum livre. Gravar a `main` no totem é o próximo
-passo do hardware (ver "Gravar a versão da feira e voltar atrás" em
-`firmware/README.md`).
+tem tudo. **Regras e índice foram publicados pela última vez em 15/11/2026**
+(`cbe1328`) e **o site em 18/11/2026** (23:25 UTC, 20:25 em Brasília), a
+partir da `main` `539668b` (PRs unidos até o #45); o site no ar é o build
+dessa versão. **O firmware do totem é o da `main` `539668b`, gravado em
+18/11/2026** pela COM3: a placa estava com outro firmware de testes (GhostESP),
+copiado antes para `Documents\ParaAi-backups` no PC e apagado por inteiro
+antes da gravação. O totem usa o acesso fixo do `Credenciais.h`, conectou no
+Wi-Fi e no Firebase, foi calibrado e registrou uma entrada. Os testes do
+checklist físico (`firmware/README.md`) seguem pendentes.
 
 ## Como publicar
 
-Publicado em 15/11/2026: os PRs #35 a #40 e #43. O que entrar na `main`
-depois disso espera a próxima publicação, que segue estes passos.
+Publicado: em 15/11/2026, regras, índice e site com os PRs #35 a #40 e #43;
+em 18/11/2026, só o site, com o #44 e o #45 (as regras não mudaram). O que
+entrar na `main` depois disso espera a próxima publicação, que segue estes
+passos.
 
 Na raiz do repositório, no computador que publica, com o `web/.env`
 preenchido:
@@ -1196,10 +1199,11 @@ usa o Firebase de produção.
    CSS (o pátio visto de cima, como na Home). Nenhuma página usa mais foto
    externa.
 
-7. ~~Gravar no totem o firmware da `main`.~~ Feito em 06/10/2026 pela COM3
-   (1.405.792 bytes, gravação conferida pelo hash). Teste: entrada de uma placa
-   sem direito declarado recebeu a vaga comum, não a PCD. Para gravar de novo:
-   placa na COM3 e modo de gravação (segurar BOOT, apertar RST, soltar BOOT).
+7. ~~Gravar no totem o firmware da `main`.~~ Feito de novo em 18/11/2026
+   (`539668b`, pela COM3, gravação conferida pelo hash; a anterior foi em
+   06/10). A placa não entrou sozinha no modo de gravação: segurar BOOT,
+   apertar RST e soltar BOOT. A cópia da memória precisou da velocidade
+   padrão da serial (a mais alta deu erro de ruído na USB).
 
 8. **Modelo e cor do veículo (08/10/2026, PR próprio).** Para funcionar por
    inteiro, nesta ordem: publicar as regras (sem elas, o Perfil não salva
