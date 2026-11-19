@@ -34,7 +34,11 @@ dessa versão. **O firmware do totem é o da `main` `539668b`, gravado em
 copiado antes para `Documents\ParaAi-backups` no PC e apagado por inteiro
 antes da gravação. O totem usa o acesso fixo do `Credenciais.h`, conectou no
 Wi-Fi e no Firebase, foi calibrado e registrou uma entrada. Os testes do
-checklist físico (`firmware/README.md`) seguem pendentes.
+checklist físico (`firmware/README.md`) seguem pendentes. Também em 18/11,
+todas as conferências automáticas passaram com a `main` `539668b`: site (30
+testes e build), regras (123), fluxo completo (8, no computador e no
+celular), firmware (lógica e 43 telas) e a demonstração sem internet. Os
+comandos e o roteiro da feira estão em `docs/apresentacao.md`.
 
 ## Como publicar
 

@@ -341,17 +341,22 @@ As antigas reservas paraai-res da NVS não são utilizadas nem apagadas.
 
 ### Gravar a versão da feira e voltar atrás
 
-O totem roda a versão de 06/10 (`26a97e5`). As regras publicadas aceitam as
-duas versões, então gravar não depende de publicar, e voltar atrás não exige
-mexer no Firebase. As duas usam as mesmas bibliotecas e as mesmas chaves da
-memória (`paraai-net` para o Wi-Fi e `paraai-ui` para a calibração): a rede e
-a calibração continuam depois da gravação, nos dois sentidos.
+Desde 18/11/2026 o totem roda a `main` `539668b`, sem o PR #42. Antes, a placa
+estava com outro firmware de testes (GhostESP) e foi apagada por inteiro. As
+regras publicadas aceitam esta versão e a de 06/10 (`26a97e5`), então gravar
+não depende de publicar, e voltar atrás não exige mexer no Firebase. As duas
+usam as mesmas bibliotecas e as mesmas chaves da memória (`paraai-net` para o
+Wi-Fi e `paraai-ui` para a calibração): numa gravação comum, a rede e a
+calibração continuam, nos dois sentidos. Se a memória for apagada, o primeiro
+boot pede a calibração (quatro miras, cada uma espera 30 segundos, três vezes)
+e usa o Wi-Fi do `Credenciais.h`.
 
 Antes de gravar:
 
 1. Decidir se o PR #42 (marcação manual de vagas) entra, porque ele muda a
    escolha da vaga no `Atendimento.cpp`. Gravar uma vez só, com a decisão
-   tomada.
+   tomada. A gravação de 18/11 foi sem ele: se ele entrar na `main`, o totem
+   precisa ser gravado de novo.
 2. Na pasta do repositório, `git pull` na `main` e conferir que o CI dela
    está verde.
 3. Manter o `Credenciais.h` que já está no PC. Com o acesso fixo preenchido,
@@ -370,7 +375,13 @@ arduino-cli upload -p COM3 --fqbn esp32:esp32:esp32:PartitionScheme=huge_app --b
 
 Trocar `COM3` pela porta do CH340 (`arduino-cli board list`). Se der "Wrong
 boot mode detected", seguir o passo do BOOT e RST descrito em "Montagem e
-configuração".
+configuração". Na placa do totem foi preciso, em 18/11: o reset automático
+falhou, e a 921600 a serial deu "Serial data stream stopped". Com o chip em
+modo de gravação, use o esptool com `--before no-reset --baud 115200`. Antes
+de gravar, guarde uma cópia da memória fora do repositório, porque ela leva
+as credenciais: `esptool --port COM3 --baud 115200 --before no-reset --after
+no-reset read-flash 0 ALL copia.bin`. O `--after no-reset` deixa o chip em
+modo de gravação para o comando seguinte.
 
 Depois de gravar: abrir o Serial a 115200, digitar `S` e conferir a conexão e
 a origem do acesso; fazer uma entrada e uma saída com uma placa de teste;
