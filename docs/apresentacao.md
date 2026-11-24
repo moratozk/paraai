@@ -74,9 +74,12 @@ marcado em cada item de "Antes do dia".
    contas prontas (a comum e a 60+), para o visitante digitar no totem. Assim
    nenhuma placa de verdade de visitante fica gravada no banco (LGPD), e cada
    entrada cai numa conta com saldo.
-9. Opcional: um cartaz com o QR code de <https://paraai.web.app>, para o
+9. **Instalar o totem reserva** num notebook ou celular que não seja o do
+   mapa (ver [Se o totem parar](#se-o-totem-parar)) e fazer uma entrada e uma
+   saída por ele. É o que segura a demonstração se a placa do totem falhar.
+10. Opcional: um cartaz com o QR code de <https://paraai.web.app>, para o
    visitante abrir o site no próprio celular.
-10. Opcional: instalar o app no celular ("Instalar o app" no menu da conta;
+11. Opcional: instalar o app no celular ("Instalar o app" no menu da conta;
    no iPhone, Compartilhar e "Adicionar à Tela de Início").
 
 ## Conferência na véspera
@@ -92,6 +95,7 @@ completo e a demonstração sem internet precisam do Java 21.
 | Fluxo completo | `e2e/`: `npm ci`, `npx playwright install chromium` e `npm test` | 8 testes, no computador e no celular |
 | Firmware | `firmware/test/`: os comandos de [Verificação](../firmware/README.md#verificação-e-instalação-controlada) | Lógica e 43 telas |
 | Plano B | `e2e/`: `npm run apresentacao`, depois `entrada`, `saida` e `sair` | Entrada, saída e recusa por saldo pendente |
+| Totem reserva | `/totem-reserva` no aparelho reserva: uma entrada e uma saída com a placa do cartão, olhando o mapa ao vivo | Testado nos emuladores em 24/11/2026; falta no site publicado |
 | Site no ar | As páginas públicas no celular, nos dois temas, e um endereço que não existe | Tudo certo, sem erros no console |
 | Totem | Serial a 115200 e `S`: Wi-Fi conectado, `estado=4` e o acesso do `Credenciais.h` | Pronto, com uma entrada |
 
@@ -107,6 +111,8 @@ completo e a demonstração sem internet precisam do Java 21.
 - [ ] Celular com a conta do motorista pronto aberta, "Na rua" e sem reserva.
 - [ ] Modo não perturbe no notebook e no celular; brilho no máximo.
 - [ ] Vídeo do fluxo no notebook e no celular.
+- [ ] Totem reserva aberto num segundo aparelho, com ONLINE no canto, e um
+      carregador para ele.
 - [ ] Demonstração sem internet abrindo no notebook (`npm run apresentacao`).
 - [ ] Papel com as contas e senhas, e o PIN do totem.
 
@@ -124,7 +130,7 @@ demonstração curta e deixe o mapa na tela.
 
 ## Demonstração curta (2 a 3 minutos, para cada visitante)
 
-1. **Uma frase:** "O ParaAí é uma rede de estacionamentos em que o motorista
+1. **Uma frase:** "O ParaAí é um software que automatiza estacionamentos: o motorista
    paga pelo app e o totem registra a entrada e a saída pela placa."
 2. **O visitante usa o totem:** ENTRADA, escolhe o tipo da placa, digita a do
    cartão e confirma. O totem mostra a vaga, com o modelo e a cor do carro.
@@ -189,11 +195,64 @@ Wi-Fi e se instala sozinho (o da feira usa o acesso fixo e não precisa).
 | O totem mostra CONECTANDO ou SEM WI-FI | Tire e ponha o cabo USB (ou aperte RST, se o gabinete deixar). Se não voltar logo, confira a rede em TROCAR WIFI |
 | O toque do totem erra | Menu do PIN, RECALIBRAR TOUCH |
 | O toque não responde logo depois de gravar o firmware | Com a memória apagada, o primeiro boot pede a calibração: aperte RST e toque no centro das quatro miras (cada uma espera 30 segundos) |
-| O totem não volta | Mostre a parte do totem pelo vídeo e siga no site; ou passe para a demonstração sem internet, onde o totem é simulado |
+| O totem não volta em 1 minuto | Passe para o totem reserva (abaixo) e mostre a placa funcionando pelo vídeo |
 | O cadastro ao vivo falha | Entre com o motorista pronto |
 | O e-mail de recuperação não chega | A demonstração não depende dele: entre com a conta pronta |
 | O site publicado não abre, ou não há internet nenhuma | Demonstração sem internet no notebook, ou o vídeo |
 | O projetor não reconhece o notebook | Leve adaptador; em último caso, mostre pelo celular |
+
+### Se o totem parar
+
+O totem é só uma tela de atendimento: o site, o banco e as regras não dependem
+dele. Por isso, quando a placa falha, a demonstração continua com a mesma tela
+num navegador, o **totem reserva** (`/totem-reserva`). Ele se instala como um
+totem novo, pelo código de 8 letras do Perfil, e faz as mesmas leituras e
+gravações do firmware: escolhe a vaga do mesmo jeito, cobra pela mesma conta,
+manda o sinal de vida, e o mapa ao vivo, o painel e o celular do motorista
+mudam igual. As regras do banco não mudam nada para ele.
+
+**O que fazer, em ordem (o visitante continua olhando o mapa):**
+
+1. **Olhe a tela do totem (10 segundos).**
+   - Apagada: tomada, cabo e fonte. Troque pelo carregador portátil.
+   - CONECTANDO ou SEM WI-FI: o hotspot está ligado e em 2,4 GHz? Tire e ponha
+     o cabo USB.
+   - Parada, sem responder ao toque: tire e ponha o cabo USB (ou RST).
+   - Toque errando: menu do PIN, RECALIBRAR TOUCH.
+2. **Se em 1 minuto não voltar, passe para o totem reserva.** Entregue o
+   aparelho reserva ao visitante, na tela de ENTRADA e SAÍDA, e siga a
+   demonstração curta do mesmo jeito. Deixe o totem reiniciando ao lado.
+3. **Fale disso como parte do projeto, não como defeito:** "O totem é só a
+   tela de atendimento. O ParaAí é o software: a mesma tela roda aqui no
+   navegador, com o mesmo acesso de totem e as mesmas regras de segurança."
+4. **Mostre a placa pelo vídeo** para quem quiser ver o hardware.
+5. **Sem internet nenhuma:** demonstração sem internet no notebook, onde o
+   totem é simulado no terminal.
+
+Entradas abertas pelo totem reserva podem sair pelo totem de verdade, e o
+contrário também, porque os dois são do mesmo pátio.
+
+**Preparar o totem reserva, uma vez, na véspera:**
+
+1. No aparelho reserva (notebook ou celular, numa janela normal, não anônima),
+   abra <https://paraai.web.app/totem-reserva>. Se o site publicado ainda não
+   tiver a página, rode o site no notebook (`npm --prefix web run dev`, com o
+   `web/.env` do projeto) e abra `http://localhost:5173/totem-reserva`: ele usa
+   o mesmo Firebase do site publicado.
+2. Em outro aparelho, entre com a conta do dono do estacionamento da feira e
+   abra **Perfil › Segurança do totem › Instalar outro totem**.
+3. Digite o código no aparelho reserva e toque em **Instalar**. Ele fica
+   instalado naquele navegador, mesmo fechando a aba, e aparece na lista de
+   totens do Perfil.
+4. Faça uma entrada e uma saída com a placa do cartão, olhando o mapa ao vivo.
+5. No dia, deixe a aba aberta e carregando. Com ela aberta, o painel conta
+   dois totens online; fechada, o reserva aparece offline, o que é esperado.
+
+Depois da feira: no aparelho, **Desinstalar**; no Perfil, desative o totem
+reserva.
+
+Se houver uma segunda placa CYD, dá para gravar nela o mesmo firmware e
+instalá-la pelo código também, como reserva física.
 
 ## Demonstração sem internet
 

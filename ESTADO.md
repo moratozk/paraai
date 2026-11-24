@@ -65,6 +65,25 @@ conferências dos itens 14 a 17 de "O que falta", agora no ar; as dos itens 8
 a 13 também seguem pendentes. Gravar o firmware novo é um passo à parte, que
 não depende de publicar (item 17).
 
+## Totem reserva no navegador (24/11/2026)
+
+Plano B para a placa do totem falhar na feira: a página `/totem-reserva` do
+site é a tela do totem num notebook, tablet ou celular (ENTRADA, SAÍDA, placa e
+o resultado, com a tela sempre acesa).
+
+- Instala-se como um totem novo, pelo código de 8 letras do Perfil
+  (`services/totemReserva.js`): cria uma conta de totem só daquele navegador,
+  num app do Firebase à parte (a conta de quem usa o site no aparelho não
+  muda), e grava o próprio cadastro com o código. **As regras não mudaram.**
+- O atendimento (escolha da vaga, entrada, saída com a cobrança e o sinal de
+  vida) saiu de `e2e/patio.js` para `web/src/utils/totemAtendimento.js`, usado
+  pelo totem reserva e pelo totem simulado dos testes e da demonstração sem
+  internet. O fluxo completo ganhou um teste dele (10 testes, no computador e
+  no celular).
+- O passo a passo do dia está em `docs/apresentacao.md`, "Se o totem parar".
+- **Ainda não publicado:** precisa de um deploy só do site. Sem ele, o site
+  rodando no notebook (`npm --prefix web run dev`) também serve.
+
 ## Instalação do totem por código (18/10/2026)
 
 Antes, para ligar um totem a um estacionamento, o dono gerava no Perfil um
