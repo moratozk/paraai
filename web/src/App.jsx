@@ -27,6 +27,7 @@ const Configuracoes = lazy(() => import("./pages/Configuracoes"));
 const MonitoramentoVagasAdmin = lazy(() => import("./pages/MonitoramentoVagasAdmin"));
 const MaqueteVirtual = lazy(() => import("./pages/MaqueteVirtual"));
 const NaoEncontrada = lazy(() => import("./pages/NaoEncontrada"));
+const TotemReserva = lazy(() => import("./pages/TotemReserva"));
 
 // Nome da página na aba do navegador. O do painel e o dos acessos mudam com o
 // papel da conta, como no menu (ver Navbar).
@@ -67,6 +68,8 @@ export default function App() {
                 <Route path="/acao" element={<Titulo nome="Sua conta"><AcaoConta /></Titulo>} />
                 {/* Política de privacidade: o cadastro aponta para cá antes de a conta existir. */}
                 <Route path="/privacidade" element={<Titulo nome="Privacidade"><Privacidade /></Titulo>} />
+                {/* Plano B do totem: a tela dele no navegador, com uma conta de totem própria. */}
+                <Route path="/totem-reserva" element={<Titulo nome="Totem reserva"><TotemReserva /></Titulo>} />
 
                 <Route
                   path="/dashboard"

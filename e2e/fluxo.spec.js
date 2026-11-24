@@ -385,3 +385,64 @@ test("totem novo: código de instalação no Perfil e o totem se instala sozinho
 
   expect(dono.erros).toEqual([]);
 });
+
+test("totem reserva: o navegador faz o papel do totem que falhou", async ({ browser }, info) => {
+  const { viewport, userAgent, deviceScaleFactor, isMobile, hasTouch, baseURL, locale, timezoneId } =
+    info.project.use;
+  const opcoes = { viewport, userAgent, deviceScaleFactor, isMobile, hasTouch, baseURL, locale, timezoneId };
+  const dono = await novaPagina(browser, opcoes);
+  const reserva = await novaPagina(browser, opcoes);
+  const placa = "RES3R26";
+  let codigo;
+
+  await test.step("o dono gera o código no Perfil", async () => {
+    await entrar(dono, DONO.email);
+    await dono.goto("/perfil");
+    const seguranca = cartao(dono, "Segurança do totem");
+    await seguranca.getByRole("button", { name: /Instalar (um|outro) totem/ }).click();
+    const exibido = seguranca.locator(".totem-instalacao-codigo");
+    await expect(exibido).toHaveText(/^[A-HJ-NP-Z2-9]{4} [A-HJ-NP-Z2-9]{4}$/);
+    codigo = (await exibido.textContent()).replace(" ", "");
+  });
+
+  await test.step("o aparelho reserva se instala com o código", async () => {
+    await reserva.goto("/totem-reserva");
+    await reserva.getByLabel("Código de instalação").fill(codigo);
+    await reserva.getByRole("button", { name: "Instalar" }).click();
+    await expect(reserva.getByRole("button", { name: "ENTRADA" })).toBeVisible();
+    await expect(reserva.locator(".totem-reserva-local")).toHaveText(NOME_EST);
+    await expect(reserva.getByRole("status").filter({ hasText: "ONLINE" })).toBeVisible();
+    expect(await lerNoBanco(`codigosInstalacao/${codigo}`)).toBeNull();
+    await expect(cartao(dono, "Segurança do totem").locator(".totem-instalacao.concluida")).toContainText("instalado");
+  });
+
+  await test.step("entrada e saída pela tela, gravadas como no totem", async () => {
+    await reserva.getByRole("button", { name: "ENTRADA" }).click();
+    await reserva.getByLabel("Digite a placa").fill(placa.toLowerCase());
+    await reserva.getByRole("button", { name: "Confirmar" }).click();
+    await expect(reserva.getByRole("alert")).toContainText("ENTRADA CONFIRMADA");
+    const estacionado = await lerNoBanco(`veiculos/${placa}`);
+    expect(estacionado).toMatchObject({ estacionamentoId: EST, cadastradoNoTotem: true });
+    expect(await lerNoBanco(`estacionamentos/${EST}/vagas/${estacionado.vagaAtual}`)).toMatchObject({ placa, ocupada: true });
+
+    await reserva.getByRole("button", { name: "OK" }).click();
+    await reserva.getByRole("button", { name: "SAÍDA" }).click();
+    await reserva.getByLabel("Digite a placa").fill(placa);
+    await reserva.getByRole("button", { name: "Confirmar" }).click();
+    await expect(reserva.getByRole("alert")).toContainText(/SAIDA (CONFIRMADA|COM PENDENCIA)/);
+    expect(await lerNoBanco(`veiculos/${placa}`)).toMatchObject({ vagaAtual: 0, estacionamentoId: "" });
+    expect(await lerNoBanco(`historico/${placa}_${estacionado.horaEntrada}`)).toMatchObject({
+      placa, vaga: estacionado.vagaAtual, estacionamentoId: EST,
+    });
+  });
+
+  await test.step("desinstalar tira o totem só deste navegador", async () => {
+    await reserva.getByRole("button", { name: "OK" }).click();
+    await reserva.getByRole("button", { name: "Desinstalar" }).click();
+    await reserva.getByRole("button", { name: "Tirar deste aparelho" }).click();
+    await expect(reserva.getByLabel("Código de instalação")).toBeVisible();
+  });
+
+  expect(dono.erros).toEqual([]);
+  expect(reserva.erros).toEqual([]);
+});

@@ -46,10 +46,16 @@ export function ligarAuthAoEmulador(instancia) {
   return instancia;
 }
 
-ligarAuthAoEmulador(auth);
-if (usaEmuladores) {
-  const [host, porta] = emuladorFirestore.split(":");
-  connectFirestoreEmulator(db, host, Number(porta));
+// O mesmo para o banco de um app à parte, como o do totem reserva.
+export function ligarFirestoreAoEmulador(instancia) {
+  if (usaEmuladores) {
+    const [host, porta] = emuladorFirestore.split(":");
+    connectFirestoreEmulator(instancia, host, Number(porta));
+  }
+  return instancia;
 }
+
+ligarAuthAoEmulador(auth);
+ligarFirestoreAoEmulador(db);
 
 export default app;
