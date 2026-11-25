@@ -11,7 +11,7 @@ import {
 import { formatarDataHora, formatarDuracaoAoVivo, formatarHora } from "../utils/format";
 import { dadosDaCor, descreverVeiculo } from "../utils/veiculo";
 import RolagemLateral from "../components/RolagemLateral";
-import { atualizarTipoVagaAdmin } from "../services/estacionamentos";
+import { atualizarTipoVagaAdmin, liberarVagaAdmin } from "../services/estacionamentos";
 import {
   combinarVagasDoPatio,
   obterTipoVaga,
@@ -68,6 +68,10 @@ export default function MonitoramentoVagasAdmin() {
   const [tipoEmEdicao, setTipoEmEdicao] = useState("comum");
   const [salvandoTipo, setSalvandoTipo] = useState(false);
   const [erroTipo, setErroTipo] = useState("");
+  // Saída pela administração: pede confirmação antes de tirar o carro.
+  const [confirmandoSaida, setConfirmandoSaida] = useState(false);
+  const [liberando, setLiberando] = useState(false);
+  const [erroSaida, setErroSaida] = useState("");
   const mapaRef = useRef(null);
 
   useEffect(() => {
@@ -151,6 +155,25 @@ export default function MonitoramentoVagasAdmin() {
     setVagaSelecionada(vaga.id);
     setTipoEmEdicao(vaga.tipo || "comum");
     setErroTipo("");
+    setConfirmandoSaida(false);
+    setErroSaida("");
+  }
+
+  async function liberarVaga() {
+    if (!selecionada?.placa) return;
+    setLiberando(true);
+    setErroSaida("");
+    try {
+      const { placa } = await liberarVagaAdmin({ estId, numero: selecionada.numero });
+      setConfirmandoSaida(false);
+      toast.sucesso(
+        `Vaga ${String(selecionada.numero).padStart(2, "0")} liberada. A saída de ${placa} ficou nas movimentações, sem cobrança.`
+      );
+    } catch (err) {
+      setErroSaida(err.message || "Não foi possível liberar a vaga.");
+    } finally {
+      setLiberando(false);
+    }
   }
 
   async function salvarTipoVaga(event) {
@@ -441,6 +464,54 @@ export default function MonitoramentoVagasAdmin() {
                     </>
                   )}
                 </dl>
+                {selecionada.placa && (
+                  <div className="monitor-saida">
+                    {confirmandoSaida ? (
+                      <div className="monitor-saida-confirmar" role="alertdialog" aria-labelledby="saida-titulo" aria-describedby="saida-texto">
+                        <strong id="saida-titulo">
+                          Tirar {selecionada.placa} da vaga {String(selecionada.numero).padStart(2, "0")}?
+                        </strong>
+                        <p id="saida-texto">
+                          A estadia termina agora, sem cobrança, e a saída fica nas
+                          movimentações como feita pela administração. Use quando o
+                          carro já saiu sem passar pelo totem.
+                        </p>
+                        {erroSaida && <p className="error-text" role="alert">{erroSaida}</p>}
+                        <div className="monitor-saida-acoes">
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            type="button"
+                            onClick={() => {
+                              setConfirmandoSaida(false);
+                              setErroSaida("");
+                            }}
+                            disabled={liberando}
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            className="btn btn-danger-solido btn-sm"
+                            type="button"
+                            onClick={liberarVaga}
+                            disabled={liberando || semInternet}
+                            autoFocus
+                          >
+                            {liberando ? "Liberando…" : "Liberar vaga"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        className="btn btn-danger btn-sm btn-block"
+                        type="button"
+                        onClick={() => setConfirmandoSaida(true)}
+                        disabled={semInternet}
+                      >
+                        Remover veículo da vaga
+                      </button>
+                    )}
+                  </div>
+                )}
                 <form className="monitor-tipo-editor" onSubmit={salvarTipoVaga}>
                   <fieldset disabled={salvandoTipo}>
                     <legend>Classificação da vaga</legend>

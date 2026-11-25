@@ -842,9 +842,11 @@ test('entrada copia modelo e cor do veículo para a vaga; o pátio vê, outro p�
   assert.deepEqual((await getDoc(ref('operador-a', 'estacionamentos/EST-A/vagas/2'))).data(), comDescricao);
   assert.equal((await getDoc(ref('admin', 'estacionamentos/EST-A/vagas/2'))).data().cor, 'prata');
   await assertFails(getDoc(ref('operador-b', 'estacionamentos/EST-A/vagas/2')));
-  // Quem vê a vaga não ganha leitura do veículo (que tem o saldo).
+  // Quem vê a vaga não ganha leitura do veículo (que tem o saldo). A
+  // administração só lê enquanto o carro está num pátio, para poder
+  // registrar a saída dele (ver "administração libera a vaga").
   await assertFails(getDoc(ref('operador-a', 'veiculos/XYZ1234')));
-  await assertFails(getDoc(ref('admin', 'veiculos/XYZ1234')));
+  await assertSucceeds(getDoc(ref('admin', 'veiculos/XYZ1234')));
 });
 
 test('entrada não aceita modelo ou cor diferente do que o dono informou', async () => {
@@ -1415,4 +1417,61 @@ test('REST do ESP: vínculo por código como o firmware lê e grava', async () =
   const cadastro = await rest('/totems/totem-novo?mask.fieldPaths=estacionamentoId', undefined, conta);
   assert.equal(cadastro.status, 200);
   assert.equal(cadastro.data.fields.estacionamentoId.stringValue, 'EST-A');
+});
+
+// Saída pela administração: tira o carro da vaga sem cobrar, com recibo.
+function loteSaidaAdmin(uid = 'admin', reciboExtra = {}, veiculoExtra = {}) {
+  const d = db(uid), batch = writeBatch(d);
+  batch.update(doc(d, 'veiculos/ABC1D23'), {
+    vagaAtual: 0, horaEntrada: 0, estacionamentoId: '', tarifaHoraEntrada: 0, ...veiculoExtra
+  });
+  batch.update(doc(d, 'estacionamentos/EST-A/vagas/1'), {
+    ...vagaLogica(''), leituraValida: deleteField(), modelo: deleteField(), cor: deleteField()
+  });
+  batch.set(doc(d, 'catalogoEstacionamentos/EST-A/vagas/1'), { ocupada: false }, { merge: true });
+  batch.set(doc(d, `historico/ABC1D23_${entrada}`), {
+    ...recibo, saida: agora, valorCobrado: 0, valorPendente: 0,
+    origem: 'administracao', liberadoPor: uid, ...reciboExtra
+  });
+  return batch;
+}
+
+test('administração libera a vaga: estadia encerrada sem cobrança, com recibo', async () => {
+  await assertSucceeds(getDoc(ref('admin', 'veiculos/ABC1D23')));
+  await assertFails(getDoc(ref('admin', 'veiculos/XYZ1234')));
+  await assertSucceeds(loteSaidaAdmin().commit());
+  const v = (await getDoc(ref('motorista-a', 'veiculos/ABC1D23'))).data();
+  assert.equal(v.vagaAtual, 0);
+  assert.equal(v.saldo, 100);
+  assert.deepEqual((await getDoc(ref('admin', 'estacionamentos/EST-A/vagas/1'))).data(), vagaLogica(''));
+  const r = (await getDoc(ref('motorista-a', `historico/ABC1D23_${entrada}`))).data();
+  assert.equal(r.origem, 'administracao');
+  assert.equal(r.valorCobrado, 0);
+  // O carro pode entrar de novo pelo totem depois.
+  const d = db('totem-a'), batch = writeBatch(d);
+  batch.update(doc(d, 'veiculos/ABC1D23'), { vagaAtual: 2, horaEntrada: agora, estacionamentoId: 'EST-A', tarifaHoraEntrada: 8.5 });
+  batch.set(doc(d, 'estacionamentos/EST-A/vagas/2'), vagaLogica('ABC1D23'));
+  await assertSucceeds(batch.commit());
+});
+
+test('saída pela administração: só admin, sem cobrar, sem mexer no saldo e nunca pela metade', async () => {
+  for (const uid of ['operador-a', 'motorista-a', 'totem-a']) {
+    await assertFails(loteSaidaAdmin(uid).commit());
+  }
+  await assertFails(loteSaidaAdmin('admin', { valorCobrado: 5 }).commit());
+  await assertFails(loteSaidaAdmin('admin', { liberadoPor: 'outro' }).commit());
+  await assertFails(loteSaidaAdmin('admin', { saida: agora + 3600 }).commit());
+  await assertFails(loteSaidaAdmin('admin', {}, { saldo: 0 }).commit());
+  // Peças soltas do lote não passam sozinhas.
+  await assertFails(updateDoc(ref('admin', 'veiculos/ABC1D23'), {
+    vagaAtual: 0, horaEntrada: 0, estacionamentoId: '', tarifaHoraEntrada: 0
+  }));
+  await assertFails(updateDoc(ref('admin', 'estacionamentos/EST-A/vagas/1'), vagaLogica('')));
+  await assertFails(setDoc(ref('admin', `historico/ABC1D23_${entrada}`), {
+    ...recibo, saida: agora, valorCobrado: 0, valorPendente: 0, origem: 'administracao', liberadoPor: 'admin'
+  }));
+  assert.equal((await getDoc(ref('admin', 'estacionamentos/EST-A/vagas/1'))).data().placa, 'ABC1D23');
+  // Depois de liberada, não se repete.
+  await assertSucceeds(loteSaidaAdmin().commit());
+  await assertFails(loteSaidaAdmin().commit());
 });

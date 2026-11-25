@@ -109,7 +109,10 @@ export default function ComprovanteEstadia({ estadia, estacionamento, aoFechar }
           </div>
           <div>
             <dt>Saída</dt>
-            <dd>{formatarDataHora(estadia.saida)}</dd>
+            <dd>
+              {formatarDataHora(estadia.saida)}
+              {estadia.origem === "administracao" && " · pela administração, sem cobrança"}
+            </dd>
           </div>
           <div>
             <dt>Permanência</dt>

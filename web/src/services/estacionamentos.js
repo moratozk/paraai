@@ -16,7 +16,7 @@ import {
   updateDoc,
   writeBatch,
 } from "firebase/firestore";
-import { db } from "../firebase/firebaseConfig";
+import { auth, db } from "../firebase/firebaseConfig";
 import { obterTipoVaga, tipoVagaValido } from "../utils/mapaVagas";
 
 // Tarifa padrão usada até o dono definir a dele no painel.
@@ -371,4 +371,101 @@ export async function atualizarTipoVagaAdmin({ estId, numero, tipo }) {
     await setDoc(vagaPublicaRef, { ocupada, tipo });
   }
   return tipo;
+}
+
+// Saída pela administração: tira da vaga um carro cuja saída não passou pelo
+// totem (saiu sem digitar a placa, entrada por engano). Num lote só, encerra
+// a estadia sem cobrança, libera a vaga nos dois mapas e grava o recibo com
+// origem "administracao", que aparece nas movimentações. O saldo do
+// motorista não muda. As regras recusam qualquer parte isolada.
+export async function liberarVagaAdmin({ estId, numero }) {
+  const numeroVaga = Number(numero);
+  if (!estId || !Number.isInteger(numeroVaga) || numeroVaga < 1 || numeroVaga > 200) {
+    throw new Error("Vaga inválida.");
+  }
+  const vagaRef = doc(db, "estacionamentos", estId, "vagas", String(numeroVaga));
+  const vagaSnap = await getDoc(vagaRef);
+  const placa = vagaSnap.exists() ? String(vagaSnap.data().placa || "") : "";
+  if (!placa) throw new Error("Esta vaga já está livre.");
+
+  const veiculoRef = doc(db, "veiculos", placa);
+  let veiculo;
+  try {
+    const veiculoSnap = await getDoc(veiculoRef);
+    veiculo = veiculoSnap.exists() ? veiculoSnap.data() : null;
+  } catch {
+    veiculo = null;
+  }
+  if (
+    !veiculo ||
+    Number(veiculo.vagaAtual) !== numeroVaga ||
+    veiculo.estacionamentoId !== estId ||
+    !(Number(veiculo.horaEntrada) > 0)
+  ) {
+    throw new Error("A estadia desta placa já foi encerrada. Atualize a página e confira a vaga.");
+  }
+
+  const entrada = Number(veiculo.horaEntrada);
+  const saida = Math.max(Math.floor(Date.now() / 1000), entrada);
+  const batch = writeBatch(db);
+  batch.update(veiculoRef, {
+    vagaAtual: 0,
+    horaEntrada: 0,
+    estacionamentoId: "",
+    tarifaHoraEntrada: 0,
+  });
+  batch.update(vagaRef, {
+    ocupada: false,
+    placa: "",
+    origemOcupacao: "registro",
+    leituraValida: deleteField(),
+    modelo: deleteField(),
+    cor: deleteField(),
+  });
+  batch.set(
+    doc(db, "catalogoEstacionamentos", estId, "vagas", String(numeroVaga)),
+    { ocupada: false },
+    { merge: true }
+  );
+  batch.set(doc(db, "historico", `${placa}_${entrada}`), {
+    placa,
+    vaga: numeroVaga,
+    entrada,
+    saida,
+    duracaoMinutos: Math.floor((saida - entrada) / 60),
+    valorCobrado: 0,
+    valorPendente: 0,
+    tarifaHora: Number(veiculo.tarifaHoraEntrada) || 0,
+    estacionamentoId: estId,
+    origem: "administracao",
+    liberadoPor: auth.currentUser?.uid || "",
+  });
+  await batch.commit();
+
+  // A contagem de vagas livres também é refeita pelo totem na próxima
+  // atualização; aqui só adianta a vitrine. Falhar não desfaz a saída.
+  try {
+    const estacionamentoRef = doc(db, "estacionamentos", estId);
+    const est = (await getDoc(estacionamentoRef)).data() || {};
+    const contagem = {};
+    if (typeof est.vagasLivres === "number") {
+      const limite = Number(est.vagasEmOperacao) || Number(est.numVagas) || est.vagasLivres + 1;
+      contagem.vagasLivres = Math.min(limite, est.vagasLivres + 1);
+    }
+    if (typeof est.vagasLivresMapeadas === "number") {
+      contagem.vagasLivresMapeadas = Math.min(
+        Number(est.numVagas) || est.vagasLivresMapeadas + 1,
+        est.vagasLivresMapeadas + 1
+      );
+    }
+    if (Object.keys(contagem).length) {
+      await Promise.all([
+        updateDoc(estacionamentoRef, contagem),
+        updateDoc(doc(db, "catalogoEstacionamentos", estId), contagem),
+      ]);
+    }
+  } catch (err) {
+    console.warn("[liberar-vaga] contagem não atualizada:", err);
+  }
+  return { placa, entrada, saida };
 }
