@@ -371,3 +371,19 @@
 }
 
 .monitor-vaga:active { transform: scale(0.96); }
+
+/* Saída pela administração: o botão abre a confirmação no próprio painel. */
+.monitor-saida { display: grid; }
+.monitor-saida-confirmar {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.9rem;
+  border: 1px solid var(--danger);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+}
+.monitor-saida-confirmar strong { color: var(--text-primary); font-size: var(--t-apoio); }
+.monitor-saida-confirmar p { margin: 0; color: var(--text-secondary); font-size: var(--t-legenda); line-height: 1.45; }
+.monitor-saida-confirmar .error-text { color: var(--danger); }
+.monitor-saida-acoes { display: flex; gap: 0.5rem; }
+.monitor-saida-acoes .btn { flex: 1; padding-inline: 0.75rem; }

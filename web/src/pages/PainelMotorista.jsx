@@ -364,6 +364,7 @@ export default function PainelMotorista() {
                             : formatarDataHora(item.saida)}
                           {/* A cor do valor sozinha não diz que ficou pendência. */}
                           {valorPendente(item) > 0 && " · pendente"}
+                          {item.origem === "administracao" && " · saída pela administração"}
                         </span>
                       </span>
                       <span

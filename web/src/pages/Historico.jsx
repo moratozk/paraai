@@ -21,6 +21,8 @@ import "./Pages.css";
 // podem ter ficado "ativa" e continuam visíveis como histórico.
 function situacao(item) {
   if (item.status === "ativa") return { rotulo: "Em andamento", classe: "warning" };
+  // Saída registrada pela administração da rede, sem cobrança.
+  if (item.origem === "administracao") return { rotulo: "Liberada pela administração", classe: "" };
   if (valorPendente(item) > 0) return { rotulo: "Pendente", classe: "warning" };
   return { rotulo: "Concluído", classe: "success" };
 }

@@ -123,6 +123,8 @@ veiculos/{PLACA}                          -- GLOBAL: carteira única na rede
 historico/{PLACA_horaEntrada}              -- novo firmware: ID da estadia
   placa, vaga, entrada, saida, duracaoMinutos, valorCobrado,
   valorPendente (parte não coberta pelo saldo), tarifaHora, estacionamentoId
+  origem="administracao", liberadoPor: saída feita pela administração no
+  painel Vagas ao vivo, sem cobrança
 
 historico/{ID_GERADO_PELO_APP}             -- versão anterior (só leitura)
   origem="aplicativo": estadias cobradas pelo app antes da reserva

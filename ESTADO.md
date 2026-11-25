@@ -1,7 +1,7 @@
 # Estado do projeto
 
 Arquivo de retomada: quem abrir isto (pessoa ou assistente) entende onde a
-coisa parou sem precisar reler o histórico. Atualizado em **18/11/2026**.
+coisa parou sem precisar reler o histórico. Atualizado em **25/11/2026**.
 
 ---
 
@@ -64,6 +64,25 @@ aceitam o firmware de 06/10 que está no totem e o da `main`. Faltam as
 conferências dos itens 14 a 17 de "O que falta", agora no ar; as dos itens 8
 a 13 também seguem pendentes. Gravar o firmware novo é um passo à parte, que
 não depende de publicar (item 17).
+
+## Remover veículo da vaga pela administração (25/11/2026)
+
+- Em **Vagas ao vivo** (`/admin/estacionamentos/:id/vagas`), a conta de
+  administração toca numa vaga ocupada, em **Remover veículo da vaga** e
+  confirma. Serve para o carro que saiu sem digitar a placa no totem ou para
+  uma entrada feita por engano.
+- Um lote só encerra a estadia **sem cobrança** (o saldo não muda), libera a
+  vaga nos dois mapas e grava o recibo em `historico/{PLACA_horaEntrada}` com
+  `origem: "administracao"`, `liberadoPor` e valor zero. Nas movimentações e
+  no comprovante aparece "Liberada pela administração".
+- Regras: a administração lê `veiculos/{placa}` só enquanto o carro está num
+  pátio (`vagaAtual != 0`), para saber a entrada e a tarifa; o dono continua
+  sem ler. Nenhuma parte do lote passa sozinha. Os caminhos do totem não
+  mudaram, então o firmware gravado em 18/11 continua aceito.
+- Diferente do PR #42 do Lucas (aberto), que marca à mão vagas **sem** placa
+  e recusa liberar vaga com estadia. Os dois não se sobrepõem; se o #42 for
+  unido, só o trecho do painel do dono em `MapaVagas.jsx` não é tocado aqui.
+- Para valer no ar: publicar as regras e o site.
 
 ## Totem reserva no navegador (24/11/2026)
 

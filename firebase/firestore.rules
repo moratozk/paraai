@@ -215,6 +215,57 @@ service cloud.firestore {
         ]);
     }
 
+    // Saída pela administração da rede: tira da vaga um carro cuja saída não
+    // passou pelo totem (saiu sem digitar a placa, entrada por engano). A
+    // estadia termina sem cobrança, num lote só com a vaga livre e um recibo
+    // marcado como "administracao" (ver historicoAdministrativoValido). O
+    // saldo do motorista não muda.
+    function saidaAdministrativaValida(placa) {
+      let caminho = /databases/$(database)/documents/historico/$(placa + '_' + string(resource.data.get('horaEntrada', 0)));
+      return adminDoSistema()
+        && resource.data.vagaAtual is int
+        && resource.data.vagaAtual > 0
+        && request.resource.data.vagaAtual == 0
+        && request.resource.data.horaEntrada == 0
+        && request.resource.data.estacionamentoId == ''
+        && request.resource.data.tarifaHoraEntrada == 0
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'vagaAtual', 'horaEntrada', 'estacionamentoId', 'tarifaHoraEntrada'
+        ])
+        && !exists(caminho)
+        && getAfter(caminho).data.get('origem', '') == 'administracao';
+    }
+
+    // Recibo da saída pela administração: mesma estadia que estava aberta,
+    // valor zero, quem liberou e a vaga livre no mesmo lote.
+    function historicoAdministrativoValido(dados, registro) {
+      let antes = get(/databases/$(database)/documents/veiculos/$(dados.placa)).data;
+      let depois = getAfter(/databases/$(database)/documents/veiculos/$(dados.placa)).data;
+      let vagaDepois = getAfter(/databases/$(database)/documents/estacionamentos/$(dados.estacionamentoId)/vagas/$(string(dados.vaga))).data;
+      return adminDoSistema()
+        && dados.keys().hasOnly(['placa', 'vaga', 'entrada', 'saida',
+          'duracaoMinutos', 'valorCobrado', 'valorPendente', 'tarifaHora',
+          'estacionamentoId', 'origem', 'liberadoPor'])
+        && dados.origem == 'administracao'
+        && dados.liberadoPor == request.auth.uid
+        && dados.placa is string
+        && dados.placa.matches('^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$')
+        && dados.vaga is int && dados.vaga >= 1 && dados.vaga <= 200
+        && dados.entrada is int && dados.entrada > 0
+        && dados.saida is int && dados.saida >= dados.entrada
+        && horarioProximo(dados.saida)
+        && dados.duracaoMinutos == int((dados.saida - dados.entrada) / 60)
+        && dados.valorCobrado == 0 && dados.valorPendente == 0
+        && registro == dados.placa + '_' + string(dados.entrada)
+        && antes.vagaAtual == dados.vaga
+        && antes.horaEntrada == dados.entrada
+        && antes.estacionamentoId == dados.estacionamentoId
+        && antes.tarifaHoraEntrada == dados.tarifaHora
+        && depois.vagaAtual == 0 && depois.estacionamentoId == ''
+        && depois.saldo == antes.saldo
+        && vagaDepois.placa == '' && vagaDepois.ocupada == false;
+    }
+
     function perfilDeOperador(uid) {
       return exists(/databases/$(database)/documents/users/$(uid))
         && get(/databases/$(database)/documents/users/$(uid)).data.role == 'operador';
@@ -664,6 +715,16 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'ocupada', 'placa', 'origemOcupacao', 'leituraValida', 'modelo', 'cor'
           ]);
+        // Saída pela administração: só libera a vaga, no mesmo lote que
+        // encerra a estadia do carro que está nela.
+        allow update: if adminDoSistema()
+          && resource.data.get('placa', '') != ''
+          && request.resource.data.placa == ''
+          && dadosVagaValidos(request.resource.data)
+          && transicaoVagaValida(estId, vaga)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'ocupada', 'placa', 'origemOcupacao', 'leituraValida', 'modelo', 'cor'
+          ]);
         // Apagar uma vaga ocupada deixaria a estadia sem saída possível.
         allow delete: if (adminDoSistema() || donoDoEstacionamento(estId))
           && resource.data.get('placa', '') == '';
@@ -957,7 +1018,9 @@ service cloud.firestore {
         || (signedIn()
           && !exists(/databases/$(database)/documents/veiculos/$(placa)))
         || (signedIn() && resource.data.ownerUid == request.auth.uid)
-        || (signedIn() && veiculoSemDono());
+        || (signedIn() && veiculoSemDono())
+        // A administração lê a estadia aberta para registrar a saída.
+        || (adminDoSistema() && resource.data.get('vagaAtual', 0) != 0);
       allow create: if (totemCadastrado()
           && veiculoInicialDoTotemValido(request.resource.data))
         || (signedIn()
@@ -965,6 +1028,7 @@ service cloud.firestore {
       allow update: if totemPodeRegistrarEntrada(placa)
         || totemPodeRegistrarSaida(placa)
         || recargaDoDonoValida(placa)
+        || saidaAdministrativaValida(placa)
         || liberacaoDaPlacaValida()
         || (signedIn()
           && resource.data.ownerUid == request.auth.uid
@@ -1022,6 +1086,7 @@ service cloud.firestore {
         && historicoCorrespondeAEstadia(request.resource.data, registro)
         && request.resource.data.estacionamentoId
           == get(/databases/$(database)/documents/totems/$(request.auth.uid)).data.estacionamentoId;
+      allow create: if historicoAdministrativoValido(request.resource.data, registro);
       allow update: if false;
       allow delete: if false;
     }
